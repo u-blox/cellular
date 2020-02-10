@@ -1,0 +1,218 @@
+/*
+ * Copyright (C) u-blox Cambourne Ltd
+ * u-blox Cambourne Ltd, Cambourne, UK
+ *
+ * All rights reserved.
+ *
+ * This source file is the sole property of u-blox Cambourne Ltd.
+ * Reproduction or utilisation of this source in whole or part is
+ * forbidden without the written consent of u-blox Cambourne Ltd.
+ */
+
+#include "cellular_port_clib.h"
+#include "cellular_port.h"
+#include "cellular_port_os.h"
+#include "cellular_port_uart.h"
+
+#include "driver/uart.h"
+
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS
+ * -------------------------------------------------------------- */
+
+// The maximum number of UARTs supported, which is the range of the
+// "uart" parameter on this platform
+#define CELLULAR_PORT_UART_MAX_NUM 3
+
+/* ----------------------------------------------------------------
+ * TYPES
+ * -------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------
+ * VARIABLES
+ * -------------------------------------------------------------- */
+
+// Mutexes to protect the UART hardware.
+static CellularPortMutexHandle_t gMutex[CELLULAR_PORT_UART_MAX_NUM] = {NULL};
+
+/* ----------------------------------------------------------------
+ * STATIC FUNCTIONS
+ * -------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS
+ * -------------------------------------------------------------- */
+
+//** Initialise a UART.
+int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
+                             int32_t pinCts, int32_t pinRts,
+                             int32_t baudRate,
+                             size_t rtsThreshold,
+                             int32_t uart,
+                             CellularPortQueueHandle_t *pUartQueue)
+{
+    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    uart_config_t config;
+    esp_err_t espError;
+
+    if ((pUartQueue != NULL) && (pinRx >= 0) && (pinTx >= 0) &&
+        (uart < sizeof(gMutex) / sizeof(gMutex[0]))) {
+        errorCode = CELLULAR_PORT_SUCCESS;
+        if (gMutex[uart] == NULL) {
+            errorCode = cellularPortMutexCreate(&(gMutex[uart]));
+            if (errorCode == 0) {
+                errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+
+                CELLULAR_PORT_MUTEX_LOCK(gMutex[uart]);
+
+                // Set the things that won't change
+                config.data_bits = UART_DATA_8_BITS,
+                config.stop_bits = UART_STOP_BITS_1,
+                config.parity    = UART_PARITY_DISABLE,
+                config.use_ref_tick = false;
+
+                // Set the baud rate
+                config.baud_rate = baudRate;
+
+                // Set flow control
+                config.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+                config.rx_flow_ctrl_thresh = 0;
+                if ((pinCts >= 0) && (pinRts >= 0)) {
+                    config.flow_ctrl = UART_HW_FLOWCTRL_CTS_RTS;
+                    config.rx_flow_ctrl_thresh = rtsThreshold;
+                } else if (pinCts >= 0) {
+                    config.flow_ctrl = UART_HW_FLOWCTRL_CTS;
+                } else if (pinRts >= 0) {
+                    config.flow_ctrl = UART_HW_FLOWCTRL_RTS;
+                    config.rx_flow_ctrl_thresh = rtsThreshold;
+                }
+
+                // Do the UART configuration
+                espError = uart_param_config(uart, &config);
+                if (espError == 0) {
+                    // Set up the UART pins
+                    if (pinCts < 0) {
+                        pinCts = UART_PIN_NO_CHANGE;
+                    }
+                    if (pinRts < 0) {
+                        pinRts = UART_PIN_NO_CHANGE;
+                    }
+                    espError = uart_set_pin(uart, pinTx, pinRx,
+                                            pinRts, pinCts);
+                    if (espError == 0) {
+                        // Switch off SW flow control
+                        espError = uart_set_sw_flow_ctrl(uart, false, 0, 0);
+                        if (espError == 0) {
+                            // Install the driver
+                            espError = uart_driver_install(uart,
+                                                           CELLULAR_PORT_UART_RX_BUFFER_SIZE,
+                                                           CELLULAR_PORT_UART_TX_BUFFER_SIZE,
+                                                           CELLULAR_PORT_UART_EVENT_QUEUE_SIZE,
+                                                           pUartQueue, 0);
+                            if (espError == 0) {
+                                errorCode = CELLULAR_PORT_SUCCESS;
+                            }
+                        }
+                    }
+                }
+
+                CELLULAR_PORT_MUTEX_UNLOCK(gMutex[uart]);
+
+                // If we failed to initialise the UART,
+                // delete the mutex and put the uart's gMutex[]
+                // state back to NULL
+                if (errorCode != 0) {
+                    cellularPortMutexDelete(gMutex[uart]);
+                    gMutex[uart] = NULL;
+                }
+            }
+        }
+    }
+
+    return (int32_t) errorCode;
+}
+
+// Shutdown a UART.
+int32_t cellularPortUartDeinit(int32_t uart)
+{
+    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    esp_err_t espError;
+
+    if (uart < sizeof(gMutex) / sizeof(gMutex[0])) {
+        errorCode = CELLULAR_PORT_SUCCESS;
+        if (gMutex[uart] != NULL) {
+            errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+            // This function should not be called if another task
+            // already has the mutex, do a quick check here
+            cellularPort_assert(cellularPortMutexGetLocker(gMutex[uart]) == 0);
+
+            // No need to lock the mutex, we need to delete it
+            // and we're not allowed to delete a locked mutex.
+            // The caller needs to make sure that no read/write
+            // is in progress when this function is called.
+            espError = uart_driver_delete(uart);
+            if (espError == ESP_OK) {
+                cellularPortMutexDelete(gMutex[uart]);
+                gMutex[uart] = NULL;
+                errorCode = CELLULAR_PORT_SUCCESS;
+            }
+        }
+    }
+
+    return (int32_t) errorCode;
+}
+
+// Read from the given UART interface.
+int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
+                             size_t sizeBytes)
+{
+    CellularPortErrorCode sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
+
+    if ((pBuffer != NULL) &&
+        (uart < sizeof(gMutex) / sizeof(gMutex[0]))) {
+        sizeOrErrorCode = CELLULAR_PORT_NOT_INITIALISED;
+        if (gMutex[uart] != NULL) {
+
+            CELLULAR_PORT_MUTEX_LOCK(gMutex[uart]);
+
+            // Will get back either size or -1
+            sizeOrErrorCode = uart_read_bytes(uart, (uint8_t *) pBuffer, sizeBytes, 0);
+            if (sizeOrErrorCode < 0) {
+                sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
+            }
+
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutex[uart]);
+        }
+    }
+
+    return (int32_t) sizeOrErrorCode;
+}
+
+// Write to the given UART interface.
+int32_t cellularPortUartWrite(int32_t uart,
+                              const char *pBuffer,
+                              size_t sizeBytes)
+{
+    CellularPortErrorCode sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
+
+    if ((pBuffer != NULL) &&
+        (uart < sizeof(gMutex) / sizeof(gMutex[0]))) {
+        sizeOrErrorCode = CELLULAR_PORT_NOT_INITIALISED;
+        if (gMutex[uart] != NULL) {
+
+            CELLULAR_PORT_MUTEX_LOCK(gMutex[uart]);
+
+            // Will get back either size or -1
+            sizeOrErrorCode = uart_write_bytes(uart, (const char *) pBuffer, sizeBytes);
+            if (sizeOrErrorCode < 0) {
+                sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
+            }
+
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutex[uart]);
+        }
+    }
+
+    return (int32_t) sizeOrErrorCode;
+}
+
+// End of file

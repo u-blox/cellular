@@ -1,0 +1,200 @@
+/*
+ * Copyright (C) u-blox Cambourne Ltd
+ * u-blox Cambourne Ltd, Cambourne, UK
+ *
+ * All rights reserved.
+ *
+ * This source file is the sole property of u-blox Cambourne Ltd.
+ * Reproduction or utilisation of this source in whole or part is
+ * forbidden without the written consent of u-blox Cambourne Ltd.
+ */
+
+#ifndef _CELLULAR_PORT_OS_H_
+#define _CELLULAR_PORT_OS_H_
+
+/** Porting layer for OS functions.  These functions are
+ * thread-safe.
+ */
+
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS
+ * -------------------------------------------------------------- */
+
+/** Helper to make sure that lock/unlock pairs are always balanced.
+ */
+#define CELLULAR_PORT_MUTEX_LOCK(x)      { cellularPortMutexLock(x)
+
+/** Helper to make sure that lock/unlock pairs are always balanced.
+ */
+#define CELLULAR_PORT_MUTEX_UNLOCK(x)    } cellularPortMutexUnlock(x)
+
+/* ----------------------------------------------------------------
+ * TYPES
+ * -------------------------------------------------------------- */
+
+/** Mutex handle.
+ */
+typedef void * CellularPortMutexHandle_t;
+
+/** Queue handle.
+ */
+typedef void * CellularPortQueueHandle_t;
+
+/** Task handle.
+ */
+typedef void * CellularPortTaskHandle_t;
+
+/* ----------------------------------------------------------------
+ * FUNCTIONS: TASKS
+ * -------------------------------------------------------------- */
+
+/** Create a task.
+ *
+ * @param pFunction      the function that forms the task.
+ * @param pName          a NULL-terminated string naming the task,
+ *                       may be NULL.
+ * @param stackSizeBytes the number of bytes of memory to dynamically
+ *                       allocate for stack.
+ * @param pParameter     this pointer will be passed to pFunction
+ *                       when the task is started.
+ * @param priority       the priority at which to run the task,
+ *                       the meaning of which is platform dependent
+ * @param pTaskHandle    a place to put the handle of the created
+ *                       task.
+ * @return               zero on success else negative error code.
+ */
+int32_t cellularPortTaskCreate(void (*pFunction)(void *),
+                               const char *pName,
+                               size_t stackSizeBytes,
+                               void *pParameter,
+                               int32_t priority,
+                               CellularPortTaskHandle_t *pTaskHandle);
+
+/** Delete the given task.
+ *
+ * @param taskHandle  the handle of the task to be deleted.
+ *                    Use NULL to delete the current task.
+ * @return            zero on success else negative error code.
+ */
+int32_t cellularPortTaskDelete(const CellularPortTaskHandle_t taskHandle);
+
+/** Check if the current task handle is equal to the given task handle.
+ *
+ * @param taskHandle  the task handle to check against.
+ * @return            true if the task handle pointed to by
+ *                    pTaskHandle is the current task handle,
+ *                    otherwise false
+ */
+bool cellularPortTaskIsThis(const CellularPortTaskHandle_t taskHandle);
+
+/** Block the current task for a time.
+ *
+ * @param delayMs the amount of time to block for in milliseconds.
+ */
+void cellularPortTaskBlock(int32_t delayMs);
+
+/* ----------------------------------------------------------------
+ * FUNCTIONS: QUEUES
+ * -------------------------------------------------------------- */
+
+/** Create a queue.
+ *
+ * @param queueLength    the maximum length of the queue in units
+ *                       of itemSizeBytes.
+ * @param pQueueHandle   a place to put the handle of the queue.
+ * @return               zero on success else negative error code.
+ */
+int32_t cellularPortQueueCreate(size_t queueLength,
+                                CellularPortQueueHandle_t *pQueueHandle);
+
+/** Delete the given queue.
+ *
+ * @param queueHandle  the handle of the queue to be deleted.
+ * @return             zero on success else negative error code.
+ */
+int32_t cellularPortQueueDelete(const CellularPortQueueHandle_t queueHandle);
+
+/** Send to the given queue.
+ *
+ * @param queueHandle  the handle of the queue.
+ * @param pData        pointer to the data to send.  The data will
+ *                     be copied into the queue and hence can be
+ *                     destroyed by the caller once this functions
+ *                     returns.
+ * @return             zero on success else negative error code.
+ */
+int32_t cellularPortQueueSend(const CellularPortQueueHandle_t queueHandle,
+                              const void *pData);
+
+/** Receive from the given queue.
+ *
+ * @param queueHandle the handle of the queue.
+ * @param pData       pointer to a place to put incoming data.
+ * @return            zero on success else negative error code.
+ */
+int32_t cellularPortQueueReceive(const CellularPortQueueHandle_t queueHandle,
+                                 void *pData);
+
+/* ----------------------------------------------------------------
+ * FUNCTIONS: MUTEXES
+ * -------------------------------------------------------------- */
+
+/** Create a mutex.
+ *
+ * @param pMutexHandle a place to put the mutex handle.
+ * @return             zero on success else negative error code.
+ */
+int32_t cellularPortMutexCreate(CellularPortMutexHandle_t *pMutexHandle);
+
+/** Destroy a mutex.
+ *
+ * @param mutexHandle the handle of the mutex.
+ */
+void cellularPortMutexDelete(const CellularPortMutexHandle_t mutexHandle);
+
+/** Lock the given mutex, waiting until it is available if
+ * it is already locked.
+ *
+ * @param mutexHandle  the handle of the mutex.
+ * @return             zero on success else negative error code.
+ */
+int32_t cellularPortMutexLock(const CellularPortMutexHandle_t mutexHandle);
+
+/** Try to lock the given mutex, waiting up to delayMs
+ * if it is currently locked.
+ *
+ * @param mutexHandle  the handle of the mutex.
+ * @param delayMs      the maximum time to wait in milliseconds.
+ * @return             zero on success else negative error code.
+ */
+int32_t cellularPortMutexTryLock(const CellularPortMutexHandle_t mutexHandle,
+                                 int32_t delayMs);
+
+/** Unlock the given mutex.
+ *
+ * @param mutexHandle   the handle of the mutex.
+ * @return              zero on success else negative error code.
+ */
+int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle);
+
+/** Get the task handle of the task that has the given mutex locked.
+ *
+ * @param mutexHandle   the handle of the mutex.
+ * @return              the handle of the task that holds the mutex
+ *                      or 0 if the mutex is not currently held.
+ */
+CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandle_t mutexHandle);
+
+/* ----------------------------------------------------------------
+ * FUNCTIONS: TIME
+ * -------------------------------------------------------------- */
+
+/** Get the current time in milliseconds.
+ *
+ * @return the current time in milliseconds.
+ */
+int64_t cellularPortTimeMs();
+
+#endif // _CELLULAR_PORT_OS_H_
+
+// End of file
