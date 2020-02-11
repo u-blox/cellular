@@ -52,7 +52,7 @@ int32_t cellularPortTaskCreate(void (*pFunction)(void *),
                                int32_t priority,
                                CellularPortTaskHandle_t *pTaskHandle)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if ((pFunction != NULL) && (pTaskHandle != NULL)) {
         errorCode = xTaskCreate(pFunction, pName, stackSizeBytes,
@@ -66,7 +66,7 @@ int32_t cellularPortTaskCreate(void (*pFunction)(void *),
 // Delete the given task.
 int32_t cellularPortTaskDelete(const CellularPortTaskHandle_t taskHandle)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     // Can only delete oneself in freeRTOS
     if (taskHandle == NULL) {
@@ -97,7 +97,7 @@ void cellularPortTaskBlock(int32_t delayMs)
 int32_t cellularPortQueueCreate(size_t queueLength,
                                 CellularPortQueueHandle_t *pQueueHandle)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if (pQueueHandle != NULL) {
         errorCode = CELLULAR_PORT_PLATFORM_ERROR;
@@ -114,7 +114,7 @@ int32_t cellularPortQueueCreate(size_t queueLength,
 // Delete the given queue.
 int32_t cellularPortQueueDelete(const CellularPortQueueHandle_t queueHandle)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if (queueHandle != NULL) {
         vQueueDelete((QueueHandle_t) queueHandle);
@@ -128,7 +128,7 @@ int32_t cellularPortQueueDelete(const CellularPortQueueHandle_t queueHandle)
 int32_t cellularPortQueueSend(const CellularPortQueueHandle_t queueHandle,
                               const void *pEventData)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if ((queueHandle != NULL) && (pEventData != NULL)) {
         errorCode =  xQueueSend((QueueHandle_t) queueHandle,
@@ -143,7 +143,7 @@ int32_t cellularPortQueueSend(const CellularPortQueueHandle_t queueHandle,
 int32_t cellularPortQueueReceive(const CellularPortQueueHandle_t queueHandle,
                                  void *pEventData)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if ((queueHandle != NULL) && (pEventData != NULL)) {
         errorCode = xQueueReceive((QueueHandle_t) queueHandle,
@@ -161,7 +161,7 @@ int32_t cellularPortQueueReceive(const CellularPortQueueHandle_t queueHandle,
 // Create a mutex.
 int32_t cellularPortMutexCreate(CellularPortMutexHandle_t *pMutexHandle)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if (pMutexHandle != NULL) {
         errorCode = CELLULAR_PORT_PLATFORM_ERROR;
@@ -186,7 +186,7 @@ void cellularPortMutexDelete(const CellularPortMutexHandle_t mutexHandle)
 // Lock the given mutex.
 int32_t cellularPortMutexLock(const CellularPortMutexHandle_t mutexHandle)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if (mutexHandle != NULL) {
         xSemaphoreTake((SemaphoreHandle_t) mutexHandle,
@@ -201,7 +201,7 @@ int32_t cellularPortMutexLock(const CellularPortMutexHandle_t mutexHandle)
 int32_t cellularPortMutexTryLock(const CellularPortMutexHandle_t mutexHandle,
                                  int32_t delayMs)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if (mutexHandle != NULL) {
         errorCode = CELLULAR_PORT_TIMEOUT;
@@ -217,7 +217,7 @@ int32_t cellularPortMutexTryLock(const CellularPortMutexHandle_t mutexHandle,
 // Unlock the given mutex.
 int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if (mutexHandle != NULL) {
         xSemaphoreGive((SemaphoreHandle_t) mutexHandle);

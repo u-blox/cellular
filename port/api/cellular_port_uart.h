@@ -44,10 +44,6 @@
 # define CELLULAR_PORT_UART_EVENT_QUEUE_SIZE 20
 #endif
 
-/** A "non-event" UART event.
- */
-#define CELLULAR_PORT_UART_EVENT_NULL {-1, 0}
-
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -100,10 +96,11 @@ int32_t cellularPortUartDeinit(int32_t uart);
  * normally required, it is done by the UART driver, however
  * there are occasions when a receive event is handled but
  * the data is then only partially read.  This can be used to
- * generate a new event so that data can be processed naturally.
- * Also, a value of -1 in the send data length will cause
- * an invalid receive event which can be detected by the
- * receive thread and used to shut it down cleanly.
+ * generate a new event so that the remaining data can be
+ * processed naturally by the receive thread.
+ * Also, a negative value of send data length will cause
+ * an invalid receive event to be sent which can be detected
+ * by the receive thread and used to shut it down cleanly.
  *
  * @param queueHandle the handle for the UART event queue.
  * @param sizeBytes   the number of bytes of received data
@@ -122,8 +119,7 @@ int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
  */
 int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle);
 
-/** Get the number of bytes waiting in the receive
- * buffer.
+/** Get the number of bytes waiting in the receive buffer.
  *
  * @param uart      the UART number to use.
  * @return          the number of bytes in the receive buffer

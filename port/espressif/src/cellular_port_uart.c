@@ -56,7 +56,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                              int32_t uart,
                              CellularPortQueueHandle_t *pUartQueue)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
     uart_config_t config;
     esp_err_t espError;
 
@@ -140,7 +140,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
 // Shutdown a UART.
 int32_t cellularPortUartDeinit(int32_t uart)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
     esp_err_t espError;
 
     if (uart < sizeof(gMutex) / sizeof(gMutex[0])) {
@@ -209,7 +209,7 @@ int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle
 // Get the number of bytes waiting in the receive buffer.
 int32_t cellularPortUartGetReceiveSize(int32_t uart)
 {
-    CellularPortErrorCode sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
     size_t receiveSize;
 
     if (uart < sizeof(gMutex) / sizeof(gMutex[0])) {
@@ -235,7 +235,7 @@ int32_t cellularPortUartGetReceiveSize(int32_t uart)
 int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
                              size_t sizeBytes)
 {
-    CellularPortErrorCode sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if ((pBuffer != NULL) &&
         (uart < sizeof(gMutex) / sizeof(gMutex[0]))) {
@@ -262,7 +262,7 @@ int32_t cellularPortUartWrite(int32_t uart,
                               const char *pBuffer,
                               size_t sizeBytes)
 {
-    CellularPortErrorCode sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if ((pBuffer != NULL) &&
         (uart < sizeof(gMutex) / sizeof(gMutex[0]))) {

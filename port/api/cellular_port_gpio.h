@@ -37,7 +37,7 @@ typedef enum {
     CELLULAR_PORT_GPIO_DIRECTION_OUTPUT,
     CELLULAR_PORT_GPIO_DIRECTION_INPUT_OUTPUT,
     MAX_NUM_CELLULAR_PORT_GPIO_DIRECTIONS
-} CellularPortGpioDirection;
+} CellularPortGpioDirection_t;
 
 /** The possible GPIO pull modes.
  */
@@ -46,7 +46,7 @@ typedef enum {
     CELLULAR_PORT_GPIO_PULL_MODE_PULL_UP,
     CELLULAR_PORT_GPIO_PULL_MODE_PULL_DOWN,
     MAX_NUM_CELLULAR_PORT_GPIO_PULL_MODES
-} CellularPortGpioPullMode;
+} CellularPortGpioPullMode_t;
 
 /** The possible GPIO drive modes.
  */
@@ -54,7 +54,7 @@ typedef enum {
     CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL,
     CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN,
     MAX_NUM_CELLULAR_PORT_GPIO_DRIVE_MODES
-} CellularPortGpioDriveMode;
+} CellularPortGpioDriveMode_t;
 
 /** GPIO configuration structure.
  * If you update this, don't forget to update
@@ -62,10 +62,10 @@ typedef enum {
  */
 typedef struct {
     int32_t pin;
-    CellularPortGpioDirection direction;
-    CellularPortGpioPullMode pullMode;
-    CellularPortGpioDriveMode driveMode;
-} CellularPortGpioConfig;
+    CellularPortGpioDirection_t direction;
+    CellularPortGpioPullMode_t pullMode;
+    CellularPortGpioDriveMode_t driveMode;
+} CellularPortGpioConfig_t;
 
 /** Default values for the above.
  */
@@ -83,7 +83,7 @@ typedef struct {
  * @param pConfig a pointer to the configuration to set, cannot be NULL.
  * @return        zero on success else negative error code.
  */
-int32_t cellularPortGpioConfig(CellularPortGpioConfig *pConfig);
+int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig);
 
 /** Set the state of a GPIO.
  *

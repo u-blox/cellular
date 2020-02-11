@@ -42,9 +42,9 @@
  * -------------------------------------------------------------- */
 
 // Configure a GPIO.
-int32_t cellularPortGpioConfig(CellularPortGpioConfig *pConfig)
+int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
     bool badConfig = false;
     gpio_config_t config;
 
@@ -117,7 +117,7 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig *pConfig)
 // gpio_deep_sleep_hold_en() prior to entering deep sleep.
 int32_t cellularPortGpioSet(int32_t pin, int32_t level)
 {
-    CellularPortErrorCode errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_PLATFORM_ERROR;
     esp_err_t espError;
 
     // In case we've just come out of deep sleep set

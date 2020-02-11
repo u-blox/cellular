@@ -42,7 +42,7 @@
 typedef struct {
     void (*pFunction)(void  *);
     void *pParam;
-} CellularCtrlCallback;
+} CellularCtrlCallback_t;
 
 /* ----------------------------------------------------------------
  * VARIABLES
@@ -77,7 +77,7 @@ static int32_t gAtNumConsecutiveTimeouts;
 
 /** The current registration status.
  */
-static CellularCtrlNetworkStatus gNetworkStatus;
+static CellularCtrlNetworkStatus_t gNetworkStatus;
 
 /** The RSSI of the serving cell.
  */
@@ -104,9 +104,9 @@ static int32_t gCellId;
 static int32_t gEarfcn;
 
 /** Table to convert the 3GPP registration status from a
- * +CEREG URC to CellularCtrlNetworkStatus.
+ * +CEREG URC to CellularCtrlNetworkStatus_t.
  */
-static const CellularCtrlNetworkStatus gStatus3gppToCellularNetworkStatus[] =
+static const CellularCtrlNetworkStatus_t gStatus3gppToCellularNetworkStatus[] =
     {CELLULAR_CTRL_NETWORK_STATUS_SEARCHING,           // 0:  searching
      CELLULAR_CTRL_NETWORK_STATUS_REGISTERED,          // 1:  registered on the home network
      CELLULAR_CTRL_NETWORK_STATUS_SEARCHING,           // 2:  searching
@@ -119,7 +119,7 @@ static const CellularCtrlNetworkStatus gStatus3gppToCellularNetworkStatus[] =
      CELLULAR_CTRL_NETWORK_STATUS_REGISTERED,          // 9:  registered for circuit switched fall-back on the home network
      CELLULAR_CTRL_NETWORK_STATUS_REGISTERED};         // 10: registered for circuit switched fall-back on the home network
 
-/** Table to convert CellularCtrlRat to the value used in the module.
+/** Table to convert CellularCtrlRat_t to the value used in the module.
  */
 static const uint8_t gCellularRatToLocalRat[] =
     {255, // dummy value for CELLULAR_CTRL_RAT_UNKNOWN
@@ -127,9 +127,9 @@ static const uint8_t gCellularRatToLocalRat[] =
      8};  // CELLULAR_CTRL_RAT_NB1
 
 /** Table to convert the RAT values used in the module to
- * CellularCtrlRat.
+ * CellularCtrlRat_t.
  */
-static const CellularCtrlRat gLocalRatToCellularRat[] =
+static const CellularCtrlRat_t gLocalRatToCellularRat[] =
     {CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,  // GSM / GPRS / eGPRS (single mode)
      CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,  // GSM / UMTS (dual mode)
      CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,  // UMTS (single mode)
@@ -151,16 +151,16 @@ static const int32_t gRssiConvertLte[] = {-118, -115, -113, -110, -108, -105, -1
 
 /** Array to convert the RAT emited by AT+COPS to one of our RATs.
  */
-static const CellularCtrlRat gCopsRatToCellularRat[] = {CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                        CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                        CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                        CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                        CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                        CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                        CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                        CELLULAR_CTRL_RAT_CATM1, // 7 is CATM1
-                                                        CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                        CELLULAR_CTRL_RAT_NB1};  // 9 is NB1
+static const CellularCtrlRat_t gCopsRatToCellularRat[] = {CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
+                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
+                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
+                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
+                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
+                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
+                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
+                                                          CELLULAR_CTRL_RAT_CATM1, // 7 is CATM1
+                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
+                                                          CELLULAR_CTRL_RAT_NB1};  // 9 is NB1
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS: URCS AND RELATED FUNCTIONS
@@ -284,9 +284,9 @@ static void clearRadioParameters()
 }
 
 // Check that the cellular module is alive.
-static CellularCtrlErrorCode moduleIsAlive(int32_t attempts)
+static CellularCtrlErrorCode_t moduleIsAlive(int32_t attempts)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_RESPONDING;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_RESPONDING;
     bool cellularIsAlive = false;
 
     // See if the cellular module is responding at the AT interface
@@ -312,9 +312,9 @@ static CellularCtrlErrorCode moduleIsAlive(int32_t attempts)
 }
 
 // Configure the cellular module.
-static CellularCtrlErrorCode moduleConfigure()
+static CellularCtrlErrorCode_t moduleConfigure()
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_CONFIGURED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_CONFIGURED;
 
     // Configure the module
     cellular_ctrl_at_lock();
@@ -342,7 +342,7 @@ static CellularCtrlErrorCode moduleConfigure()
 // Get an ID string from the cellular module.
 static int32_t getString(const char *pCmd, char *pBuffer, size_t bufferSize)
 {
-    CellularCtrlErrorCode errorCodeOrSize = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCodeOrSize = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t bytesRead;
     int32_t atError;
 
@@ -420,12 +420,12 @@ static bool prepareConnect()
 }
 
 // Register with the cellular network and obtain a PDP context.
-static CellularCtrlErrorCode tryConnect(bool (*pKeepGoingCallback) (void),
-                                        const char *pApn,
-                                        const char *pUsername,
-                                        const char *pPassword)
+static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
+                                          const char *pApn,
+                                          const char *pUsername,
+                                          const char *pPassword)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_AT_ERROR;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_AT_ERROR;
     bool keepGoing = true;
     bool attached = false;
     bool activated = false;
@@ -599,16 +599,16 @@ static CellularCtrlErrorCode tryConnect(bool (*pKeepGoingCallback) (void),
  * -------------------------------------------------------------- */
 
 // Initialise the cellular control driver.
-CellularCtrlErrorCode cellularCtrlInit(int32_t pinEnablePower,
-                                       int32_t pinCpOn,
-                                       int32_t pinVInt,
-                                       bool leavePowerAlone,
-                                       int32_t uart,
-                                       CellularPortQueueHandle_t queueUart)
+int32_t cellularCtrlInit(int32_t pinEnablePower,
+                         int32_t pinCpOn,
+                         int32_t pinVInt,
+                         bool leavePowerAlone,
+                         int32_t uart,
+                         CellularPortQueueHandle_t queueUart)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t platformError;
-    CellularPortGpioConfig gpioConfig = CELLULAR_PORT_GPIO_CONFIG_DEFAULT;
+    CellularPortGpioConfig_t gpioConfig = CELLULAR_PORT_GPIO_CONFIG_DEFAULT;
     int32_t enablePowerAtStart;
 
     if (!gInitialised) {
@@ -734,7 +734,7 @@ bool cellularCtrlIsAlive()
 // Power the cellular module on.
 int32_t cellularCtrlPowerOn(const char *pPin)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t platformError = 0;
     int32_t enablePowerAtStart = 1;
 
@@ -865,7 +865,7 @@ int32_t cellularCtrlGetConsecutiveAtTimeouts()
 // Re-boot the cellular module.
 int32_t cellularCtrlReboot()
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_AT_ERROR;
@@ -893,10 +893,10 @@ int32_t cellularCtrlReboot()
 }
 
 // Set the bands to be used by the cellular module.
-int32_t cellularCtrlSetBandMask(CellularCtrlRat rat,
+int32_t cellularCtrlSetBandMask(CellularCtrlRat_t rat,
                                 uint64_t bandMask)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_INVALID_PARAMETER;
@@ -924,7 +924,7 @@ int32_t cellularCtrlSetBandMask(CellularCtrlRat rat,
 }
 
 // Get the bands being used by the cellular module.
-uint64_t cellularCtrlGetBandMask(CellularCtrlRat rat)
+uint64_t cellularCtrlGetBandMask(CellularCtrlRat_t rat)
 {
     uint64_t masks[2];
     int32_t rats[2];
@@ -975,9 +975,9 @@ uint64_t cellularCtrlGetBandMask(CellularCtrlRat rat)
 }
 
 // Set the sole radio access technology.
-int32_t cellularCtrlSetRat(CellularCtrlRat rat)
+int32_t cellularCtrlSetRat(CellularCtrlRat_t rat)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_INVALID_PARAMETER;
@@ -1000,9 +1000,9 @@ int32_t cellularCtrlSetRat(CellularCtrlRat rat)
 }
 
 // Set the radio access technology at the given rank.
-int32_t cellularCtrlSetRatRank(CellularCtrlRat rat, int32_t rank)
+int32_t cellularCtrlSetRatRank(CellularCtrlRat_t rat, int32_t rank)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t rats[CELLULAR_CTRL_MAX_NUM_RATS];
 
     if (gInitialised) {
@@ -1062,9 +1062,9 @@ int32_t cellularCtrlSetRatRank(CellularCtrlRat rat, int32_t rank)
 }
 
 // Get the radio access technology at the given rank.
-CellularCtrlRat cellularCtrlGetRat(int32_t rank)
+CellularCtrlRat_t cellularCtrlGetRat(int32_t rank)
 {
-    CellularCtrlRat rats[CELLULAR_CTRL_MAX_NUM_RATS];
+    CellularCtrlRat_t rats[CELLULAR_CTRL_MAX_NUM_RATS];
     int32_t rat;
 
     // Assume there are no RATs
@@ -1105,9 +1105,9 @@ CellularCtrlRat cellularCtrlGetRat(int32_t rank)
 }
 
 // Get the rank at which the given RAT is used.
-int32_t cellularCtrlGetRatRank(CellularCtrlRat rat)
+int32_t cellularCtrlGetRatRank(CellularCtrlRat_t rat)
 {
-    CellularCtrlErrorCode errorCodeOrRank = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCodeOrRank = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t y;
 
     if (gInitialised) {
@@ -1149,7 +1149,7 @@ int32_t cellularCtrlGetRatRank(CellularCtrlRat rat)
 // Set the MNO Profile.
 int32_t cellularCtrlSetMnoProfile(int32_t mnoProfile)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_CONNECTED;
@@ -1200,7 +1200,7 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
                             const char *pApn, const char *pUsername,
                             const char *pPassword)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     char imsi[CELLULAR_CTRL_IMSI_SIZE];
     const char *pApnConfig = NULL;
     int32_t startTime;
@@ -1254,7 +1254,7 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
 // Disconnect from the cellular network.
 int32_t cellularCtrlDisconnect()
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t status;
 
     if (gInitialised) {
@@ -1320,7 +1320,7 @@ int32_t cellularCtrlDisconnect()
 }
 
 // Get the current network registration status.
-CellularCtrlNetworkStatus cellularCtrlGetNetworkStatus()
+CellularCtrlNetworkStatus_t cellularCtrlGetNetworkStatus()
 {
     cellularPortLog("CELLULAR_CTRL: network status %d.\n", status);
     return gNetworkStatus;
@@ -1329,7 +1329,7 @@ CellularCtrlNetworkStatus cellularCtrlGetNetworkStatus()
 // Get the current RAT.
 int32_t cellularCtrlGetActiveRat()
 {
-    CellularCtrlErrorCode errorCodeOrRat = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCodeOrRat = CELLULAR_CTRL_NOT_INITIALISED;
 
     if (gInitialised) {
         errorCodeOrRat = CELLULAR_CTRL_AT_ERROR;
@@ -1356,7 +1356,7 @@ int32_t cellularCtrlGetActiveRat()
 // Get the name of the operator on which the module is registered.
 int32_t cellularCtrlGetOperatorStr(char *pStr, size_t size)
 {
-    CellularCtrlErrorCode errorCodeOrSize = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCodeOrSize = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t bytesRead;
     int32_t atError;
 
@@ -1393,7 +1393,7 @@ int32_t cellularCtrlGetOperatorStr(char *pStr, size_t size)
 // Get the MCC and MNC of the network on which the module is registered.
 int32_t cellularCtrlGetMccMnc(int32_t *pMcc, int32_t *pMnc)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     char buffer[7]; // Enough room for "255255"
     int32_t bytesRead;
     int32_t atError;
@@ -1440,7 +1440,7 @@ int32_t cellularCtrlGetMccMnc(int32_t *pMcc, int32_t *pMnc)
 // Get the currently allocated IP address as a string.
 int32_t cellularCtrlGetIpAddressStr(char *pStr)
 {
-    CellularCtrlErrorCode errorCodeOrSize = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCodeOrSize = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t contextId;
     char buffer[CELLULAR_CTRL_IP_ADDRESS_SIZE];
 
@@ -1477,7 +1477,7 @@ int32_t cellularCtrlGetIpAddressStr(char *pStr)
 // Get the APN currently in use.
 int32_t cellularCtrlGetApnStr(char *pStr, size_t size)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t bytesRead;
     int32_t atError;
 
@@ -1510,7 +1510,7 @@ int32_t cellularCtrlGetApnStr(char *pStr, size_t size)
 // Refresh the radio parameters.
 int32_t cellularCtrlRefreshRadioParameters()
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     double rsrx;
     int32_t rssi;
     char buf[16];
@@ -1621,7 +1621,7 @@ int32_t cellularCtrlGetRxQual()
 // Work out SNR from RSSI and RSRP.
 int32_t cellularCtrlGetSnrDb(int32_t *pSnrDb)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     double rssi;
     double rsrp;
     double snrDb;
@@ -1661,7 +1661,7 @@ int32_t cellularCtrlGetEarfcn() {
 // Get the 15 digit IMEI of the cellular module.
 int32_t cellularCtrlGetImei(char *pImei)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t bytesRead;
     int32_t atError;
 
@@ -1693,7 +1693,7 @@ int32_t cellularCtrlGetImei(char *pImei)
 // Get the 15 digit IMSI of the cellular module.
 int32_t cellularGetImsi(char *pImsi)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t bytesRead;
     int32_t atError;
 
@@ -1725,7 +1725,7 @@ int32_t cellularGetImsi(char *pImsi)
 // Get the ICCID of the cellular module.
 int32_t cellularGetIccidStr(char *pStr, size_t size)
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t bytesRead;
     int32_t atError;
 
@@ -1773,7 +1773,7 @@ int32_t cellularGetFirmwareVersionStr(char *pStr, size_t size)
 // Get the UTC time according to cellular.
 int32_t cellularGetTimeUtc()
 {
-    CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t timeUtc;
     char buffer[32];
     CellularPort_tm timeInfo;

@@ -110,7 +110,7 @@ typedef enum {
     CELLULAR_CTRL_CONNECTED = -14, //!< This is an ERROR code used, for instance, to
                                    //! indicate that a disconnect attempt has failed.
     CELLULAR_CTRL_NOT_FOUND = -15
-} CellularCtrlErrorCode;
+} CellularCtrlErrorCode_t;
 
 /** The possible radio access technologies.
  */
@@ -118,7 +118,7 @@ typedef enum {
     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
     CELLULAR_CTRL_RAT_CATM1,
     CELLULAR_CTRL_RAT_NB1
-} CellularCtrlRat;
+} CellularCtrlRat_t;
 
 /** The current network status.  Note: if the values here
  * are changed make sure to change any .c file which may
@@ -134,7 +134,7 @@ typedef enum {
     CELLULAR_CTRL_NETWORK_STATUS_REGISTERED,
     CELLULAR_CTRL_NETWORK_STATUS_TEMPORARY_NETWORK_BARRING,
     CELLULAR_CTRL_MAX_NUM_NETWORK_STATUS
-} CellularCtrlNetworkStatus;
+} CellularCtrlNetworkStatus_t;
 
 /* ----------------------------------------------------------------
  * FUNCTIONS
@@ -273,7 +273,7 @@ int32_t cellularCtrlReboot();
  * @return         zero on success or negative error code
  *                 on failure.
  */
-int32_t cellularCtrlSetBandMask(CellularCtrlRat rat,
+int32_t cellularCtrlSetBandMask(CellularCtrlRat_t rat,
                                 uint64_t bandMask);
 
 /** Get the bands being used by the cellular module.
@@ -285,7 +285,7 @@ int32_t cellularCtrlSetBandMask(CellularCtrlRat rat,
  *            is band 64, all zeros if the band mask cannot be
  *            determined.
  */
-uint64_t cellularCtrlGetBandMask(CellularCtrlRat rat);
+uint64_t cellularCtrlGetBandMask(CellularCtrlRat_t rat);
 
 /** Set the sole radio access technology to be used by the
  * cellular module.  The module is set to use this radio
@@ -298,7 +298,7 @@ uint64_t cellularCtrlGetBandMask(CellularCtrlRat rat);
  * @param rat the radio access technology to use.
  * @return    zero on success or negative error code on failure.
  */
-int32_t cellularCtrlSetRat(CellularCtrlRat rat);
+int32_t cellularCtrlSetRat(CellularCtrlRat_t rat);
 
 /** Set the radio access technology to be used at the
  * given rank.  By using different ranks the module can
@@ -323,7 +323,7 @@ int32_t cellularCtrlSetRat(CellularCtrlRat rat);
  *             dependent.
  * @return     zero on success or negative error code on failure.
  */
-int32_t cellularCtrlSetRatRank(CellularCtrlRat rat,
+int32_t cellularCtrlSetRatRank(CellularCtrlRat_t rat,
                                int32_t rank);
 
 /** Get the radio access technology that is being used by
@@ -339,7 +339,7 @@ int32_t cellularCtrlSetRatRank(CellularCtrlRat rat,
  * @return     the radio access technology being used at that
  *             rank.
  */
-CellularCtrlRat cellularCtrlGetRat(int32_t rank);
+CellularCtrlRat_t cellularCtrlGetRat(int32_t rank);
 
 /** Get the rank at which the given radio access technology
  * is being used by the cellular module.
@@ -349,7 +349,7 @@ CellularCtrlRat cellularCtrlGetRat(int32_t rank);
  *            access technology is not found in the ranked
  *            radio access technologies.
  */
-int32_t cellularCtrlGetRatRank(CellularCtrlRat rat);
+int32_t cellularCtrlGetRatRank(CellularCtrlRat_t rat);
 
 /** Set the MNO Profile use by the cellular module.  The module must
  * be powered on for this to work but must NOT be connected to the
@@ -415,7 +415,7 @@ int32_t cellularCtrlDisconnect();
  *
  * @return the current status.
  */
-CellularCtrlNetworkStatus cellularCtrlGetNetworkStatus();
+CellularCtrlNetworkStatus_t cellularCtrlGetNetworkStatus();
 
 /** Return the RAT that is currently in use.
  *

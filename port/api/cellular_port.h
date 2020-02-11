@@ -39,7 +39,7 @@ typedef enum {
     CELLULAR_PORT_OUT_OF_MEMORY = -5,
     CELLULAR_PORT_TIMEOUT = -6,
     CELLULAR_PORT_PLATFORM_ERROR = -7
-} CellularPortErrorCode;
+} CellularPortErrorCode_t;
 
 /* ----------------------------------------------------------------
  * FUNCTIONS
