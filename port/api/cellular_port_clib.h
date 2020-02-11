@@ -30,6 +30,12 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
+/** assert() as a macro so that we get file and line numbers.
+*/
+#define cellularPort_assert(condition) _cellularPort_assert(__FILE__,  \
+                                                            __LINE__,  \
+                                                            condition)
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -147,18 +153,6 @@ char *pCellularPort_strncpy(char *pDst, const char *pSrc,
  */
 int32_t cellularPort_strcmp(const char *pStr1, const char *pStr2);
 
-/** sprintf().
- *
- * @param pBuffer the buffer to print into.
- * @param pFormat the format string.
- * @param ...     a variable list of pointers to arguments
- *                to be filled based on the contents of the
- *                string and the format string.
- * @return        the number of characters printed to pBuffer.
- */
-int32_t cellularPort_sprintf(char *pBuffer, const char *pFormat,
-                            ...);
-
 /** sscanf().
  *
  * @param pStr    the string to scan.
@@ -171,6 +165,10 @@ int32_t cellularPort_sprintf(char *pBuffer, const char *pFormat,
  */
 int32_t cellularPort_sscanf(const char *pStr, const char *pFormat,
                             ...);
+
+/* ----------------------------------------------------------------
+ * FUNCTIONS: CHARACTER CLASSIFICATION
+ * -------------------------------------------------------------- */
 
 /** isprint().
  *
@@ -185,6 +183,32 @@ int32_t cellularPort_isprint(int32_t c);
  * @return  non-zero if c is a control character, else 0.
  */
 int32_t cellularPort_iscntrl(int32_t c);
+
+/* ----------------------------------------------------------------
+ * FUNCTIONS: STDIO
+ * -------------------------------------------------------------- */
+
+/** printf().
+ *
+ * @param pFormat the format string.
+ * @param ...     a variable list of pointers to arguments
+ *                to be filled based on the contents of the
+ *                string and the format string.
+ * @return        the number of characters printed.
+ */
+int32_t cellularPort_printf(const char *pFormat, ...);
+
+/** sprintf().
+ *
+ * @param pBuffer the buffer to print into.
+ * @param pFormat the format string.
+ * @param ...     a variable list of pointers to arguments
+ *                to be filled based on the contents of the
+ *                string and the format string.
+ * @return        the number of characters printed to pBuffer.
+ */
+int32_t cellularPort_sprintf(char *pBuffer, const char *pFormat,
+                            ...);
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: CONVERSION
@@ -255,10 +279,12 @@ double cellularPort_pow(double base, double exponent);
 
 /** assert().
  *
+ * @param pFile     the file name of the assert condition.
+ * @param line      the line number of the assert condition.
  * @param condition a condition which should evaluate to true, else
  *                  the system assert function will be called.
  */
-void cellularPort_assert(bool condition);
+void _cellularPort_assert(char *pFile, size_t line, bool condition);
 
 /** errno get.
  *

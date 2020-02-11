@@ -26,8 +26,8 @@
 
 /** Define this to enable printing out of the serial port.
  */
-#if defined(CONFIG_CELLULAR_ENABLE_LOGGING) && CONFIG_CELLULAR_ENABLE_LOGGING
-# define cellularPortLog(format, ...) printf(format, ##__VA_ARGS__)
+#if defined(CELLULAR_CFG_ENABLE_LOGGING) && CELLULAR_CFG_ENABLE_LOGGING
+# define cellularPortLog(format, ...) cellularPort_printf(format, ##__VA_ARGS__)
 #else
 # define cellularPortLog(...)
 #endif

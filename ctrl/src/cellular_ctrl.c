@@ -15,6 +15,8 @@
 */
 
 #include "cellular_port_clib.h"
+#include "cellular_cfg_hw.h"
+#include "cellular_cfg_sw.h"
 #include "cellular_port.h"
 #include "cellular_port_debug.h"
 #include "cellular_port_os.h"
@@ -1322,7 +1324,7 @@ int32_t cellularCtrlDisconnect()
 // Get the current network registration status.
 CellularCtrlNetworkStatus_t cellularCtrlGetNetworkStatus()
 {
-    cellularPortLog("CELLULAR_CTRL: network status %d.\n", status);
+    cellularPortLog("CELLULAR_CTRL: network status %d.\n", gNetworkStatus);
     return gNetworkStatus;
 }
 

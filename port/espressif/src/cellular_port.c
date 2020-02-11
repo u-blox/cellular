@@ -15,6 +15,8 @@
  */
  
 #include "cellular_port_clib.h"
+#include "cellular_cfg_hw.h"
+#include "cellular_cfg_sw.h"
 #include "cellular_port.h"
 
 /* ----------------------------------------------------------------

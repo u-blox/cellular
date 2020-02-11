@@ -15,6 +15,8 @@
  */
 
 #include "cellular_port_clib.h"
+#include "cellular_cfg_hw.h"
+#include "cellular_cfg_sw.h"
 #include "cellular_port.h"
 #include "cellular_port_gpio.h"
 
@@ -102,7 +104,7 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
         // Actually do the configuration
         if (!badConfig) {
             errorCode = CELLULAR_PORT_PLATFORM_ERROR;
-            if (gpio_config(&config) == 0) {
+            if (gpio_config(&config) == ESP_OK) {
                 errorCode = CELLULAR_PORT_SUCCESS;
             }
         }
@@ -141,7 +143,7 @@ int32_t cellularPortGpioSet(int32_t pin, int32_t level)
                 } else {
                     espError = gpio_hold_en(pin);
                 }
-                if (espError == 0) {
+                if (espError == ESP_OK) {
                     errorCode = CELLULAR_PORT_SUCCESS;
                 }
             }

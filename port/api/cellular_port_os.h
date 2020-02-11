@@ -60,8 +60,11 @@ typedef void * CellularPortTaskHandle_t;
  *                       may be NULL.
  * @param stackSizeBytes the number of bytes of memory to dynamically
  *                       allocate for stack.
- * @param pParameter     this pointer will be passed to pFunction
- *                       when the task is started.
+ * @param ppParameter    a pointer to the pointer that will be passed
+ *                       to pFunction when the task is started.
+ *                       The thing at the end of this pointer must be
+ *                       there for the lifetime of the task.
+ *                       May be NULL.
  * @param priority       the priority at which to run the task,
  *                       the meaning of which is platform dependent
  * @param pTaskHandle    a place to put the handle of the created
@@ -71,7 +74,7 @@ typedef void * CellularPortTaskHandle_t;
 int32_t cellularPortTaskCreate(void (*pFunction)(void *),
                                const char *pName,
                                size_t stackSizeBytes,
-                               void *pParameter,
+                               void **ppParameter,
                                int32_t priority,
                                CellularPortTaskHandle_t *pTaskHandle);
 
@@ -106,10 +109,12 @@ void cellularPortTaskBlock(int32_t delayMs);
  *
  * @param queueLength    the maximum length of the queue in units
  *                       of itemSizeBytes.
+ * @param itemSizeBytes  the size of each item on the queue.
  * @param pQueueHandle   a place to put the handle of the queue.
  * @return               zero on success else negative error code.
  */
 int32_t cellularPortQueueCreate(size_t queueLength,
+                                size_t itemSizeBytes,
                                 CellularPortQueueHandle_t *pQueueHandle);
 
 /** Delete the given queue.

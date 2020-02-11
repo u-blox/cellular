@@ -15,6 +15,8 @@
  */
 
 #include "cellular_port_clib.h"
+#include "cellular_cfg_hw.h"
+#include "cellular_cfg_sw.h"
 #include "cellular_port.h"
 #include "cellular_port_os.h"
 
@@ -48,16 +50,26 @@
 int32_t cellularPortTaskCreate(void (*pFunction)(void *),
                                const char *pName,
                                size_t stackSizeBytes,
-                               void *pParameter,
+                               void **ppParameter,
                                int32_t priority,
                                CellularPortTaskHandle_t *pTaskHandle)
 {
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if ((pFunction != NULL) && (pTaskHandle != NULL)) {
-        errorCode = xTaskCreate(pFunction, pName, stackSizeBytes,
-                                pParameter, priority,
-                                (TaskHandle_t *) pTaskHandle);
+        if (ppParameter != NULL) {
+            if (xTaskCreate(pFunction, pName, stackSizeBytes,
+                            *ppParameter, priority,
+                            (TaskHandle_t *) pTaskHandle) == pdPASS) {
+                errorCode = CELLULAR_PORT_SUCCESS;
+            }
+        } else {
+            if (xTaskCreate(pFunction, pName, stackSizeBytes,
+                            NULL, priority,
+                            (TaskHandle_t *) pTaskHandle) == pdPASS) {
+                errorCode = CELLULAR_PORT_SUCCESS;
+            }
+        }
     }
 
     return (int32_t) errorCode;
@@ -95,6 +107,7 @@ void cellularPortTaskBlock(int32_t delayMs)
 
 // Create a queue.
 int32_t cellularPortQueueCreate(size_t queueLength,
+                                size_t itemSizeBytes,
                                 CellularPortQueueHandle_t *pQueueHandle)
 {
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
@@ -102,7 +115,8 @@ int32_t cellularPortQueueCreate(size_t queueLength,
     if (pQueueHandle != NULL) {
         errorCode = CELLULAR_PORT_PLATFORM_ERROR;
         // Actually create the queue
-        *pQueueHandle = (CellularPortMutexHandle_t) xSemaphoreCreateMutex();
+        *pQueueHandle = (CellularPortQueueHandle_t) xQueueCreate(queueLength,
+                                                                 itemSizeBytes);
         if (*pQueueHandle != NULL) {
             errorCode = CELLULAR_PORT_SUCCESS;
         }
@@ -131,9 +145,12 @@ int32_t cellularPortQueueSend(const CellularPortQueueHandle_t queueHandle,
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if ((queueHandle != NULL) && (pEventData != NULL)) {
-        errorCode =  xQueueSend((QueueHandle_t) queueHandle,
-                                pEventData,
-                                (portTickType) portMAX_DELAY);
+        errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        if (xQueueSend((QueueHandle_t) queueHandle,
+                       pEventData,
+                       (portTickType) portMAX_DELAY) == pdTRUE) {
+            errorCode = CELLULAR_PORT_SUCCESS;
+        }
     }
 
     return (int32_t) errorCode;
@@ -146,9 +163,12 @@ int32_t cellularPortQueueReceive(const CellularPortQueueHandle_t queueHandle,
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if ((queueHandle != NULL) && (pEventData != NULL)) {
-        errorCode = xQueueReceive((QueueHandle_t) queueHandle,
-                                  pEventData,
-                                  (portTickType) portMAX_DELAY);
+        errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        if (xQueueReceive((QueueHandle_t) queueHandle,
+                          pEventData,
+                          (portTickType) portMAX_DELAY) == pdTRUE) {
+            errorCode = CELLULAR_PORT_SUCCESS;
+       }
     }
 
     return (int32_t) errorCode;
@@ -189,9 +209,11 @@ int32_t cellularPortMutexLock(const CellularPortMutexHandle_t mutexHandle)
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if (mutexHandle != NULL) {
-        xSemaphoreTake((SemaphoreHandle_t) mutexHandle,
-                       (portTickType) portMAX_DELAY);
-        errorCode = CELLULAR_PORT_SUCCESS;
+        errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        if (xSemaphoreTake((SemaphoreHandle_t) mutexHandle,
+                           (portTickType) portMAX_DELAY) == pdTRUE) {
+            errorCode = CELLULAR_PORT_SUCCESS;
+        }
     }
 
     return (int32_t) errorCode;

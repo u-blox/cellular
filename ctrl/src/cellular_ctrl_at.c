@@ -19,6 +19,8 @@
 #define DEBUG_PRINT_FULL_AT_STRING
 
 #include "cellular_port_clib.h"
+#include "cellular_cfg_hw.h"
+#include "cellular_cfg_sw.h"
 #include "cellular_port.h"
 #include "cellular_port_debug.h"
 #include "cellular_port_os.h"
@@ -815,8 +817,8 @@ static void cellular_ctrl_at_unlock_no_data_check()
 
 // Task to find oob's from the AT response, triggered through
 // something being written to _queue_uart.
-// If an invalid event type is received, the task will exit
-// in an orderly fashion.
+// If an invalid event (e.g. a negative size) is received, the
+// task will exit in an orderly fashion.
 static void task_oob(void *parameters)
 {
     int32_t event_data_size = 0;
@@ -982,6 +984,7 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
 
     // Start a queue to feed the callbacks task
     if (cellularPortQueueCreate(CELLULAR_CTRL_AT_CALLBACK_QUEUE_LENGTH,
+                                sizeof(cellular_ctrl_at_callback_t),
                                 &_queue_callbacks) != 0) {
         cellularPortMutexDelete(_mtx_stream);
         cellularPortMutexDelete(_mtx_oob_task_running);
@@ -1000,7 +1003,7 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
     }
 
     // Start a task to run callbacks and a queue to feed it
-    if (cellularPortTaskCreate(task_callbacks, "AtCallbacks",
+    if (cellularPortTaskCreate(task_callbacks, "at_callbacks",
                                CELLULAR_CTRL_AT_TASK_STACK_CALLBACK_SIZE_BYTES,
                                NULL, 15, &_task_handle_callbacks) != 0) {
         // Get oob task to exit

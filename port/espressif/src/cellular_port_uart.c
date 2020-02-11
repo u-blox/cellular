@@ -15,6 +15,8 @@
  */
 
 #include "cellular_port_clib.h"
+#include "cellular_cfg_hw.h"
+#include "cellular_cfg_sw.h"
 #include "cellular_port.h"
 #include "cellular_port_os.h"
 #include "cellular_port_uart.h"
@@ -65,7 +67,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
         errorCode = CELLULAR_PORT_SUCCESS;
         if (gMutex[uart] == NULL) {
             errorCode = cellularPortMutexCreate(&(gMutex[uart]));
-            if (errorCode == 0) {
+            if (errorCode == ESP_OK) {
                 errorCode = CELLULAR_PORT_PLATFORM_ERROR;
 
                 CELLULAR_PORT_MUTEX_LOCK(gMutex[uart]);
@@ -94,7 +96,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
 
                 // Do the UART configuration
                 espError = uart_param_config(uart, &config);
-                if (espError == 0) {
+                if (espError == ESP_OK) {
                     // Set up the UART pins
                     if (pinCts < 0) {
                         pinCts = UART_PIN_NO_CHANGE;
@@ -104,17 +106,17 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                     }
                     espError = uart_set_pin(uart, pinTx, pinRx,
                                             pinRts, pinCts);
-                    if (espError == 0) {
+                    if (espError == ESP_OK) {
                         // Switch off SW flow control
                         espError = uart_set_sw_flow_ctrl(uart, false, 0, 0);
-                        if (espError == 0) {
+                        if (espError == ESP_OK) {
                             // Install the driver
                             espError = uart_driver_install(uart,
                                                            CELLULAR_PORT_UART_RX_BUFFER_SIZE,
                                                            CELLULAR_PORT_UART_TX_BUFFER_SIZE,
                                                            CELLULAR_PORT_UART_EVENT_QUEUE_SIZE,
                                                            pUartQueue, 0);
-                            if (espError == 0) {
+                            if (espError == ESP_OK) {
                                 errorCode = CELLULAR_PORT_SUCCESS;
                             }
                         }
@@ -126,7 +128,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                 // If we failed to initialise the UART,
                 // delete the mutex and put the uart's gMutex[]
                 // state back to NULL
-                if (errorCode != 0) {
+                if (errorCode != CELLULAR_PORT_SUCCESS) {
                     cellularPortMutexDelete(gMutex[uart]);
                     gMutex[uart] = NULL;
                 }
@@ -149,7 +151,7 @@ int32_t cellularPortUartDeinit(int32_t uart)
             errorCode = CELLULAR_PORT_PLATFORM_ERROR;
             // This function should not be called if another task
             // already has the mutex, do a quick check here
-            cellularPort_assert(cellularPortMutexGetLocker(gMutex[uart]) == 0);
+            cellularPort_assert(cellularPortMutexGetLocker(gMutex[uart]) == NULL);
 
             // No need to lock the mutex, we need to delete it
             // and we're not allowed to delete a locked mutex.
@@ -175,12 +177,8 @@ int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
     uart_event_t uartEvent;
 
     if (queueHandle != NULL) {
-        uartEvent.type = UART_EVENT_MAX;
-        uartEvent.size = 0;
-        if (sizeBytes >= 0) {
-            uartEvent.type = UART_DATA;
-            uartEvent.size = sizeBytes;
-        }
+        uartEvent.type = UART_DATA;
+        uartEvent.size = sizeBytes;
         errorCode = cellularPortQueueSend(queueHandle, (void *) &uartEvent);
     }
 

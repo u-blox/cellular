@@ -14,7 +14,8 @@ set(COMPONENT_SRCS
 #  The APIs for all of the above
 set(COMPONENT_ADD_INCLUDEDIRS "../api"
                               "../../ctrl/api"
-                              "../../sock/api")
+                              "../../sock/api"
+                              "../../cfg")
 
 # The private include directories for all of the above
 set(COMPONENT_PRIV_INCLUDEDIRS "../../ctrl/src"

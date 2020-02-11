@@ -15,6 +15,8 @@
  */
 
 #include "cellular_port_clib.h"
+#include "cellular_cfg_hw.h"
+#include "cellular_cfg_sw.h"
 #include "cellular_port.h"
 
 #include "stdlib.h" // For malloc(), free(), strtof(), strtol()
@@ -116,20 +118,6 @@ int32_t cellularPort_strcmp(const char *pStr1, const char *pStr2)
     return strcmp(pStr1, pStr2);
 }
 
-// sprintf().
-int32_t cellularPort_sprintf(char *pBuffer, const char *pFormat,
-                            ...)
-{
-    int32_t result;
-
-    va_list args;
-    va_start(args, pFormat);
-    result = vsprintf(pBuffer, pFormat, args);
-    va_end(args);
-
-    return result;
-}
-
 // sscanf().
 int32_t cellularPort_sscanf(const char *pStr, const char *pFormat,
                             ...)
@@ -144,6 +132,14 @@ int32_t cellularPort_sscanf(const char *pStr, const char *pFormat,
     return result;
 }
 
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS: STDIO
+ * -------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS: CHARACTER CLASSIFICATION
+ * -------------------------------------------------------------- */
+
 // isprint().
 int32_t cellularPort_isprint(int32_t c)
 {
@@ -154,6 +150,33 @@ int32_t cellularPort_isprint(int32_t c)
 int32_t cellularPort_iscntrl(int32_t c)
 {
     return iscntrl(c);
+}
+
+// printf().
+int32_t cellularPort_printf(const char *pFormat, ...)
+{
+    int32_t result;
+
+    va_list args;
+    va_start(args, pFormat);
+    result = vprintf(pFormat, args);
+    va_end(args);
+
+    return result;
+}
+
+// sprintf().
+int32_t cellularPort_sprintf(char *pBuffer, const char *pFormat,
+                            ...)
+{
+    int32_t result;
+
+    va_list args;
+    va_start(args, pFormat);
+    result = vsprintf(pBuffer, pFormat, args);
+    va_end(args);
+
+    return result;
 }
 
 /* ----------------------------------------------------------------
@@ -217,9 +240,12 @@ double cellularPort_pow(double base, double exponent)
  * -------------------------------------------------------------- */
 
 // assert().
-void cellularPort_assert(bool condition)
+void _cellularPort_assert(char *pFile, size_t line, bool condition)
 {
-    return assert(condition);
+    if (!condition) {
+        printf("assert %s: %d\n", pFile, line);
+        assert(condition);
+    }
 }
 
 // errno get.
