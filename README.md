@@ -1,9 +1,12 @@
 # Introduction
-In these directories you will find the implementation of a cellular transport in C for various embedded target platforms.  The implementation consists of:
+In this repository you will find the implementation of a cellular transport in C for various embedded target platforms.  The implementation consists of:
 
-- `ctrl`: a C API to control a cellular module over an AT interface.
-- `sock`: a C sockets API compatible with `lwip` the builds on top of `ctrl`.
-- `port`: a porting layer which allows `ctrl` and `sock` to be compiled and tested on various platforms.
+- `ctrl`: a driver that allows control of a cellular module over an AT interface, e.g. make connection, read IMEI, read signal strength, etc.
+- `sock`: a driver that allows data transfer through a cellular module, presenting the same TCP/UDP sockets API as `lwip` and building on top of the AT parser in `ctrl`.
+- `port`: a limited porting layer which allows `ctrl` and `sock` to be compiled and tested on various platforms.
 
 # Usage
-The C API for `ctrl`, `sock` and `port` can be found in their respective `api` sub-directories and are documented there.  Information on how to build and test for a given target platform can be found in the relevant sub-directory of `port`.
+The C API for `ctrl`, `sock` and `port` can be found in their respective `api` sub-directories and are documented in the header files there.  Information on how to build and test for a given target platform can be found in the `README.md` files of the relevant sub-directory of `port`.
+
+# License
+The software in this repository is Apaceh 2.0 licensed.  The AT parsing code in `ctrl` is derived from the Apache 2.0 licensed AT parser of mbed-os; copyright (and our thanks) remain with the original authors.
