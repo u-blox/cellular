@@ -66,6 +66,11 @@ static int32_t gPinCpOn;
  */
 static int32_t gPinVInt;
 
+/** The UART number we will be using to talk to the
+ * cellular module.
+ */
+static int32_t gUart;
+
 /** The number of consecutive timeouts on the AT interface.
  */
 static int32_t gAtNumConsecutiveTimeouts;
@@ -246,7 +251,7 @@ static int32_t strip_ctrl(char *pString, int32_t stringLength)
     size_t numCharsRemoved = 0;
 
     for (size_t x = 0; x < stringLength; x++) {
-        if (cellularPort_isctrl((int32_t) *(pString + x - numCharsRemoved))) {
+        if (cellularPort_iscntrl((int32_t) *(pString + x - numCharsRemoved))) {
             for (size_t y = x - numCharsRemoved; y < stringLength - numCharsRemoved - 1; y++) {
                 *(pString + y) = *(pString + y + 1);
             }
@@ -467,7 +472,7 @@ static CellularCtrlErrorCode tryConnect(bool (*pKeepGoingCallback) (void),
     cellular_ctrl_at_unlock();
     // Wait for registration to succeed
     errorCode = CELLULAR_CTRL_NOT_REGISTERED;
-    while (keepGoing && pKeepGoingCallback() && (cellularGetRegisteredRan() < 0)) {
+    while (keepGoing && pKeepGoingCallback() && (cellularCtrlGetActiveRat() < 0)) {
         // Prod the modem anyway, we've nout much else to do
         cellular_ctrl_at_lock();
         cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
@@ -490,8 +495,8 @@ static CellularCtrlErrorCode tryConnect(bool (*pKeepGoingCallback) (void),
     }
 
     if (keepGoing && pKeepGoingCallback()) {
-        if (cellularGetRegisteredRan() >= 0) {
-            if (cellularGetOperatorStr(buffer, sizeof(buffer)) >= 0) {
+        if (cellularCtrlGetActiveRat() >= 0) {
+            if (cellularCtrlGetOperatorStr(buffer, sizeof(buffer)) >= 0) {
                 cellularPortLog("Registered on \"%s\".\n", buffer);
             }
             // Now, technically speaking, EUTRAN should be good to go,
@@ -624,7 +629,7 @@ CellularCtrlErrorCode cellularCtrlInit(int32_t pinEnablePower,
             cellularPortLog(", VInt pin not connected.\n");
         }
         gpioConfig.pin = pinCpOn;
-        gpioConfig.mode = CELLULAR_PORT_GPIO_MODE_OUTPUT;
+        gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
         platformError = cellularPortGpioConfig(&gpioConfig);
         if (platformError == 0) {
             if (!leavePowerAlone) {
@@ -635,7 +640,7 @@ CellularCtrlErrorCode cellularCtrlInit(int32_t pinEnablePower,
                 if (pinEnablePower >= 0) {
                     gpioConfig.pin = pinEnablePower;
                      // Input/output so we can read it as well
-                    gpioConfig.mode = CELLULAR_PORT_GPIO_MODE_INPUT_OUTPUT;
+                    gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_INPUT_OUTPUT;
                     platformError = cellularPortGpioConfig(&gpioConfig);
                     if (platformError == 0) {
                         enablePowerAtStart = cellularPortGpioGet(pinEnablePower);
@@ -658,7 +663,7 @@ CellularCtrlErrorCode cellularCtrlInit(int32_t pinEnablePower,
                         // Set pin that monitors VINT as input
                         gpioConfig.pin = pinVInt;
                          // Input/output so we can read it as well
-                        gpioConfig.mode = CELLULAR_PORT_GPIO_MODE_INPUT
+                        gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_INPUT;
                         platformError = cellularPortGpioConfig(&gpioConfig);
                         if (platformError != 0) {
                             cellularPortLog("CELLULAR_CTRL: cellularPortGpioConfig() for VInt pin %d returned error code %d.\n",
@@ -667,12 +672,13 @@ CellularCtrlErrorCode cellularCtrlInit(int32_t pinEnablePower,
                     }
                     if (platformError == 0) {
                         // With that all done, initialise the AT command parser
-                        errorCode = at_init(uart, queueUart);
+                        errorCode = cellular_ctrl_at_init(uart, queueUart);
                         if (errorCode == 0) {
                             gPinEnablePower = pinEnablePower;
                             gPinCpOn = pinCpOn;
                             gPinVInt = pinVInt;
-                            gNetworkStatus = CELLULAR_NETWORK_STATUS_UNKNOWN;
+                            gUart = uart;
+                            gNetworkStatus = CELLULAR_CTRL_NETWORK_STATUS_UNKNOWN;
                             clearRadioParameters();
                             gAtNumConsecutiveTimeouts = 0;
                             cellular_ctrl_at_set_at_timeout_callback(atTimeoutCallback);
@@ -701,6 +707,7 @@ void cellularCtrlDeinit()
     if (gInitialised) {
         // Tidy up
         cellular_ctrl_at_set_at_timeout_callback(NULL);
+        cellular_ctrl_at_deinit(gUart);
         gInitialised = false;
     }
 }
@@ -731,8 +738,6 @@ int32_t cellularCtrlPowerOn(const char *pPin)
     int32_t platformError = 0;
     int32_t enablePowerAtStart = 1;
 
-    esp_err_t espError;
-
     if (gInitialised) {
         if (gPinEnablePower >= 0) {
             enablePowerAtStart = cellularPortGpioGet(gPinEnablePower);
@@ -751,7 +756,7 @@ int32_t cellularCtrlPowerOn(const char *pPin)
                 // SARA-R412M is powered on by holding the CP_ON pin low
                 // for more than 0.15 seconds
                 platformError = cellularPortGpioSet(gPinCpOn, 0);
-                if (platformError == -) {
+                if (platformError == 0) {
                     cellularPortTaskBlock(300);
                     // Not bothering with checking return code here
                     // as it would have barfed on the last one if
@@ -769,7 +774,7 @@ int32_t cellularCtrlPowerOn(const char *pPin)
                     // If we were off at the start and power-on was
                     // unsuccessful then go back to that state
                     if ((errorCode != CELLULAR_CTRL_SUCCESS) && (enablePowerAtStart == 0)) {
-                        cellularPowerOff(NULL);
+                        cellularCtrlPowerOff(NULL);
                     }
                 } else {
                     cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for CP_ON pin %d returned error code %d.\n",
@@ -1012,7 +1017,7 @@ int32_t cellularCtrlSetRatRank(CellularCtrlRat rat, int32_t rank)
             if ((rank >= 0) && (rank < CELLULAR_CTRL_MAX_NUM_RATS)) {
                 errorCode = CELLULAR_CTRL_AT_ERROR;
                 for (size_t x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
-                    rats[x] = cellularGetRat(x);
+                    rats[x] = cellularCtrlGetRat(x);
                     if (rats[x] == CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) {
                         break;
                     }
@@ -1059,7 +1064,7 @@ int32_t cellularCtrlSetRatRank(CellularCtrlRat rat, int32_t rank)
 // Get the radio access technology at the given rank.
 CellularCtrlRat cellularCtrlGetRat(int32_t rank)
 {
-    CellularRat rats[CELLULAR_CTRL_MAX_NUM_RATS];
+    CellularCtrlRat rats[CELLULAR_CTRL_MAX_NUM_RATS];
     int32_t rat;
 
     // Assume there are no RATs
@@ -1148,7 +1153,7 @@ int32_t cellularCtrlSetMnoProfile(int32_t mnoProfile)
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_CONNECTED;
-        if (cellularGetRegisteredRat() < 0) {
+        if (cellularCtrlGetActiveRat() < 0) {
             errorCode = CELLULAR_CTRL_AT_ERROR;
             cellular_ctrl_at_lock();
             cellular_ctrl_at_cmd_start("AT+UMNOPROF=");
@@ -1196,9 +1201,9 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
                             const char *pPassword)
 {
     CellularCtrlErrorCode errorCode = CELLULAR_CTRL_NOT_INITIALISED;
-    char imsi[CELLULAR_IMSI_SIZE];
+    char imsi[CELLULAR_CTRL_IMSI_SIZE];
     const char *pApnConfig = NULL;
-    time_t startTime;
+    int32_t startTime;
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_INVALID_PARAMETER;
@@ -1207,11 +1212,11 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
             errorCode = CELLULAR_CTRL_AT_ERROR;
             if (prepareConnect()) {
                 // Set up the APN look-up since none is specified
-                if ((pApn == NULL) && (cellularGetImsi(imsi) == 0)) {
+                if ((pApn == NULL) && (cellularCtrlGetImsi(imsi) == 0)) {
                     pApnConfig = apnconfig(imsi);
                 }
                 // Now try to connect, potentially multiple times
-                startTime = cellularPortGetTime();
+                startTime = cellularPortGetTimeMs();
                 do {
                     if (pApnConfig != NULL) {
                         pApn = _APN_GET(pApnConfig);
@@ -1231,11 +1236,14 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
 
                 if (errorCode == CELLULAR_CTRL_SUCCESS) {
                     cellularPortLog("CELLULAR_CTRL: connected after %lld second(s).\n",
-                                    cellularPortGetTime() - startTime);
+                                    cellularPortGetTimeMs() - startTime);
                 } else {
                     cellularPortLog("CELLULAR_CTRL: connection attempt stopped after %lld second(s).\n",
-                                    cellularPortGetTime() - startTime);
+                                    cellularPortGetTimeMs() - startTime);
                 }
+                // This to avoid warnings about unused variables when 
+                // cellularPortLog() is compiled out
+                (void) startTime;
             }
         }
     }
@@ -1346,7 +1354,7 @@ int32_t cellularCtrlGetActiveRat()
 }
 
 // Get the name of the operator on which the module is registered.
-int32_t cellularCtrlGetOperatorStr(char *pStr, int32_t size)
+int32_t cellularCtrlGetOperatorStr(char *pStr, size_t size)
 {
     CellularCtrlErrorCode errorCodeOrSize = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t bytesRead;
@@ -1434,7 +1442,7 @@ int32_t cellularCtrlGetIpAddressStr(char *pStr)
 {
     CellularCtrlErrorCode errorCodeOrSize = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t contextId;
-    char buffer[CELLULAR_IP_ADDRESS_SIZE];
+    char buffer[CELLULAR_CTRL_IP_ADDRESS_SIZE];
 
     if (gInitialised) {
         buffer[0] = 0;
@@ -1451,7 +1459,7 @@ int32_t cellularCtrlGetIpAddressStr(char *pStr)
             if (contextId == CELLULAR_CTRL_CONTEXT_ID) {
                 errorCodeOrSize = cellularPort_strlen(buffer);
                 if (pStr != NULL) {
-                    strcpy(pStr, buffer);
+                    pCellularPort_strcpy(pStr, buffer);
                 }
                 if (errorCodeOrSize >= 0) {
                     cellularPortLog("CELLULAR_CTRL: IP address %.*s.\n",
@@ -1510,7 +1518,7 @@ int32_t cellularCtrlRefreshRadioParameters()
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_NOT_REGISTERED;
-        if (cellularGetRegisteredRan() >= 0) {
+        if (cellularCtrlGetActiveRat() >= 0) {
             errorCode = CELLULAR_CTRL_AT_ERROR;
             gRssiDbm = 0;
             gRsrpDbm = 0;
@@ -1669,7 +1677,7 @@ int32_t cellularCtrlGetImei(char *pImei)
                                                            CELLULAR_CTRL_IMEI_SIZE);
             cellular_ctrl_at_resp_stop();
             atError = cellular_ctrl_at_unlock_return_error();
-            if ((bytesRead == CELLULAR_IMEI_SIZE) && (atError == 0)) {
+            if ((bytesRead == CELLULAR_CTRL_IMEI_SIZE) && (atError == 0)) {
                 errorCode = CELLULAR_CTRL_SUCCESS;
                 cellularPortLog("CELLULAR_CTRL: IMEI is %.*s.\n",
                                 CELLULAR_CTRL_IMEI_SIZE, pImei);

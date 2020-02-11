@@ -117,8 +117,7 @@ typedef enum {
 typedef enum {
     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
     CELLULAR_CTRL_RAT_CATM1,
-    CELLULAR_CTRL_RAT_NB1,
-    CELLULAR_CTRL_MAX_NUM_RATS
+    CELLULAR_CTRL_RAT_NB1
 } CellularCtrlRat;
 
 /** The current network status.  Note: if the values here

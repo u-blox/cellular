@@ -167,6 +167,70 @@ int32_t cellularPortUartDeinit(int32_t uart)
     return (int32_t) errorCode;
 }
 
+// Push an invalid UART event onto the UART event queue.
+int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
+                                  int32_t sizeBytes)
+{
+    int32_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    uart_event_t uartEvent;
+
+    if (queueHandle != NULL) {
+        uartEvent.type = UART_EVENT_MAX;
+        uartEvent.size = 0;
+        if (sizeBytes >= 0) {
+            uartEvent.type = UART_DATA;
+            uartEvent.size = sizeBytes;
+        }
+        errorCode = cellularPortQueueSend(queueHandle, (void *) &uartEvent);
+    }
+
+    return errorCode;
+}
+
+// Receive a UART event, blocking until one turns up.
+int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle)
+{
+    int32_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    uart_event_t uart_event;
+
+    if (queueHandle != NULL) {
+        sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        if (cellularPortQueueReceive(queueHandle, &uart_event) == 0) {
+            sizeOrErrorCode = CELLULAR_PORT_UNKNOWN_ERROR;
+            if (uart_event.type == UART_DATA) {
+                sizeOrErrorCode = uart_event.size;
+            }
+        }
+    }
+
+    return sizeOrErrorCode;
+}
+
+// Get the number of bytes waiting in the receive buffer.
+int32_t cellularPortUartGetReceiveSize(int32_t uart)
+{
+    CellularPortErrorCode sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    size_t receiveSize;
+
+    if (uart < sizeof(gMutex) / sizeof(gMutex[0])) {
+        sizeOrErrorCode = CELLULAR_PORT_NOT_INITIALISED;
+        if (gMutex[uart] != NULL) {
+            sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
+
+            CELLULAR_PORT_MUTEX_LOCK(gMutex[uart]);
+
+            // Will get back either size or -1
+            if (uart_get_buffered_data_len(uart, &(receiveSize)) == 0) {
+                sizeOrErrorCode = receiveSize;
+            }
+
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutex[uart]);
+        }
+    }
+
+    return (int32_t) sizeOrErrorCode;
+}
+
 // Read from the given UART interface.
 int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
                              size_t sizeBytes)

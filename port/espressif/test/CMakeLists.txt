@@ -1,4 +1,4 @@
 set(COMPONENT_SRCS "cellular_port_test.c")
 set(COMPONENT_ADD_INCLUDEDIRS ".")
-set(COMPONENT_REQUIRES unity)
+set(COMPONENT_REQUIRES "unity" "espressif")
 register_component()

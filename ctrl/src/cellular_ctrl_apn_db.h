@@ -39,7 +39,7 @@
  */
 #define _APN_GET(cfg) \
     *cfg ? cfg : NULL; \
-    cfg  += strlen(cfg) + 1
+    cfg  += cellularPort_strlen(cfg) + 1
 
 /**
  * APN lookup struct
@@ -170,14 +170,14 @@ const char *apnconfig(const char *imsi)
         for (size_t i = 0; i < sizeof(apnlut) / sizeof(*apnlut) && !config; i ++) {
             const char *p = apnlut[i].mccmnc;
             // check the MCC
-            if ((0 == memcmp(imsi, p, 3))) {
+            if ((0 == cellularPort_memcmp(imsi, p, 3))) {
                 p += 3;
                 // check all the MNC, MNC length can be 2 or 3 digits
                 while (((p[0] == '-') || (p[0] == ',')) &&
                         (p[1] >= '0') && (p[1] <= '9') &&
                         (p[2] >= '0') && (p[2] <= '9') && !config) {
                     int l = ((p[3] >= '0') && (p[3] <= '9')) ? 3 : 2;
-                    if (0 == memcmp(imsi + 3, p + 1, l)) {
+                    if (0 == cellularPort_memcmp(imsi + 3, p + 1, l)) {
                         config = apnlut[i].cfg;
                     }
                     p += 1 + l;

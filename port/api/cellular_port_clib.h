@@ -100,7 +100,7 @@ void *pCellularPort_memset(void *pDst, int32_t value,
 /** memcmp().
  *
  * @param p1        a pointer to the first memory address to compare.
- * @param p1        a pointer to the second memory address to
+ * @param p2        a pointer to the second memory address to
  *                  compare.
  * @param sizeBytes the number of bytes to compare.
  * @return          0 if the contents of p1 and p2 for sizeBytes
@@ -138,6 +138,26 @@ char *pCellularPort_strcpy(char *pDst, const char *pSrc);
  */
 char *pCellularPort_strncpy(char *pDst, const char *pSrc,
                             size_t sizeBytes);
+
+/** strcmp().
+ *
+ * @param pStr1     the first string to compare.
+ * @param pStr2     the string to compare.
+ * @return          0 if the contents of pStr1 and pStr2 are the same.
+ */
+int32_t cellularPort_strcmp(const char *pStr1, const char *pStr2);
+
+/** sprintf().
+ *
+ * @param pBuffer the buffer to print into.
+ * @param pFormat the format string.
+ * @param ...     a variable list of pointers to arguments
+ *                to be filled based on the contents of the
+ *                string and the format string.
+ * @return        the number of characters printed to pBuffer.
+ */
+int32_t cellularPort_sprintf(char *pBuffer, const char *pFormat,
+                            ...);
 
 /** sscanf().
  *

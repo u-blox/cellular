@@ -126,13 +126,13 @@ int32_t cellularPortQueueDelete(const CellularPortQueueHandle_t queueHandle)
 
 // Send to the given queue.
 int32_t cellularPortQueueSend(const CellularPortQueueHandle_t queueHandle,
-                              const void *pData)
+                              const void *pEventData)
 {
     CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
-    if ((queueHandle != NULL) && (pData != NULL)) {
+    if ((queueHandle != NULL) && (pEventData != NULL)) {
         errorCode =  xQueueSend((QueueHandle_t) queueHandle,
-                                pData,
+                                pEventData,
                                 (portTickType) portMAX_DELAY);
     }
 
@@ -141,13 +141,13 @@ int32_t cellularPortQueueSend(const CellularPortQueueHandle_t queueHandle,
 
 // Receive from the given queue.
 int32_t cellularPortQueueReceive(const CellularPortQueueHandle_t queueHandle,
-                                 void *pData)
+                                 void *pEventData)
 {
     CellularPortErrorCode errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
-    if ((queueHandle != NULL) && (pData != NULL)) {
+    if ((queueHandle != NULL) && (pEventData != NULL)) {
         errorCode = xQueueReceive((QueueHandle_t) queueHandle,
-                                  pData,
+                                  pEventData,
                                   (portTickType) portMAX_DELAY);
     }
 
@@ -238,7 +238,7 @@ CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandl
  * -------------------------------------------------------------- */
 
 // Get the current time in milliseconds.
-int64_t cellularPortTimeMs()
+int64_t cellularPortGetTimeMs()
 {
     return esp_timer_get_time() / 1000;
 }

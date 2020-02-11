@@ -1,6 +1,6 @@
 menu "cellular"
 
-config CONFIG_PIN_CELLULAR_ENABLE_POWER
+config PIN_CELLULAR_ENABLE_POWER
     int "the ESP32 GPIO output pin that enables power to the cellular module"
     default 2
     help
@@ -8,7 +8,7 @@ config CONFIG_PIN_CELLULAR_ENABLE_POWER
         GPIO pin number of the ESP32 chip, NOT the pin number of a NINA-W1 module, they are entirely
         different, see table 5 of the NINA-W1 data sheet for a conversion table.
 
-config CONFIG_PIN_CELLULAR_CP_ON
+config PIN_CELLULAR_CP_ON
     int "the ESP32 GPIO output pin that is connected to the CP_ON pin of the cellular module"
     default 25
     help
@@ -18,7 +18,7 @@ config CONFIG_PIN_CELLULAR_CP_ON
         conversion table. The default value of 25 is pin 16 of the NINA-W1 module and is accessible
         on J14 pin 11 of EVK-NINA-W1.
 
-config CONFIG_PIN_CELLULAR_VINT
+config PIN_CELLULAR_VINT
     int "the ESP32 GPIO input pin that is connected to the VInt pin of the cellular module"
     default 36
     help
@@ -27,14 +27,14 @@ config CONFIG_PIN_CELLULAR_VINT
         of a NINA-W1 module, they are entirely different, see table 5 of the NINA-W1 data sheet for
         a conversion table.
 
-config CONFIG_UART
+config UART
     int "the ESP32 UART HW block to use"
     default 1
     help
         Set this to configure the HW block of the ESP32 chip that is to be used. HW block 0 is usually
         used for stdio and HW block 1 for the cellular UART.
 
-config CONFIG_PIN_TXD
+config PIN_TXD
     int "the ESP32 GPIO output pin that sends UART data to the cellular module"
     default 4
     help
@@ -42,7 +42,7 @@ config CONFIG_PIN_TXD
         GPIO pin number of the ESP32 chip, NOT the pin number of a NINA-W1 module, they are entirely
         different, see table 5 of the NINA-W1 data sheet for a conversion table.
 
-config CONFIG_PIN_RXD
+config PIN_RXD
     int "the ESP32 GPIO input pin that receives UART data from the cellular module"
     default 15
     help
@@ -50,13 +50,13 @@ config CONFIG_PIN_RXD
         that this is the GPIO pin number of the ESP32 chip, NOT the pin number of a NINA-W1 module,
         they are entirely different, see table 5 of the NINA-W1 data sheet for a conversion table.
 
-config CONFIG_BAUD_RATE
+config BAUD_RATE
     int "the baud rate to use on the UART interface to the cellular module"
     default 115200
     help
         Set this to configure the baud rate on the UART interface to the cellular module.
 
-config CONFIG_PIN_CTS
+config PIN_CTS
     int "the ESP32 GPIO input pin that the cellular modem will use to indicate that it can send data"
     default -1
     help
@@ -65,7 +65,7 @@ config CONFIG_PIN_CTS
         they are entirely different, see table 5 of the NINA-W1 data sheet for a conversion
         table.
 
-config CONFIG_PIN_RTS
+config PIN_RTS
     int "the ESP32 GPIO output pin that tells the cellular modem that it can send more data to us"
     default -1
     help
@@ -74,7 +74,7 @@ config CONFIG_PIN_RTS
         they are entirely different, see table 5 of the NINA-W1 data sheet for a conversion
         table.
 
-config CONFIG_RTS_THRESHOLD
+config RTS_THRESHOLD
     int "the buffer threshold at which RTS is de-asserted, indicating the cellular module should stop sending data to us"
     default 0
     help

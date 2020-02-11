@@ -110,6 +110,26 @@ char *pCellularPort_strncpy(char *pDst, const char *pSrc,
     return strncpy(pDst, pSrc, sizeBytes);
 }
 
+// strcmp()
+int32_t cellularPort_strcmp(const char *pStr1, const char *pStr2)
+{
+    return strcmp(pStr1, pStr2);
+}
+
+// sprintf().
+int32_t cellularPort_sprintf(char *pBuffer, const char *pFormat,
+                            ...)
+{
+    int32_t result;
+
+    va_list args;
+    va_start(args, pFormat);
+    result = vsprintf(pBuffer, pFormat, args);
+    va_end(args);
+
+    return result;
+}
+
 // sscanf().
 int32_t cellularPort_sscanf(const char *pStr, const char *pFormat,
                             ...)

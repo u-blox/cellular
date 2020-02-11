@@ -69,10 +69,10 @@ typedef struct {
 
 /** Default values for the above.
  */
-#define CELLULAR_PORT_GPIO_CONFIG_DEFAULT = {-1, \
-                                             CELLULAR_PORT_GPIO_DIRECTION_NONE,    \
-                                             CELLULAR_PORT_GPIO_PULL_MODE_NONE,    \
-                                             CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL}
+#define CELLULAR_PORT_GPIO_CONFIG_DEFAULT {-1, \
+                                           CELLULAR_PORT_GPIO_DIRECTION_NONE,    \
+                                           CELLULAR_PORT_GPIO_PULL_MODE_NONE,    \
+                                           CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL}
 
 /* ----------------------------------------------------------------
  * FUNCTIONS

@@ -41,14 +41,14 @@
 /* AT Error types enumeration */
 typedef enum {
     CELLULAR_CTRL_AT_DEVICE_ERROR_TYPE_NO_ERROR = 0,
-    CELLULAR_CTRL_AT_DEVICE_ERROR_TYPE_ERROR,       // AT ERROR
-    CELLULAR_CTRL_AT_DEVICE_ERROR_TYPE_ERROR_CMS,   // AT ERROR CMS
-    CELLULAR_CTRL_AT_DEVICE_ERROR_TYPE_ERROR_CME    // AT ERROR CME
+    CELLULAR_CTRL_AT_DEVICE_ERROR_TYPE_ERROR, // AT ERROR
+    CELLULAR_CTRL_AT_DEVICE_ERROR_TYPE_CMS,   // AT ERROR CMS
+    CELLULAR_CTRL_AT_DEVICE_ERROR_TYPE_CME    // AT ERROR CME
 } cellular_ctrl_at_device_error_type_t;
 
 /** AT response error with error code and type */
 typedef struct {
-    at_device_error_type_t errType;
+    cellular_ctrl_at_device_error_type_t errType;
     int32_t errCode;
 } cellular_ctrl_at_device_err_t ;
 
@@ -86,8 +86,8 @@ typedef enum {
  * @return                 zero on success, otherwise negative error
  *                         code.
  */
-cellular_ctrl_at_error_code_t at_init(int32_t uart,
-                                      CellularPortQueueHandle_t queue_uart);
+cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
+                                                    CellularPortQueueHandle_t queue_uart);
 
 /** Shut down the cellular AT client.
  */
@@ -317,7 +317,7 @@ void cellular_ctrl_at_use_delimiter(bool use_delimiter);
  * @param len   length to be consumed.
  * @param count number of times to consume the given length.
  */
-void cellular_ctrl_at_skip_len(ssize_t len, uint32_t count);
+void cellular_ctrl_at_skip_len(int32_t len, uint32_t count);
 
 /** Consumes the given number of parameters from the reading buffer.
  *
@@ -336,7 +336,7 @@ void cellular_ctrl_at_skip_param(uint32_t count);
  * @return    number of successfully read bytes or -1 in
  *            case of error.
  */
-ssize_t cellular_ctrl_at_read_bytes(uint8_t *buf, size_t len);
+int32_t cellular_ctrl_at_read_bytes(uint8_t *buf, size_t len);
 
 /** Reads chars from reading buffer. Terminates with null. Skips
  * the quotation marks. Stops on delimiter or stop tag.
@@ -352,7 +352,7 @@ ssize_t cellular_ctrl_at_read_bytes(uint8_t *buf, size_t len);
  *                           timeout before delimiter or stop
  8                           tag is found.
  */
-ssize_t cellular_ctrl_at_read_string(char *str, size_t size,
+int32_t cellular_ctrl_at_read_string(char *str, size_t size,
                                      bool read_even_stop_tag);
 
 /** Reads chars representing hex ascii values and converts them
@@ -365,7 +365,7 @@ ssize_t cellular_ctrl_at_read_string(char *str, size_t size,
  * @return     length of output string or -1 in case of read
  *             timeout before delimiter or stop tag is found.
  */
-ssize_t cellular_ctrl_at_read_hex_string(char *str, size_t size);
+int32_t cellular_ctrl_at_read_hex_string(char *str, size_t size);
 
 /** Reads as string and converts result to integer. Supports
  * only positive integers.

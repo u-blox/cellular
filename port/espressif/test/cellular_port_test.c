@@ -14,14 +14,11 @@
  * limitations under the License.
  */
 
-#include "cellular_port.h"
 #include "cellular_port_clib.h"
+#include "cellular_port.h"
 #include "cellular_port_debug.h"
 #include "cellular_port_os.h"
-#include "cellular_port_gpio.h"
 #include "cellular_port_uart.h"
-#include "cellular_ctrl_at.h"
-#include "cellular_ctrl_apn_db.h"
 #include "cellular_ctrl.h"
 
 #include "unity.h"
@@ -33,7 +30,7 @@ static bool keepGoingCallback()
 {
     bool keepGoing = true;
 
-    if (cellularPortTimeMs() > gStopTimeMS) {
+    if (cellularPortGetTimeMs() > gStopTimeMS) {
         keepGoing = false;
     }
 
@@ -56,6 +53,7 @@ TEST_CASE("initialisation", "[cellular]")
     TEST_ASSERT(cellularCtrlInit(CONFIG_PIN_CELLULAR_ENABLE_POWER,
                                  CONFIG_PIN_CELLULAR_CP_ON,
                                  CONFIG_PIN_CELLULAR_VINT,
+                                 false,
                                  CONFIG_UART,
                                  queueHandle) == 0);
     cellularCtrlDeinit();

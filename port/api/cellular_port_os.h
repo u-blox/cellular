@@ -122,23 +122,23 @@ int32_t cellularPortQueueDelete(const CellularPortQueueHandle_t queueHandle);
 /** Send to the given queue.
  *
  * @param queueHandle  the handle of the queue.
- * @param pData        pointer to the data to send.  The data will
+ * @param pEventData   pointer to the data to send.  The data will
  *                     be copied into the queue and hence can be
  *                     destroyed by the caller once this functions
  *                     returns.
  * @return             zero on success else negative error code.
  */
 int32_t cellularPortQueueSend(const CellularPortQueueHandle_t queueHandle,
-                              const void *pData);
+                              const void *pEventData);
 
 /** Receive from the given queue.
  *
  * @param queueHandle the handle of the queue.
- * @param pData       pointer to a place to put incoming data.
+ * @param pEventData  pointer to a place to put incoming data.
  * @return            zero on success else negative error code.
  */
 int32_t cellularPortQueueReceive(const CellularPortQueueHandle_t queueHandle,
-                                 void *pData);
+                                 void *pEventData);
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: MUTEXES
@@ -198,7 +198,7 @@ CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandl
  *
  * @return the current time in milliseconds.
  */
-int64_t cellularPortTimeMs();
+int64_t cellularPortGetTimeMs();
 
 #endif // _CELLULAR_PORT_OS_H_
 
