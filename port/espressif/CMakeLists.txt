@@ -11,11 +11,16 @@ set(COMPONENT_SRCS
 # The data (sockets) interface
                    )
 
-#  The APIs for all of the above
-set(COMPONENT_ADD_INCLUDEDIRS "../api"
-                              "../../ctrl/api"
-                              "../../sock/api"
-                              "../../cfg")
+# The APIs for all of the above
+set(COMPONENT_ADD_INCLUDEDIRS 
+# The API for the porting layer
+                   "../api"
+# The API for the control interface
+                   "../../ctrl/api"
+# The API for the data (sockets) interface
+                   "../../sock/api"
+# The configuration files
+                   "../../cfg")
 
 # The private include directories for all of the above
 set(COMPONENT_PRIV_INCLUDEDIRS "../../ctrl/src"

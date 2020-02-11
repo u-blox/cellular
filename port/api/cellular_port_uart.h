@@ -75,7 +75,7 @@ typedef struct {
  *                        de-asserted.  Ignored if pinRts is -1.
  * @param uart            the UART number to use.
  * @param pUartQueue      a place to put the UART event queue.
- * @return                0 on success, otherwise negative error code.
+ * @return                zero on success, otherwise negative error code.
  */
 int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                              int32_t pinCts, int32_t pinRts,
@@ -88,7 +88,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
  * read or write might be in progress.
  *
  * @param uart the UART number to shut down.
- * @return     0 on success, otherwise negative error code.
+ * @return     zero on success, otherwise negative error code.
  */
 int32_t cellularPortUartDeinit(int32_t uart);
 

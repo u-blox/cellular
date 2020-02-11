@@ -191,7 +191,7 @@ int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle);
  *
  * @param mutexHandle   the handle of the mutex.
  * @return              the handle of the task that holds the mutex
- *                      or 0 if the mutex is not currently held.
+ *                      or zero if the mutex is not currently held.
  */
 CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandle_t mutexHandle);
 
