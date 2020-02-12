@@ -5,12 +5,12 @@ This directory contains the porting layer implementation and build infrastructur
 TODO
 
 # Testing
-The unit tests for this platform cover all of the `ctrl`, `sock` and `port` features.  Under ESP-IDF v3.3.1 all unit tests are built in the `esp-idf/tools/unit-test-app` directory so, in your command prompt, `cd` to that directory.
+Under ESP-IDF v3.3.1 all unit tests are built in the `esp-idf/tools/unit-test-app` directory so, in your command prompt, `cd` to that directory.
 
 To build the unit tests, at the same command prompt execute the following:
 
 ```
-idf.py flash monitor -p COMx -D EXTRA_COMPONENT_DIRS="../../../cellular/port/espressif" TEST_COMPONENTS="espressif"
+idf.py flash monitor -p COMx -D EXTRA_COMPONENT_DIRS="../../../cellular/port/platform/espressif" TEST_COMPONENTS="espressif"
 ```
 
 ...where `COMx` is replaced by the COM port to which your ESP32 board is attached. The command adds this directory to ESP-IDF as an ESP-IDF component and requests that the tests for this component are built, downloaded to the board and run.

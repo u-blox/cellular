@@ -17,6 +17,8 @@
 #ifndef _CELLULAR_PORT_GPIO_H_
 #define _CELLULAR_PORT_GPIO_H_
 
+/* No #includes allowed here */
+
 /** Porting layer for GPIO access functions.  These functions
  * are thread-safe.
  */

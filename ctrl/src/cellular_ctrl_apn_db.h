@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+/* No #includes allowed here */
+
 /* ----------------------------------------------------------------
    APN stands for Access Point Name, a setting on your modem or phone
    that identifies an external network your phone can access for data
@@ -29,6 +31,10 @@
    google: https://www.google.de/search?q=APN+list
 ---------------------------------------------------------------- */
 
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS
+ * -------------------------------------------------------------- */
+
 /**
  * Helper to generate the APN string
  */
@@ -41,6 +47,10 @@
     *cfg ? cfg : NULL; \
     cfg  += cellularPort_strlen(cfg) + 1
 
+/* ----------------------------------------------------------------
+ * TYPES
+ * -------------------------------------------------------------- */
+
 /**
  * APN lookup struct
  */
@@ -48,6 +58,10 @@ typedef struct {
     const char *mccmnc; /**< mobile country code (MCC) and mobile network code MNC */
     const char *cfg;     /**<  APN configuration string, use _APN macro to generate */
 } APN_t;
+
+/* ----------------------------------------------------------------
+ * VARIABLES
+ * -------------------------------------------------------------- */
 
 /**
  * Default APN settings used by many networks
@@ -156,6 +170,10 @@ static const APN_t apnlut[] = {
     },
 };
 
+/* ----------------------------------------------------------------
+ * FUNCTIONS
+ * -------------------------------------------------------------- */
+
 /**
  * Configuring APN by extraction from IMSI and matching the table.
  *
@@ -191,3 +209,5 @@ const char *apnconfig(const char *imsi)
     }
     return config;
 }
+
+// End of file

@@ -18,6 +18,8 @@
 #ifndef _CELLULAR_CTRL_AT_H_
 #define _CELLULAR_CTRL_AT_H_
 
+/* No #includes allowed here */
+
 /* This header file defines the cellular AT client API.  These functions
  * are thread-safe with the proviso that there can be only a single
  * UART in use at any one time.
@@ -35,10 +37,10 @@
 #endif
 
 /* ----------------------------------------------------------------
- * STRUCTS
+ * TYPES
  * -------------------------------------------------------------- */
 
-/* AT Error types enumeration */
+/** AT Error types enumeration */
 typedef enum {
     CELLULAR_CTRL_AT_DEVICE_ERROR_TYPE_NO_ERROR = 0,
     CELLULAR_CTRL_AT_DEVICE_ERROR_TYPE_ERROR, // AT ERROR
@@ -51,10 +53,6 @@ typedef struct {
     cellular_ctrl_at_device_error_type_t errType;
     int32_t errCode;
 } cellular_ctrl_at_device_err_t ;
-
-/* ----------------------------------------------------------------
- * TYPES
- * -------------------------------------------------------------- */
 
 /** Error codes.
  */
@@ -439,3 +437,5 @@ bool cellular_ctrl_at_consume_to_stop_tag();
 int32_t cellular_ctrl_at_get_3gpp_error();
 
 #endif // _CELLULAR_CTRL_AT_H_
+
+// End of file

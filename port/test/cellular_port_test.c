@@ -14,34 +14,44 @@
  * limitations under the License.
  */
 
-#ifndef _CELLULAR_PORT_DEBUG_H_
-#define _CELLULAR_PORT_DEBUG_H_
-
-/* No #includes allowed here */
-
-/** Porting layer for debug functions.
- */
+#include "cellular_port_clib.h"
+#include "cellular_cfg_hw.h"
+#include "cellular_cfg_sw.h"
+#include "cellular_port.h"
+#include "cellular_port_debug.h"
+#include "cellular_port_os.h"
+#include "cellular_port_uart.h"
+#include "cellular_port_test.h"
+#include "cellular_ctrl.h"
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
-
-/** Define this to enable printing out of the serial port.
- */
-#if defined(CELLULAR_CFG_ENABLE_LOGGING) && CELLULAR_CFG_ENABLE_LOGGING
-# define cellularPortLog(format, ...) cellularPort_printf(format, ##__VA_ARGS__)
-#else
-# define cellularPortLog(...)
-#endif
 
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------
- * FUNCTIONS
+ * VARIABLES
  * -------------------------------------------------------------- */
 
-#endif // _CELLULAR_PORT_DEBUG_H_
+/* ----------------------------------------------------------------
+ * STATIC FUNCTIONS
+ * -------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS: TESTS
+ * -------------------------------------------------------------- */
+
+/** Basic test: initialise and then deinitialise the porting layer.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestInitialisation(),
+                            "initialisation",
+                            "port")
+{
+    CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
+    cellularPortDeinit();
+}
 
 // End of file

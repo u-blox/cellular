@@ -17,6 +17,8 @@
 #ifndef _CELLULAR_PORT_OS_H_
 #define _CELLULAR_PORT_OS_H_
 
+/* No #includes allowed here */
+
 /** Porting layer for OS functions.  These functions are
  * thread-safe.
  */

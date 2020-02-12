@@ -17,6 +17,8 @@
 #ifndef _CELLULAR_PORT_H_
 #define _CELLULAR_PORT_H_
 
+/* No #includes allowed here */
+
 /** Common stuff for porting layer.
  */
 

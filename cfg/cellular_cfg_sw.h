@@ -17,6 +17,8 @@
 #ifndef _CELLULAR_CFG_SW_H_
 #define _CELLULAR_CFG_SW_H_
 
+/* No #includes allowed here */
+
 /* This header file contains software configuration information for
  * cellular.
  */

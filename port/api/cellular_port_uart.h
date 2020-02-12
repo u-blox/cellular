@@ -17,6 +17,8 @@
 #ifndef _CELLULAR_PORT_UART_H_
 #define _CELLULAR_PORT_UART_H_
 
+/* No #includes allowed here */
+
 /** Porting layer for UART access functions.  These functions
  * are threadsafe.
  */

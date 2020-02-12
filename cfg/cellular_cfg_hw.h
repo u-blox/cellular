@@ -17,6 +17,8 @@
 #ifndef _CELLULAR_CFG_HW_H_
 #define _CELLULAR_CFG_HW_H_
 
+/* No #includes allowed here */
+
 /* This header file contains hardware configuration information for
  * cellular.  The values here are provided for the application writer
  * to use when calling functions such as cellularPortUartInit() and

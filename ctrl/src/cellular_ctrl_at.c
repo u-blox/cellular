@@ -18,6 +18,12 @@
 // Define this to print AT strings out in full always
 #define DEBUG_PRINT_FULL_AT_STRING
 
+/* Only #includes of cellular_* are allowed here, no C lib,
+ * no platform stuff and no OS stuff.  Anything required from
+ * the platform/C library/OS must be brought in through
+ * cellular_port* to maintain portability.
+ */
+
 #include "cellular_port_clib.h"
 #include "cellular_cfg_hw.h"
 #include "cellular_cfg_sw.h"

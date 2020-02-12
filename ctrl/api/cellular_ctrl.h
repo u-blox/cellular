@@ -18,6 +18,8 @@
 #ifndef _CELLULAR_CTRL_H_
 #define _CELLULAR_CTRL_H_
 
+/* No #includes allowed here */
+
 /* This header file defines the cellular control API.  Note that
  * these functions are not intended to be thread-safe, don't
  * expect to call them from any task, you need to sort that out.

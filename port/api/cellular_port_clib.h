@@ -21,6 +21,10 @@
  * are thread-safe.
  */
 
+/* The #includes below (stdint, stddef, stdbool and limits) form
+ * the base types for cellular; no other #includes are allowed
+ * here */
+
 #include "stdint.h"
 #include "stddef.h"
 #include "stdbool.h"
@@ -32,8 +36,8 @@
 
 /** assert() as a macro so that we get file and line numbers.
 */
-#define cellularPort_assert(condition) _cellularPort_assert(__FILE__,  \
-                                                            __LINE__,  \
+#define cellularPort_assert(condition) _cellularPort_assert(__FILE__, \
+                                                            __LINE__, \
                                                             condition)
 
 /* ----------------------------------------------------------------
