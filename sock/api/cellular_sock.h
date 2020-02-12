@@ -507,7 +507,7 @@ void cellularSockHandleSetZero(CellularSockHandleSet_t *pHandleSet);
 void cellularSockHandleClear(CellularSockHandle_t handle,
                              CellularSockHandleSet_t *pHandleSet);
 
-/** Add the given handle to a file descriptor set.
+/** Add the given handle to a set.
  *
  * @param handle     the handle to add.
  * @param pHandleSet the set of handles to add to.
