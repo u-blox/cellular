@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/* Only #includes of cellular_* are allowed here, no C lib,
+ * no platform stuff and no OS stuff.  Anything required from
+ * the platform/C library/OS must be brought in through
+ * cellular_port* to maintain portability.
+ */
+
 #include "cellular_port_clib.h"
 #include "cellular_cfg_hw.h"
 #include "cellular_cfg_sw.h"
@@ -87,7 +93,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
 
     // Allow idle task to run so that any deleted
     // tasks are actually deleted, required by some
-    // operating systems (freeRTOS)
+    // operating systems (e.g. freeRTOS)
     cellularPortTaskBlock(100);
 }
 
