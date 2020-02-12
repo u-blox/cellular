@@ -186,6 +186,14 @@
  */
 typedef void * CellularSockHandle_t;
 
+/** A socket handle set, for use with cellularSockSelect().
+ */
+typedef struct CellularSockHandleSet_t {
+    CellularSockHandle_t             handle;
+    uint32_t                         state;
+    struct CellularSockHandleSet_t  *pNext;
+} CellularSockHandleSet_t;
+
 /** Supported socket types: the numbers match those of LWIP.
  */
 typedef enum {
@@ -221,7 +229,7 @@ typedef struct {
     uint32_t address[4];
 } CellularSockIpAddressV6_t;
 
-/** IP address.
+/** IP address (doesn't include port number).
  */
 typedef struct {
     CellularSockIpAddressType_t type;
@@ -231,7 +239,7 @@ typedef struct {
     } address;
 } CellularSockIpAddress_t;
 
-/** Address.
+/** Address (includes port number).
  */
 typedef struct {
     CellularSockIpAddress_t ipAddress;
@@ -239,7 +247,7 @@ typedef struct {
 } CellularSockAddress_t;
 
 /** Socket shut-down types: the numbers match those of LWIP.
-*/
+ */
 typedef enum {
     CELLULAR_SOCK_SHUTDOWN_READ = 0,
     CELLULAR_SOCK_SHUTDOWN_WRITE = 1,
@@ -421,7 +429,18 @@ int32_t cellularSockShutdown(CellularSockHandle_t handle,
  * FUNCTIONS: TCP INCOMING (TCP SERVER) ONLY
  * -------------------------------------------------------------- */
 
+/** Prepare a socket for receiving incoming TCP connections
+ * by binding it to an address.
+ *
+ * @param handle         the handle of the socket to be prepared.
+ * @param pLocalAddress  the local IP address to bind to.
+ * @return               zero on success else negative error code.
+ */
+int32_t cellularSockBind(CellularSockHandle_t handle,
+                         const CellularSockAddress_t *pLocalAddress);
+
 /** Listen on the given socket for an incoming TCP connection.
+ * The socket must have been bound to an address first.
  *
  * @param handle   the handle of the socket to listen on.
  * @param backlog  the number of pending connections that can
@@ -446,14 +465,67 @@ int32_t cellularSockListen(CellularSockHandle_t handle,
 int32_t cellularSockAccept(CellularSockHandle_t handle,
                            CellularSockAddress_t *pRemoteAddress);
 
-/** Prepare a socket for receiving incoming TCP connections.
+/* ----------------------------------------------------------------
+ * FUNCTIONS: SELECT
+ * -------------------------------------------------------------- */
+
+/** Select: wait for one of a set of sockets to become unblocked.
  *
- * @param handle         the handle of the socket to be prepared.
- * @param pLocalAddress  the local IP address to bind to.
- * @return               zero on success else negative error code.
+ * @param maxHandle         the highest numbered handle in the
+ *                          sets that follow to select on + 1.
+ * @param pReadHandleSet    the set of handles to check for
+ *                          unblocking for a read operation. May
+ *                          be NULL.
+ * @param pWriteHandleSet   the set of handles to check for
+ *                          unblocking for a write operation. May
+ *                           be NULL.
+ * @param pExceptHandleSet  the set of handles to check for
+ *                          exceptional conditions. May be NULL.
+ * @param timeMs            the timeout for the select operation
+ *                          in milliseconds.
+ * @return                  a value that can be processed by
+ *                          cellularSockHandleIsSet() to determine
+ *                          if that handle changed state.
  */
-int32_t cellularSockBind(CellularSockHandle_t handle,
-                         const CellularSockIpAddress_t *pLocalAddress);
+int32_t cellularSockSelect(int32_t maxHandle,
+                           CellularSockHandleSet_t *pReadHandleSet,
+                           CellularSockHandleSet_t *pWriteHandleSet,
+                           CellularSockHandleSet_t *pExceptHandleSet,
+                           int32_t timeMs);
+
+/** Zero the given set of handles.
+ *
+ * @param pHandleSet the set of handles to zero.
+ */
+void cellularSockHandleSetZero(CellularSockHandleSet_t *pHandleSet);
+
+/** Remove the given handle from a set.
+ *
+ * @param handle     the handle to remove.
+ * @param pHandleSet the set of handles to remove from.
+ */
+void cellularSockHandleClear(CellularSockHandle_t handle,
+                             CellularSockHandleSet_t *pHandleSet);
+
+/** Add the given handle to a file descriptor set.
+ *
+ * @param handle     the handle to add.
+ * @param pHandleSet the set of handles to add to.
+ * @return           zero on success else negative error code.
+ */
+int32_t cellularSockHandleAdd(CellularSockHandle_t handle,
+                              CellularSockHandleSet_t *pHandleSet);
+
+/** Determine if the given handle was set by a call to
+ * cellularSockSelect().
+ *
+ * @param handle     the handle to check.
+ * @param pHandleSet the set of handles to check inside.
+ * @return           non-zero if the handle was set, else zero
+ *                   (i.e. can be treated as a bool).
+ */
+int32_t cellularSockHandleIsSet(CellularSockHandle_t handle,
+                                CellularSockHandleSet_t *pHandleSet);
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: FINDING ADDRESSES
