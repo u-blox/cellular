@@ -6,7 +6,7 @@ In this repository you will find the implementation of a cellular transport in C
 - `port`: a limited porting layer which allows `ctrl` and `sock` to be compiled and tested on various platforms.
 
 # Usage
-The C API for `ctrl`, `sock` and `port` can be found in their respective `api` sub-directories and are documented in the header files there.  Information on how to build and test for a given target platform can be found in the `README.md` files of the relevant sub-directory of `port`.
+The C API for `ctrl`, `sock` and `port` can be found in their respective `api` sub-directories and are documented in the header files there.  Information on how to build run tests on a given target platform can be found in the `README.md` files of the relevant platform sub-directory of `port`.
 
 # License
 The software in this repository is Apache 2.0 licensed.  The AT parsing code in `ctrl` is derived from the Apache 2.0 licensed AT parser of mbed-os; copyright (and our thanks) remain with the original authors.

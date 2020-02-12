@@ -5,9 +5,9 @@ This directory contains the porting layer implementation and build infrastructur
 TODO
 
 # Testing
-Under ESP-IDF v3.3.1 all unit tests are built in the `esp-idf/tools/unit-test-app` directory so, in your command prompt, `cd` to that directory.
+Under ESP-IDF v3.3.1 all unit tests are built in the `esp-idf/tools/unit-test-app` directory so, at your command prompt, `cd` to that directory.
 
-To build the unit tests, at the same command prompt execute the following:
+To build the unit tests execute the following:
 
 ```
 idf.py flash monitor -p COMx -D EXTRA_COMPONENT_DIRS="../../../cellular/port/platform/espressif" TEST_COMPONENTS="espressif"
@@ -25,7 +25,8 @@ Press ENTER and the tests will be listed, something like:
 
 ```
 Here's the test menu, pick your combo:
-(1)     "initialisation" [cellular]
+(1)     "initialisation" [ctrl]
+(2)     "initialisation" [port]
 
 Enter test for running.
 ```
