@@ -29,6 +29,7 @@
 #include "cellular_port_gpio.h"
 #include "cellular_port_uart.h"
 #include "cellular_ctrl_at.h"
+#include "cellular_sock_errno.h"
 #include "cellular_sock.h"
 
 /* ----------------------------------------------------------------

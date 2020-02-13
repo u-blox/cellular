@@ -297,8 +297,8 @@ typedef enum {
     CELLULAR_SOCK_NOT_RESPONDING = -4,
     CELLULAR_SOCK_INVALID_PARAMETER = -5,
     CELLULAR_SOCK_NO_MEMORY = -6,
-    CELLULAR_SOCK_PLATFORM_ERROR = -7,
-    CELLULAR_SOCK_WOULD_BLOCK = -11, //<! Value matches LWIP.
+    CELLULAR_SOCK_WOULD_BLOCK = -7, //<! Value matches LWIP.
+    CELLULAR_SOCK_PLATFORM_ERROR = -8,
 } CellularSockErrorCode_t;
 
 /* ----------------------------------------------------------------
