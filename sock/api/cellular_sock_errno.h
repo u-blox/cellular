@@ -27,6 +27,7 @@
  * COMPILE-TIME MACROS: ERRNO
  * -------------------------------------------------------------- */
 
+#define  CELLULAR_SOCK_ENONE            0      //<! No error.
 #define  CELLULAR_SOCK_EPERM            1      //<! Operation not permitted.
 #define  CELLULAR_SOCK_ENOENT           2      //<! No such file or directory.
 #define  CELLULAR_SOCK_ESRCH            3      //<! No such process.

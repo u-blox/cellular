@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 #ifndef _CELLULAR_SOCK_H_
 #define _CELLULAR_SOCK_H_
 
@@ -180,14 +179,14 @@
 
 /** The maximum number of sockets that can be in existence at once.
  */
-#define CELLULAR_SOCK_DESCRIPTOR_MAX 256
+#define CELLULAR_SOCK_MAX 256
 
 /** The maximum number of sockets that can be cellularSockSelect()ed
  * from.  Note that increasing this may increase stack usage
  * as applications normally declare their descriptor sets as
  * automatic variables.  A size of 256 will be 256 / 8 = 32 bytes.
  */
-#define CELLULAR_SOCK_DESCRIPTOR_SETSIZE CELLULAR_SOCK_DESCRIPTOR_MAX
+#define CELLULAR_SOCK_DESCRIPTOR_SETSIZE CELLULAR_SOCK_MAX
 
 /** Zero a file descriptor set.
  */
@@ -196,23 +195,23 @@
 
 /** Set the bit corresponding to a given file descriptor in a set.
  */
-#define CELLULAR_SOCK_FD_SET(d, pSet) if (((d) >= 0) &&                           \
-                                          ((d) < CELLULAR_SOCK_DESCRIPTOR_MAX)) { \
-                                          (*(pSet))[(d) / 8] |= 1 << ((d) & 7);   \
+#define CELLULAR_SOCK_FD_SET(d, pSet) if (((d) >= 0) &&                               \
+                                          ((d) < CELLULAR_SOCK_DESCRIPTOR_SETSIZE)) { \
+                                          (*(pSet))[(d) / 8] |= 1 << ((d) & 7);       \
                                       }
 
 /** Clear the bit corresponding to a given file descriptor in a set.
  */
-#define CELLULAR_SOCK_FD_CLR(d, pSet) if (((d) >= 0) &&                            \
-                                          ((d) < CELLULAR_SOCK_DESCRIPTOR_MAX)) {  \
-                                          (*(pSet))[(d) / 8] &= ~(1 << ((d) & 7)); \
+#define CELLULAR_SOCK_FD_CLR(d, pSet) if (((d) >= 0) &&                                \
+                                          ((d) < CELLULAR_SOCK_DESCRIPTOR_SETSIZE)) {  \
+                                          (*(pSet))[(d) / 8] &= ~(1 << ((d) & 7));     \
                                       }
 
 /** Determine if the bit corresponding to a given file descriptor is set.
  */
-#define CELLULAR_SOCK_FD_ISSET(d, pSet) if (((d) >= 0) &&                           \
-                                            ((d) < CELLULAR_SOCK_DESCRIPTOR_MAX)) { \
-                                            (*(pSet))[(d) / 8] & (1 << ((d) & 7));  \
+#define CELLULAR_SOCK_FD_ISSET(d, pSet) if (((d) >= 0) &&                               \
+                                            ((d) < CELLULAR_SOCK_DESCRIPTOR_SETSIZE)) { \
+                                            (*(pSet))[(d) / 8] & (1 << ((d) & 7));      \
                                         }
 
 /* ----------------------------------------------------------------
@@ -292,13 +291,14 @@ typedef enum {
 typedef enum {
     CELLULAR_SOCK_SUCCESS = 0,
     CELLULAR_SOCK_UNKNOWN_ERROR = -1,
+    CELLULAR_SOCK_BSD_ERROR = -1, //<! BSD always returns -1
     CELLULAR_SOCK_NOT_INITIALISED = -2,
     CELLULAR_SOCK_NOT_IMPLEMENTED = -3,
     CELLULAR_SOCK_NOT_RESPONDING = -4,
     CELLULAR_SOCK_INVALID_PARAMETER = -5,
     CELLULAR_SOCK_NO_MEMORY = -6,
     CELLULAR_SOCK_WOULD_BLOCK = -7, //<! Value matches LWIP.
-    CELLULAR_SOCK_PLATFORM_ERROR = -8,
+    CELLULAR_SOCK_PLATFORM_ERROR = -8
 } CellularSockErrorCode_t;
 
 /* ----------------------------------------------------------------
