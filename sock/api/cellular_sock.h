@@ -178,21 +178,54 @@
  * COMPILE-TIME MACROS: MISC
  * -------------------------------------------------------------- */
 
+/** The maximum number of sockets that can be in existence at once.
+ */
+#define CELLULAR_SOCK_DESCRIPTOR_MAX 256
+
+/** The maximum number of sockets that can be cellularSockSelect()ed
+ * from.  Note that increasing this may increase stack usage
+ * as applications normally declare their descriptor sets as
+ * automatic variables.  A size of 256 will be 256 /8 = 32 bytes.
+ */
+#define CELLULAR_SOCK_DESCRIPTOR_SETSIZE CELLULAR_SOCK_DESCRIPTOR_MAX
+
+/** Zero a file descriptor set.
+ */
+#define CELLULAR_SOCK_FD_ZERO(pSet) pCellularPort_memset(*(pSet), 0,     \
+                                                         sizeof(*(pSet)))
+
+/** Set the bit corresponding to a given file descriptor in a set.
+ */
+#define CELLULAR_SOCK_FD_SET(d, pSet) if (((d) >= 0) &&                           \
+                                          ((d) < CELLULAR_SOCK_DESCRIPTOR_MAX)) { \
+                                          (*(pSet))[(d) / 8] |= 1 << ((d) & 7);   \
+                                      }
+
+/** Clear the bit corresponding to a given file descriptor in a set.
+ */
+#define CELLULAR_SOCK_FD_CLR(d, pSet) if (((d) >= 0) &&                            \
+                                          ((d) < CELLULAR_SOCK_DESCRIPTOR_MAX)) {  \
+                                          (*(pSet))[(d) / 8] &= ~(1 << ((d) & 7)); \
+                                      }
+
+/** Determine if the bit corresponding to a given file descriptor is set.
+ */
+#define CELLULAR_SOCK_FD_ISSET(d, pSet) if (((d) >= 0) &&                           \
+                                            ((d) < CELLULAR_SOCK_DESCRIPTOR_MAX)) { \
+                                            (*(pSet))[(d) / 8] & (1 << ((d) & 7));  \
+                                        }
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
 
-/** Socket handle.
+/** Socket descriptor.
  */
-typedef void * CellularSockHandle_t;
+typedef int32_t CellularSockDescriptor_t;
 
-/** A socket handle set, for use with cellularSockSelect().
+/** A socket descriptor set, for use with cellularSockSelect().
  */
-typedef struct CellularSockHandleSet_t {
-    CellularSockHandle_t             handle;
-    uint32_t                         state;
-    struct CellularSockHandleSet_t  *pNext;
-} CellularSockHandleSet_t;
+typedef uint8_t CellularSockDescriptorSet_t[(CELLULAR_SOCK_DESCRIPTOR_SETSIZE + 7) / 8];
 
 /** Supported socket types: the numbers match those of LWIP.
  */
@@ -276,7 +309,7 @@ typedef enum {
  *
  * @param type     the type of socket to create.
  * @param protocol the protocol that will run over the given socket.
- * @return         the handle of the socket or -1 if an error
+ * @return         the descriptor of the socket or -1 if an error
  *                 occurred.
  */
 int32_t cellularSockCreate(CellularSockType_t type,
@@ -284,21 +317,21 @@ int32_t cellularSockCreate(CellularSockType_t type,
 
 /** Make an outgoing connection on the given socket.
  *
- * @param handle         the handle of the socket.
+ * @param descriptor     the descriptor of the socket.
  * @param pRemoteAddress the address of the remote host to connect
  *                       to.
  * @return               zero on success else negative error code.
  */
-int32_t cellularSockConnect(CellularSockHandle_t handle,
+int32_t cellularSockConnect(CellularSockDescriptor_t descriptor,
                             const CellularSockAddress_t *pRemoteAddress);
 
 /** Close a socket.  Note that a TCP socket should be shutdown
  * with a call to cellularSockShutdown() before it is closed.
  *
- * @param handle the handle of the socket to be closed.
+ * @param descriptor the descriptor of the socket to be closed.
  * @return       zero on success else negative error code.
  */
-int32_t cellularSockClose(CellularSockHandle_t handle);
+int32_t cellularSockClose(CellularSockDescriptor_t descriptor);
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: CONFIGURE
@@ -306,23 +339,22 @@ int32_t cellularSockClose(CellularSockHandle_t handle);
 
 /** Configure the given socket's file parameters.
  *
- * @param handle   the handle of the socket.
- * @param command  the command to be sent.  Only setting/getting
- *                 the non-block bit of the file descriptor
- *                 is supported.
- * @param value    an argument relevant to command. Only a file
- *                 descriptor is supported.
- * @return         on success a value that is dependent
- *                 upon command (i.e. a file descriptor)
- *                 else -1 on error.
+ * @param descriptor the descriptor of the socket.
+ * @param command    the command to be sent.  Only setting/getting
+ *                   the O_NONBLOCK bit is supported.
+ * @param value      an argument relevant to command, e.g.
+ *                   the file descriptor flags.
+ * @return           on success a value that is dependent
+ *                   upon command (e.g. the file descriptor flags)
+ *                   else -1 on error.
  */
-int32_t cellularSockFctl(CellularSockHandle_t handle,
+int32_t cellularSockFctl(CellularSockDescriptor_t descriptor,
                          int32_t command,
                          int32_t value);
 
 /** Set the options for the given socket.
  *
- * @param handle            the handle of the socket.
+ * @param descriptor        the descriptor of the socket.
  * @param level             the option level
  *                          (see CELLULAR_SOCK_OPT_LEVEL*).
  * @param option            the option (see CELLULAR_SOCK_OPT*).
@@ -330,7 +362,7 @@ int32_t cellularSockFctl(CellularSockHandle_t handle,
  * @param optionValueLength the length of the data at pOptionValue.
  * @return                  zero on success else negative error code.
  */
-int32_t cellularSockSetOption(CellularSockHandle_t handle,
+int32_t cellularSockSetOption(CellularSockDescriptor_t descriptor,
                               int32_t level,
                               uint32_t option,
                               const void *pOptionValue,
@@ -338,7 +370,7 @@ int32_t cellularSockSetOption(CellularSockHandle_t handle,
 
 /** Get the options for the given socket.
  *
- * @param handle             the handle of the socket.
+ * @param descriptor         the descriptor of the socket.
  * @param level              the option level
  *                           (see CELLULAR_SOCK_OPT_LEVEL*).
  * @param option             the option (see CELLULAR_SOCK_OPT*).
@@ -348,7 +380,7 @@ int32_t cellularSockSetOption(CellularSockHandle_t handle,
  *                           of data in bytes written to pOptionValue.
  * @return                   zero on success else negative error code.
  */
-int32_t cellularSockGetOption(CellularSockHandle_t handle,
+int32_t cellularSockGetOption(CellularSockDescriptor_t descriptor,
                               int32_t level,
                               uint32_t option,
                               void *pOptionValue,
@@ -360,20 +392,20 @@ int32_t cellularSockGetOption(CellularSockHandle_t handle,
 
 /** Send a datagram to the given host.
  *
- * @param handle         the handle of the socket.
+ * @param descriptor     the descriptor of the socket.
  * @param pRemoteAddress the address of the remote host to send to.
  * @param pData          the data to send.
  * @param dataSizeBytes  the number of bytes of data to send.
  * @return               on success the number of bytes sent else
  *                       negative error code.
  */
-int32_t cellularSockSendTo(CellularSockHandle_t handle,
+int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
                            const CellularSockAddress_t *pRemoteAddress,
                            const void *pData, size_t dataSizeBytes);
 
 /** Receive a datagram from the given host.
  *
- * @param handle         the handle of the socket.
+ * @param descriptor     the descriptor of the socket.
  * @param pRemoteAddress a place to put the address of the remote
  *                       host from which the datagram was received.
  * @param pData          a buffer in which to store the arriving
@@ -383,7 +415,7 @@ int32_t cellularSockSendTo(CellularSockHandle_t handle,
  * @return               on success the number of bytes received
  *                       else negative error code.
  */
-int32_t cellularSockReceiveFrom(CellularSockHandle_t handle,
+int32_t cellularSockReceiveFrom(CellularSockDescriptor_t descriptor,
                                 CellularSockAddress_t *pRemoteAddress,
                                 void *pData, size_t dataSizeBytes);
 
@@ -393,19 +425,19 @@ int32_t cellularSockReceiveFrom(CellularSockHandle_t handle,
 
 /** Send data.
  *
- * @param handle         the handle of the socket.
+ * @param descriptor     the descriptor of the socket.
  * @param pData          the data to send.
  * @param dataSizeBytes  the number of bytes of data to send.
  * @return               on success the number of bytes sent else
  *                       negative error code.
  */
-int32_t cellularSockWrite(CellularSockHandle_t handle,
+int32_t cellularSockWrite(CellularSockDescriptor_t descriptor,
                           const CellularSockAddress_t *pRemoteAddress,
                           const void *pData, size_t dataSizeBytes);
 
 /** Receive data.
  *
- * @param handle         the handle of the socket.
+ * @param descriptor     the descriptor of the socket.
  * @param pData          a buffer in which to store the arriving
  *                       data.
  * @param dataSizeBytes  the number of bytes of storage available
@@ -413,16 +445,16 @@ int32_t cellularSockWrite(CellularSockHandle_t handle,
  * @return               on success the number of bytes received
  *                       else negative error code.
  */
-int32_t cellularSockRead(CellularSockHandle_t handle,
+int32_t cellularSockRead(CellularSockDescriptor_t descriptor,
                          void *pData, size_t dataSizeBytes);
 
 /** Prepare a TCP socket for being closed.
  *
- * @param handle   the handle of the socket to be prepared.
- * @param how      what type of shutdown to perform.
- * @return         zero on success else negative error code.
+ * @param descriptor the descriptor of the socket to be prepared.
+ * @param how        what type of shutdown to perform.
+ * @return           zero on success else negative error code.
  */
-int32_t cellularSockShutdown(CellularSockHandle_t handle,
+int32_t cellularSockShutdown(CellularSockDescriptor_t descriptor,
                              CellularSockShutdown_t how);
 
 /* ----------------------------------------------------------------
@@ -432,100 +464,65 @@ int32_t cellularSockShutdown(CellularSockHandle_t handle,
 /** Prepare a socket for receiving incoming TCP connections
  * by binding it to an address.
  *
- * @param handle         the handle of the socket to be prepared.
+ * @param descriptor     the descriptor of the socket to be prepared.
  * @param pLocalAddress  the local IP address to bind to.
  * @return               zero on success else negative error code.
  */
-int32_t cellularSockBind(CellularSockHandle_t handle,
+int32_t cellularSockBind(CellularSockDescriptor_t descriptor,
                          const CellularSockAddress_t *pLocalAddress);
 
-/** Listen on the given socket for an incoming TCP connection.
- * The socket must have been bound to an address first.
+/** Set the given socket into listening mode for an incoming
+ * TCP connection. The socket must have been bound to an address
+ * first.
  *
- * @param handle   the handle of the socket to listen on.
- * @param backlog  the number of pending connections that can
- *                 be queued.
- * @return         zero on success else negative error code.
+ * @param descriptor the descriptor of the socket to listen on.
+ * @param backlog    the number of pending connections that can
+ *                   be queued.
+ * @return           zero on success else negative error code.
  */
-int32_t cellularSockListen(CellularSockHandle_t handle,
+int32_t cellularSockListen(CellularSockDescriptor_t descriptor,
                            size_t backlog);
 
 /** Accept an incoming TCP connection on the given socket.
  *
- * @param handle          the handle of the socket with the queued
+ * @param descriptor      the descriptor of the socket with the queued
  *                        incoming connection.
  * @param pRemoteAddress  a pointer to a place to put the address
  *                        of the thing from which the connection has
  *                        been accepted.
- * @return                the handle of the new socket connection
+ * @return                the descriptor of the new socket connection
  *                        that must be used for TCP communication
  *                        with the thing from now on or -1 if an
  *                        error occurred.
  */
-int32_t cellularSockAccept(CellularSockHandle_t handle,
+int32_t cellularSockAccept(CellularSockDescriptor_t descriptor,
                            CellularSockAddress_t *pRemoteAddress);
-
-/* ----------------------------------------------------------------
- * FUNCTIONS: SELECT
- * -------------------------------------------------------------- */
 
 /** Select: wait for one of a set of sockets to become unblocked.
  *
- * @param maxHandle         the highest numbered handle in the
- *                          sets that follow to select on + 1.
- * @param pReadHandleSet    the set of handles to check for
- *                          unblocking for a read operation. May
- *                          be NULL.
- * @param pWriteHandleSet   the set of handles to check for
- *                          unblocking for a write operation. May
- *                           be NULL.
- * @param pExceptHandleSet  the set of handles to check for
- *                          exceptional conditions. May be NULL.
- * @param timeMs            the timeout for the select operation
- *                          in milliseconds.
- * @return                  a value that can be processed by
- *                          cellularSockHandleIsSet() to determine
- *                          if that handle changed state.
+ * @param maxDescriptor         the highest numbered descriptor in the
+ *                              sets that follow to select on + 1.
+ * @param pReadDescriptorSet    the set of descriptors to check for
+ *                              unblocking for a read operation. May
+ *                              be NULL.
+ * @param pWriteDescriptorSet   the set of descriptors to check for
+ *                              unblocking for a write operation. May
+ *                              be NULL.
+ * @param pExceptDescriptorSet  the set of descriptors to check for
+ *                              exceptional conditions. May be NULL.
+ * @param timeMs                the timeout for the select operation
+ *                              in milliseconds.
+ * @return                      a positive value if a unblocking
+ *                              occurred, zero on timeout, negative
+ *                              on any other error.  Use
+ *                              CELLULAR_SOCK_FD_ISSET() to determine
+ *                              which descriptor(s) were unblocked.
  */
-int32_t cellularSockSelect(int32_t maxHandle,
-                           CellularSockHandleSet_t *pReadHandleSet,
-                           CellularSockHandleSet_t *pWriteHandleSet,
-                           CellularSockHandleSet_t *pExceptHandleSet,
+int32_t cellularSockSelect(int32_t maxDescriptor,
+                           CellularSockDescriptorSet_t *pReadDescriptorSet,
+                           CellularSockDescriptorSet_t *pWriteDescriptoreSet,
+                           CellularSockDescriptorSet_t *pExceptDescriptorSet,
                            int32_t timeMs);
-
-/** Zero the given set of handles.
- *
- * @param pHandleSet the set of handles to zero.
- */
-void cellularSockHandleSetZero(CellularSockHandleSet_t *pHandleSet);
-
-/** Remove the given handle from a set.
- *
- * @param handle     the handle to remove.
- * @param pHandleSet the set of handles to remove from.
- */
-void cellularSockHandleClear(CellularSockHandle_t handle,
-                             CellularSockHandleSet_t *pHandleSet);
-
-/** Add the given handle to a set.
- *
- * @param handle     the handle to add.
- * @param pHandleSet the set of handles to add to.
- * @return           zero on success else negative error code.
- */
-int32_t cellularSockHandleAdd(CellularSockHandle_t handle,
-                              CellularSockHandleSet_t *pHandleSet);
-
-/** Determine if the given handle was set by a call to
- * cellularSockSelect().
- *
- * @param handle     the handle to check.
- * @param pHandleSet the set of handles to check inside.
- * @return           non-zero if the handle was set, else zero
- *                   (i.e. can be treated as a bool).
- */
-int32_t cellularSockHandleIsSet(CellularSockHandle_t handle,
-                                CellularSockHandleSet_t *pHandleSet);
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: FINDING ADDRESSES
@@ -533,22 +530,22 @@ int32_t cellularSockHandleIsSet(CellularSockHandle_t handle,
 
 /** Get the address of the remote host connected to a given socket.
  *
- * @param handle         the handle of the socket.
+ * @param descriptor     the descriptor of the socket.
  * @param pRemoteAddress a pointer to a place to put the address
  *                       of the remote end of the socket.
  * @return               zero on success else negative error code.
  */
-int32_t cellularSockGetRemoteAddress(CellularSockHandle_t handle,
-                                    CellularSockAddress_t *pRemoteAddress);
+int32_t cellularSockGetRemoteAddress(CellularSockDescriptor_t descriptor,
+                                     CellularSockAddress_t *pRemoteAddress);
 
 /** Get the local address of the given socket.
  *
- * @param handle        the handle of the socket.
+ * @param descriptor    the descriptor of the socket.
  * @param pLocalAddress a pointer to a place to put the address
  *                      of the local end of the socket.
  * @return              zero on success else negative error code.
  */
-int32_t cellularSockGetLocalAddress(CellularSockHandle_t handle,
+int32_t cellularSockGetLocalAddress(CellularSockDescriptor_t descriptor,
                                     CellularSockAddress_t *pLocalAddress);
 
 /** Get the IP address of the given host name.  If the host name
