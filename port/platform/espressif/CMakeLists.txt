@@ -11,7 +11,7 @@ set(COMPONENT_SRCS
                    "src/cellular_port_os.c"
                    "src/cellular_port_uart.c"
 # The data (sockets) interface
-                   )
+                   "../../../sock/src/cellular_sock.c")
 
 # The APIs for all of the above
 set(COMPONENT_ADD_INCLUDEDIRS 

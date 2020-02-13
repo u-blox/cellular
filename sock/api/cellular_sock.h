@@ -185,7 +185,7 @@
 /** The maximum number of sockets that can be cellularSockSelect()ed
  * from.  Note that increasing this may increase stack usage
  * as applications normally declare their descriptor sets as
- * automatic variables.  A size of 256 will be 256 /8 = 32 bytes.
+ * automatic variables.  A size of 256 will be 256 / 8 = 32 bytes.
  */
 #define CELLULAR_SOCK_DESCRIPTOR_SETSIZE CELLULAR_SOCK_DESCRIPTOR_MAX
 
@@ -230,9 +230,9 @@ typedef uint8_t CellularSockDescriptorSet_t[(CELLULAR_SOCK_DESCRIPTOR_SETSIZE + 
 /** Supported socket types: the numbers match those of LWIP.
  */
 typedef enum {
-    CELLULAR_SOCK_TYPE_NONE = 0,
+    CELLULAR_SOCK_TYPE_NONE   = 0,
     CELLULAR_SOCK_TYPE_STREAM = 1, //<! TCP.
-    CELLULAR_SOCK_TYPE_DGRAM = 2   //<! UDP.
+    CELLULAR_SOCK_TYPE_DGRAM  = 2  //<! UDP.
 } CellularSockType_t;
 
 /** Supported protocols: the numbers match those of LWIP.
@@ -309,8 +309,8 @@ typedef enum {
  *
  * @param type     the type of socket to create.
  * @param protocol the protocol that will run over the given socket.
- * @return         the descriptor of the socket or -1 if an error
- *                 occurred.
+ * @return         the descriptor of the socket else negative error
+ *                 code.
  */
 int32_t cellularSockCreate(CellularSockType_t type,
                            CellularSockProtocol_t protocol);
@@ -492,8 +492,8 @@ int32_t cellularSockListen(CellularSockDescriptor_t descriptor,
  *                        been accepted.
  * @return                the descriptor of the new socket connection
  *                        that must be used for TCP communication
- *                        with the thing from now on or -1 if an
- *                        error occurred.
+ *                        with the thing from now on else negative
+ *                        error code.
  */
 int32_t cellularSockAccept(CellularSockDescriptor_t descriptor,
                            CellularSockAddress_t *pRemoteAddress);
@@ -512,7 +512,7 @@ int32_t cellularSockAccept(CellularSockDescriptor_t descriptor,
  *                              exceptional conditions. May be NULL.
  * @param timeMs                the timeout for the select operation
  *                              in milliseconds.
- * @return                      a positive value if a unblocking
+ * @return                      a positive value if an unblocking
  *                              occurred, zero on timeout, negative
  *                              on any other error.  Use
  *                              CELLULAR_SOCK_FD_ISSET() to determine
