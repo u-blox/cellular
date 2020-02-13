@@ -1,5 +1,5 @@
 # Introduction
-These directories provide a driver that implements the user data (sockets) interface to a cellular module.  The API presented is a Berkeley sockets API, similar to that of `lwip`, allowing the files here to replace `lwip`, providing a cellular-based sockets interface through the IP stack inside the cellular module instead. 
+These directories provide a driver that implements the user data (sockets) interface to a cellular module.  The API presented is a Berkeley sockets API, similar to that of LWIP, allowing the files here to replace LWIP, providing a cellular-based sockets interface through the IP stack inside the cellular module instead. 
 
 The files under the `ctrl` directory provide the actual AT interface to the cellular module and hence are required by this driver (and those of `port`, see next section) to achieve a usable binary image.
 

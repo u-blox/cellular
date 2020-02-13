@@ -2,7 +2,7 @@
 In this repository you will find the implementation of a cellular transport in C for various embedded target platforms.  The implementation consists of:
 
 - `ctrl`: a driver that allows control of a cellular module over an AT interface, e.g. make connection, read IMEI, read signal strength, etc.
-- `sock`: a driver that allows data transfer through a cellular module, presenting the same TCP/UDP sockets API as `lwip` and building on top of the AT parser in `ctrl`.
+- `sock`: a driver that allows data transfer through a cellular module, presenting the same TCP/UDP sockets API as LWIP and building on top of the AT parser in `ctrl`.
 - `port`: a limited porting layer which allows `ctrl` and `sock` to be compiled and tested on various platforms.
 
 ![Architecture](pics-for-readme/architecture.jpg)
