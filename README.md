@@ -1,5 +1,5 @@
 # Introduction
-In this repository you will find the implementation of a cellular transport in C for various embedded target platforms, enabling a cellular connection to be used inside the IoT SDKs of cloud platforms such as AWS and Azure.  The implementation consists of:
+In this repository you will find the implementation of a cellular transport in C for various embedded target platforms, enabling a cellular connection to be used inside the embedded C IoT SDKs of cloud platforms such as AWS and Azure.  The implementation consists of:
 
 - `ctrl`: a driver that allows control of a cellular module over an AT interface, e.g. make connection, read IMEI, read signal strength, etc.
 - `sock`: a driver that allows data transfer through a cellular module, presenting the same TCP/UDP sockets API as LWIP and building on top of the AT parser in `ctrl`.
