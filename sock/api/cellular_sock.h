@@ -249,25 +249,15 @@ typedef enum {
     CELLULAR_SOCK_ADDRESS_TYPE_V4_V6 = 46
 } CellularSockIpAddressType_t;
 
-/** IPV4 address.
- */
-typedef struct {
-    uint32_t address;
-} CellularSockIpAddressV4_t;
-
-/** IPV6 address.
- */
-typedef struct {
-    uint32_t address[4];
-} CellularSockIpAddressV6_t;
-
 /** IP address (doesn't include port number).
  */
 typedef struct {
-    CellularSockIpAddressType_t type;
+    CellularSockIpAddressType_t type; //<! do NOT use
+                                      // CELLULAR_SOCK_ADDRESS_TYPE_V4_V6
+                                      // here!
     union {
-        CellularSockIpAddressV4_t ipv4;
-        CellularSockIpAddressV6_t ipv6;
+        uint32_t ipv4;
+        uint32_t ipv6[4];
     } address;
 } CellularSockIpAddress_t;
 
@@ -275,7 +265,7 @@ typedef struct {
  */
 typedef struct {
     CellularSockIpAddress_t ipAddress;
-    int16_t port;
+    uint16_t port;
 } CellularSockAddress_t;
 
 /** Socket shut-down types: the numbers match those of LWIP.
@@ -298,7 +288,8 @@ typedef enum {
     CELLULAR_SOCK_INVALID_PARAMETER = -5,
     CELLULAR_SOCK_NO_MEMORY = -6,
     CELLULAR_SOCK_WOULD_BLOCK = -7, //<! Value matches LWIP.
-    CELLULAR_SOCK_PLATFORM_ERROR = -8
+    CELLULAR_SOCK_PLATFORM_ERROR = -8,
+    CELLULAR_SOCK_INVALID_ADDRESS = -9
 } CellularSockErrorCode_t;
 
 /* ----------------------------------------------------------------
@@ -561,6 +552,61 @@ int32_t cellularSockGetLocalAddress(CellularSockDescriptor_t descriptor,
  */
 int32_t cellularSockGetHostByName(const char *pHostName,
                                   CellularSockIpAddress_t *pHostIpAddress);
+
+
+/* ----------------------------------------------------------------
+ * FUNCTIONS: ADDRESS CONVERSION
+ * -------------------------------------------------------------- */
+
+/** Convert an IP address string into a struct.
+ *
+ * @param pAddressString the string to convert.  Both IPV4 and
+ *                       IPV6 addresses are supported and a port
+ *                       number may be included.  Note that the
+ *                       IPV6 optimisation of removing a single
+ *                       zero hextet in the string by using "::"
+ *                       is NOT supported.
+ * @param pAddress       a pointer to a place to put the address.
+ * @return               zero on success else negative error code.
+ */
+int32_t cellularSockStringToAddress(const char *pAddressString,
+                                    CellularSockAddress_t *pAddress);
+
+/** Convert an IP address struct (i.e. without a port number)
+ * into a string.
+ *
+ * @param pIpAddress a pointer to the IP address to convert.
+ * @param pBuffer    a buffer in which to place the string,
+ *                   allow 64 bytes for a full IPV6 address
+ *                   and NULL terminator.
+ * @param sizeBytes  the amount of memory pointed to by
+ *                   pBuffer.
+ * @return           on success the length of the string, not
+ *                   including the NULL terminator (i.e. what
+ *                   strlen() would return) else negative
+ *                   error code.
+ */
+int32_t cellularSockIpAddressToString(const CellularSockIpAddress_t *pIpAddress,
+                                      char *pBuffer,
+                                      size_t sizeBytes);
+
+/** Convert an address struct (i.e. with a port number) into a
+ * string.
+ *
+ * @param pAddress   a pointer to the address to convert.
+ * @param pBuffer    a buffer in which to place the string,
+ *                   allow 64 bytes for a full IPV6 address
+ *                   with port number and NULL terminator.
+ * @param sizeBytes  the amount of memory pointed to by
+ *                   pBuffer.
+ * @return           on success the length of the string, not
+ *                   including the NULL terminator (i.e. what
+ *                   strlen() would return) else negative
+ *                   error code.
+ */
+int32_t cellularSockAddressToString(const CellularSockAddress_t *pAddress,
+                                    char *pBuffer,
+                                    size_t sizeBytes);
 
 #endif // _CELLULAR_SOCK_H_
 

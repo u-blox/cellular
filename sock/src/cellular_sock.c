@@ -77,7 +77,7 @@ static CellularSockContainer_t *gpContainerListHead = NULL;
 static CellularSockDescriptor_t gNextDescriptor = 0;
 
 /* ----------------------------------------------------------------
- * STATIC FUNCTIONS
+ * STATIC FUNCTIONS: MISC
  * -------------------------------------------------------------- */
 
 // Initialise.
@@ -89,6 +89,10 @@ static bool init()
 
     return gInitialised;
 }
+
+/* ----------------------------------------------------------------
+ * STATIC FUNCTIONS: CONTAINER STUFF
+ * -------------------------------------------------------------- */
 
 // Find the socket container for the given descriptor.
 // This does NOT lock the mutex, you need to do that.
@@ -169,12 +173,64 @@ static bool containerFree(CellularSockDescriptor_t descriptor)
     return success;
 }
 
+/* ----------------------------------------------------------------
+ * STATIC FUNCTIONS: ADDRESS CONVERSION
+ * -------------------------------------------------------------- */
+
+// Determine whether the given IP address string is IPV4.
+static bool addressStringIsIpv4(const char *pAddressString)
+{
+    // If it's got a dot in it, must be IPV4
+    return (pCellularPort_strchr(pAddressString, '.') != NULL);
+}
+
 // Convert an IPV4 address string "xxx.yyy.www.zzz:65535" into
 // a struct.
 static bool ipv4StringToAddress(const char *pAddressString,
                                 CellularSockAddress_t *pAddress)
 {
-    bool success = false;
+    bool success = true;
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+    uint32_t port;
+    const char *pColon;
+
+    pAddress->ipAddress.type = CELLULAR_SOCK_ADDRESS_TYPE_V4;
+    pAddress->ipAddress.address.ipv4 = 0;
+    pAddress->port = 0;
+
+    // Get the IP address part
+    if (cellularPort_sscanf(pAddressString, "%u.%u.%u.%u",
+                            &a, &b, &c, &d) == 4) {
+        // Range check
+        if ((a <= UCHAR_MAX) && (b <= UCHAR_MAX) &&
+            (c <= UCHAR_MAX) && (d <= UCHAR_MAX)) {
+
+            // Calculate the IP address part, network byte order
+            pAddress->ipAddress.address.ipv4 = (a << 24) |
+                                               (b << 16) |
+                                               (c << 8)  |
+                                               (d << 0);
+
+            // Check for a port number on the end
+            pColon = pCellularPort_strchr(pAddressString, ':');
+            if (pColon != NULL) {
+                // Fill in the port number
+                port = cellularPort_strtol(pColon + 1, NULL, 10);
+                if (port <= USHRT_MAX) {
+                    pAddress->port = port;
+                } else {
+                    success = false;
+                }
+            }
+        } else {
+            success = false;
+        }
+    } else {
+        success = false;
+    }
 
     return success;
 }
@@ -184,7 +240,70 @@ static bool ipv4StringToAddress(const char *pAddressString,
 static bool ipv6StringToAddress(const char *pAddressString,
                                 CellularSockAddress_t *pAddress)
 {
-    bool success = false;
+    bool success = true;
+    size_t stringLength = cellularPort_strlen(pAddressString);
+    bool hasPort = false;
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    uint32_t d;
+    uint32_t e;
+    uint32_t f;
+    uint32_t g;
+    uint32_t h;
+    uint32_t port;
+    const char *pStr;
+
+    pAddress->ipAddress.type = CELLULAR_SOCK_ADDRESS_TYPE_V6;
+    pCellularPort_memset(pAddress->ipAddress.address.ipv6, 0,
+                         sizeof(pAddress->ipAddress.address.ipv6));
+    pAddress->port = 0;
+
+    // See if there's a '[' on the start
+    if ((stringLength > 0) && (*pAddressString == '[')) {
+        hasPort = true;
+        pAddressString++;
+    }
+
+    // Get the IP address part
+    if (cellularPort_sscanf(pAddressString, "%x:%x:%x:%x:%x:%x:%x:%x",
+                            &a, &b, &c, &d, &e, &f, &g, &h) == 8) {
+        // Range check
+        if ((a <= USHRT_MAX) && (b <= USHRT_MAX) &&
+            (c <= USHRT_MAX) && (d <= USHRT_MAX) &&
+            (e <= USHRT_MAX) && (f <= USHRT_MAX) &&
+            (g <= USHRT_MAX) && (h <= USHRT_MAX)) {
+
+            // Slot the uint16_t's into the array in network-byte order
+            pAddress->ipAddress.address.ipv6[0] = (a << 16) | (b & 0xFFFF);
+            pAddress->ipAddress.address.ipv6[1] = (c << 16) | (d & 0xFFFF);
+            pAddress->ipAddress.address.ipv6[2] = (e << 16) | (f & 0xFFFF);
+            pAddress->ipAddress.address.ipv6[3] = (g << 16) | (h & 0xFFFF);
+
+            // Get the port number if there was one
+            if (hasPort) {
+                pStr = pCellularPort_strchr(pAddressString, ']');
+                if (pStr != NULL) {
+                    pStr = pCellularPort_strchr(pStr, ':');
+                    if (pStr != NULL) {
+                        // Fill in the port number
+                        port = cellularPort_strtol(pStr + 1, NULL, 10);
+                        if (port <= USHRT_MAX) {
+                            pAddress->port = port;
+                        } else {
+                            success = false;
+                        }
+                    }
+                } else {
+                    success = false;
+                }
+            }
+        } else {
+            success = false;
+        }
+    } else {
+        success = false;
+    }
 
     return success;
 }
@@ -195,21 +314,113 @@ static int32_t ipAddressToString(const CellularSockIpAddress_t *pIpAddress,
                                  char *pBuffer,
                                  size_t sizeBytes)
 {
-    int32_t stringLength = 0;
+    CellularSockErrorCode_t stringLengthOrError = CELLULAR_SOCK_INVALID_PARAMETER;
+    int32_t thisLength;
 
-    return stringLength;
+    // Convert the address in network byte order (MSB first);
+    switch (pIpAddress->type) {
+        case CELLULAR_SOCK_ADDRESS_TYPE_V4:
+            stringLengthOrError = cellularPort_snprintf(pBuffer,
+                                                        sizeBytes,
+                                                        "%u.%u.%u.%u",
+                                                        (pIpAddress->address.ipv4 >> 24) & 0xFF,
+                                                        (pIpAddress->address.ipv4 >> 16) & 0xFF,
+                                                        (pIpAddress->address.ipv4 >> 8)  & 0xFF,
+                                                        (pIpAddress->address.ipv4 >> 0)  & 0xFF);
+        break;
+        case CELLULAR_SOCK_ADDRESS_TYPE_V6:
+            stringLengthOrError = 0;
+            for (int32_t x = 3; (x >= 0) && (stringLengthOrError >= 0); x--) {
+                thisLength = cellularPort_snprintf(pBuffer,
+                                                   sizeBytes,
+                                                   "%x:%x",
+                                                   (pIpAddress->address.ipv6[x] >> 16) & 0xFFFF,
+                                                   (pIpAddress->address.ipv6[x] >> 0)  & 0xFFFF);
+                if (x > 0) {
+                    if ((thisLength >= 0) && (thisLength < sizeBytes)) {
+                        *(pBuffer + thisLength) = ':';
+                        thisLength++;
+                    } else {
+                        thisLength = CELLULAR_SOCK_NO_MEMORY;
+                    }
+                }
+                if ((thisLength >= 0) && (thisLength < sizeBytes)) {
+                    sizeBytes -= thisLength;
+                    pBuffer += thisLength;
+                    stringLengthOrError += thisLength;
+                } else {
+                    stringLengthOrError = CELLULAR_SOCK_NO_MEMORY;
+                }
+            }
+        break;
+        default:
+        break;
+    }
+
+    return (int32_t) stringLengthOrError;
 }
 
-// Convert an address struct, which could include a port number,
+// Convert an address struct, which includes a port number,
 // into a string, returning the length of the string.
 static int32_t addressToString(const CellularSockAddress_t *pAddress,
                                bool includePortNumber,
                                char *pBuffer,
                                size_t sizeBytes)
 {
-    int32_t stringLength = 0;
+    CellularSockErrorCode_t stringLengthOrError = 0;
+    int32_t thisLength;
 
-    return stringLength;
+    if (includePortNumber) {
+        // If this is an IPV6 address, then start with a square bracket
+        // to delineate the IP address part
+        if (pAddress->ipAddress.type == CELLULAR_SOCK_ADDRESS_TYPE_V6) {
+            if (sizeBytes > 1) {
+                *pBuffer = '[';
+                stringLengthOrError++;
+                sizeBytes--;
+                pBuffer++;
+            } else {
+                stringLengthOrError = CELLULAR_SOCK_NO_MEMORY;
+            }
+        }
+        // Do the IP address part
+        if (stringLengthOrError >= 0) {
+            thisLength = ipAddressToString(&(pAddress->ipAddress), pBuffer, sizeBytes);
+            if (thisLength >= 0) {
+                sizeBytes -= thisLength;
+                pBuffer += thisLength;
+                stringLengthOrError += thisLength;
+                // If this is an IPV6 address then close the square brackets
+                if (pAddress->ipAddress.type == CELLULAR_SOCK_ADDRESS_TYPE_V6) {
+                    if (sizeBytes > 1) {
+                        *pBuffer = ']';
+                        stringLengthOrError++;
+                        sizeBytes--;
+                        pBuffer++;
+                    } else {
+                        stringLengthOrError = CELLULAR_SOCK_NO_MEMORY;
+                    }
+                }
+            } else {
+                stringLengthOrError = CELLULAR_SOCK_NO_MEMORY;
+            }
+        }
+        // Add the port number
+        if (stringLengthOrError >= 0) {
+            stringLengthOrError += cellularPort_snprintf(pBuffer,
+                                                         sizeBytes,
+                                                         ":%u",
+                                                         pAddress->port);
+            if (stringLengthOrError >= sizeBytes) {
+                stringLengthOrError = CELLULAR_SOCK_NO_MEMORY;
+            }
+        }
+    } else {
+        // No port number required, just do the ipAddress part
+        stringLengthOrError = ipAddressToString(&(pAddress->ipAddress), pBuffer, sizeBytes);
+    }
+
+    return (int32_t) stringLengthOrError;
 }
 
 /* ----------------------------------------------------------------
@@ -246,7 +457,7 @@ int32_t cellularSockCreate(CellularSockType_t type,
                         // create the container
                         pContainer = pContainerCreate(descriptor);
                         if (pContainer != NULL) {
-                            // Created, fill in the socket values
+                            // Container allocated, fill in the socket values
                             pContainer->socket.type = type;
                             pContainer->socket.protocol = protocol;
                             descriptorOrErrorCode = descriptor;
@@ -275,11 +486,14 @@ int32_t cellularSockCreate(CellularSockType_t type,
                     pContainer->socket.modemHandle = cellular_ctrl_at_read_int();
                     cellular_ctrl_at_resp_stop();
                     if (cellular_ctrl_at_unlock_return_error() == 0) {
+                        // All is good
+                        descriptorOrErrorCode = CELLULAR_SOCK_SUCCESS;
                         cellularPortLog("CELLULAR_SOCK: socket created, descriptor %d, modem handle %d.\n",
                                         descriptorOrErrorCode,
                                         pContainer->socket.modemHandle);
                     } else {
-                        // If the modem could not create the socket, free it
+                        // If the modem could not create the socket,
+                        // free the container once more
                         CELLULAR_PORT_MUTEX_LOCK(gMutex);
                         containerFree(descriptorOrErrorCode);
                         CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
@@ -323,7 +537,9 @@ int32_t cellularSockConnect(CellularSockDescriptor_t descriptor,
     char buffer[64]; // Big enough for an IPV6 address with port number
 
     if (init()) {
-        if (pRemoteAddress != NULL) {
+        // Check that the remote IP address is sensible
+        if ((pRemoteAddress != NULL) &&
+            (addressToString(pRemoteAddress, false, buffer, sizeof(buffer)) > 0)) {
             // Find the container
             CELLULAR_PORT_MUTEX_LOCK(gMutex);
             pContainer = pContainerFind(descriptor);
@@ -337,7 +553,6 @@ int32_t cellularSockConnect(CellularSockDescriptor_t descriptor,
                 // Handle
                 cellular_ctrl_at_write_int(pContainer->socket.modemHandle);
                 // IP address
-                addressToString(pRemoteAddress, false, buffer, sizeof(buffer));
                 cellular_ctrl_at_write_string(buffer, true);
                 // Port number
                 if (pRemoteAddress->port > 0) {
@@ -345,18 +560,21 @@ int32_t cellularSockConnect(CellularSockDescriptor_t descriptor,
                 }
                 cellular_ctrl_at_cmd_stop_read_resp();
                 if (cellular_ctrl_at_unlock_return_error() == 0) {
+                    // All is good
+                    errorCode = CELLULAR_SOCK_SUCCESS;
                     cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, is connected to address %.*s.\n",
                                     descriptor,
                                     pContainer->socket.modemHandle,
                                     addressToString(pRemoteAddress, true,
-                                                    buffer, sizeof(buffer)));
-                    errorCode = CELLULAR_SOCK_SUCCESS;
+                                                    buffer, sizeof(buffer)),
+                                    buffer);
                 } else {
                     // Host is not reachable
                     errno = CELLULAR_SOCK_EHOSTUNREACH;
-                    cellularPortLog("CELLULAR_SOCK: remote address %.*s not reachable.\n",
+                    cellularPortLog("CELLULAR_SOCK: remote address %.*s is not reachable.\n",
                                     addressToString(pRemoteAddress, true,
-                                                    buffer, sizeof(buffer)));
+                                                    buffer, sizeof(buffer)),
+                                    buffer);
                 }
             } else {
                 // Indicate that we weren't passed a valid socket descriptor
@@ -445,11 +663,11 @@ int32_t cellularSockFctl(CellularSockDescriptor_t descriptor,
 {
     // Since the return value depends upon the command, 
     // the only reliable error value for FCTL is -1.
-    int32_t errorCode = -1;
+    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
 
     // TODO
 
-    return errorCode;
+    return (int32_t) errorCode;
 }
 
 // Set the options for the given socket.
@@ -632,6 +850,68 @@ int32_t cellularSockGetHostByName(const char *pHostName,
     // TODO
 
     return (int32_t) errorCode;
+}
+
+/* ----------------------------------------------------------------
+ * PUBIC FUNCTIONS: ADDRESS CONVERSION
+ * -------------------------------------------------------------- */
+
+// Convert an IP address string into a struct.
+int32_t cellularSockStringToAddress(const char *pAddressString,
+                                    CellularSockAddress_t *pAddress)
+{
+    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_INVALID_PARAMETER;
+
+    // No need to call init() here, this is not a sockets function
+    if ((pAddressString != NULL) && (pAddress != NULL)) {
+        errorCode = CELLULAR_SOCK_INVALID_ADDRESS;
+        if (addressStringIsIpv4(pAddressString)) {
+            if (ipv4StringToAddress(pAddressString, pAddress)) {
+                errorCode = CELLULAR_SOCK_SUCCESS;
+            }
+        } else {
+            if (ipv6StringToAddress(pAddressString, pAddress)) {
+                errorCode = CELLULAR_SOCK_SUCCESS;
+            }
+        }
+    }
+
+    return (int32_t) errorCode;
+}
+
+// Convert an IP address struct into a string.
+int32_t cellularSockIpAddressToString(const CellularSockIpAddress_t *pIpAddress,
+                                      char *pBuffer,
+                                      size_t sizeBytes)
+{
+    CellularSockErrorCode_t stringLengthOrErrorCode = CELLULAR_SOCK_INVALID_PARAMETER;
+
+    // No need to call init() here, this is not a sockets function
+    if ((pIpAddress != NULL) && (pBuffer != NULL)) {
+        stringLengthOrErrorCode = ipAddressToString(pIpAddress,
+                                                    pBuffer,
+                                                    sizeBytes);
+    }
+
+    return (int32_t) stringLengthOrErrorCode;
+}
+
+// Convert an address struct into a string.
+int32_t cellularSockAddressToString(const CellularSockAddress_t *pAddress,
+                                    char *pBuffer,
+                                    size_t sizeBytes)
+{
+    CellularSockErrorCode_t stringLengthOrErrorCode = CELLULAR_SOCK_INVALID_PARAMETER;
+
+    // No need to call init() here, this is not a sockets function
+    if ((pAddress != NULL) && (pBuffer != NULL)) {
+        stringLengthOrErrorCode = addressToString(pAddress,
+                                                  true,
+                                                  pBuffer,
+                                                  sizeBytes);
+    }
+
+    return (int32_t) stringLengthOrErrorCode;
 }
 
 // End of file
