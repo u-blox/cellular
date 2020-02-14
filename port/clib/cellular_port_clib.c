@@ -112,10 +112,16 @@ char *pCellularPort_strncpy(char *pDst, const char *pSrc,
     return strncpy(pDst, pSrc, sizeBytes);
 }
 
-// strcmp()
+// strcmp().
 int32_t cellularPort_strcmp(const char *pStr1, const char *pStr2)
 {
     return strcmp(pStr1, pStr2);
+}
+
+// strchr().
+char *pCellularPort_strchr(const char *pStr, int32_t c)
+{
+    return strchr(pStr, c);
 }
 
 // sscanf().
@@ -133,10 +139,6 @@ int32_t cellularPort_sscanf(const char *pStr, const char *pFormat,
 }
 
 /* ----------------------------------------------------------------
- * PUBLIC FUNCTIONS: STDIO
- * -------------------------------------------------------------- */
-
-/* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS: CHARACTER CLASSIFICATION
  * -------------------------------------------------------------- */
 
@@ -151,6 +153,10 @@ int32_t cellularPort_iscntrl(int32_t c)
 {
     return iscntrl(c);
 }
+
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS: STDIO
+ * -------------------------------------------------------------- */
 
 // printf().
 int32_t cellularPort_printf(const char *pFormat, ...)
@@ -174,6 +180,20 @@ int32_t cellularPort_sprintf(char *pBuffer, const char *pFormat,
     va_list args;
     va_start(args, pFormat);
     result = vsprintf(pBuffer, pFormat, args);
+    va_end(args);
+
+    return result;
+}
+
+// snprintf().
+int32_t cellularPort_snprintf(char *pBuffer, size_t sizeBytes,
+                              const char *pFormat, ...)
+{
+    int32_t result;
+
+    va_list args;
+    va_start(args, pFormat);
+    result = vsnprintf(pBuffer, sizeBytes, pFormat, args);
     va_end(args);
 
     return result;

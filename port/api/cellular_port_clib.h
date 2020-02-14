@@ -157,6 +157,15 @@ char *pCellularPort_strncpy(char *pDst, const char *pSrc,
  */
 int32_t cellularPort_strcmp(const char *pStr1, const char *pStr2);
 
+/** strchr().
+ *
+ * @param pStr the string in which to search.
+ * @param c    the character to search for, treated as a char.
+ * @return     a pointer to the first occurrence of c in pStr, else
+ *             NULL if c is not found in pStr.
+ */
+char *pCellularPort_strchr(const char *pStr, int32_t c);
+
 /** sscanf().
  *
  * @param pStr    the string to scan.
@@ -213,6 +222,19 @@ int32_t cellularPort_printf(const char *pFormat, ...);
  */
 int32_t cellularPort_sprintf(char *pBuffer, const char *pFormat,
                             ...);
+
+/** snprintf().
+ *
+ * @param pBuffer   the buffer to print into.
+ * @param sizeBytes the size of buffer.
+ * @param pFormat   the format string.
+ * @param ...       a variable list of pointers to arguments
+ *                  to be filled based on the contents of the
+ *                  string and the format string.
+ * @return          the number of characters printed to pBuffer.
+ */
+int32_t cellularPort_snprintf(char *pBuffer, size_t sizeBytes,
+                              const char *pFormat, ...);
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: CONVERSION
