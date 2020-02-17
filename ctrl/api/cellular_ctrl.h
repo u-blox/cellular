@@ -20,9 +20,12 @@
 
 /* No #includes allowed here */
 
-/* This header file defines the cellular control API.  Note that
- * these functions are not intended to be thread-safe, don't
- * expect to call them from any task, you need to sort that out.
+/* This header file defines the cellular control API.  These functions
+ * are thread-safe with the proviso that there is only one cellular module
+ * and hence calling, for instance cellularCtrlRefreshRadioParameters()
+ * will affect every thread's getting of radio parameters, or calling
+ * cellularCtrlConnect() from two different threads at the same time
+ * may lead to confusion.
  */
 
 /* ----------------------------------------------------------------
@@ -187,8 +190,9 @@ void cellularCtrlDeinit();
 
 /** Determine if the cellular module has power.  This is done
  * by checking the level on the Enable Power pin controlling power
- * to the module.  If there is no such pin then this will always
- * return true.
+ * to the module.  If there is no such pin, or if the ctrl
+ * module has not been initialised so that it knows about the
+ * pin, then this will return true.
  *
  * @return true if power is enabled to the module, else false.
  */
