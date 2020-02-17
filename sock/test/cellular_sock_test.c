@@ -242,18 +242,18 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
         // Convert string to struct
         pCellularPort_memset(&address, 0xFF, sizeof(address));
         errorCode = cellularSockStringToAddress(gTestAddressList[x].pAddressString, &address);
-        cellularPortLog("CELLULAR_TEST: %d: cellularSockStringToAddress() returned %d.\n",
+        cellularPortLog("CELLULAR_SOCK_TEST: %d: cellularSockStringToAddress() returned %d.\n",
                         x, errorCode);
         if (gTestAddressList[x].shouldError) {
             CELLULAR_PORT_TEST_ASSERT(errorCode < 0);
         } else {
             CELLULAR_PORT_TEST_ASSERT(errorCode == 0);
 
-            cellularPortLog("CELLULAR_TEST: %d: address struct should contain ", x);
+            cellularPortLog("CELLULAR_SOCK_TEST: %d: address struct should contain ", x);
             printAddress(&gTestAddressList[x].address, gTestAddressList[x].hasPort);
             cellularPortLog(".\n");
 
-            cellularPortLog("CELLULAR_TEST: %d: address struct contains ", x);
+            cellularPortLog("CELLULAR_SOCK_TEST: %d: address struct contains ", x);
             printAddress(&address, gTestAddressList[x].hasPort);
             cellularPortLog(".\n");
 
@@ -264,7 +264,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
                 // Now convert back to a string again
                 pCellularPort_memset(buffer, 0xFF, sizeof(buffer));
                 errorCode = cellularSockAddressToString(&address, buffer, sizeof(buffer));
-                cellularPortLog("CELLULAR_TEST: %d: cellularSockAddressToString() returned %d",
+                cellularPortLog("CELLULAR_SOCK_TEST: %d: cellularSockAddressToString() returned %d",
                                 x, errorCode);
                 if (errorCode >= 0) {
                     cellularPortLog(", string is \"%s\" (%d byte(s))", buffer,
@@ -279,7 +279,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
                 pCellularPort_memset(buffer, 0xFF, sizeof(buffer));
                 errorCode = cellularSockIpAddressToString(&(address.ipAddress), buffer,
                                                                         sizeof(buffer));
-                cellularPortLog("CELLULAR_TEST: %d: cellularSockIpAddressToString() returned %d",
+                cellularPortLog("CELLULAR_SOCK_TEST: %d: cellularSockIpAddressToString() returned %d",
                                 x, errorCode);
                 if (errorCode >= 0) {
                     cellularPortLog(", address string is \"%s\" (%d byte(s))", buffer,
