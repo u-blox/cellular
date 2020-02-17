@@ -564,12 +564,13 @@ int32_t cellularSockGetHostByName(const char *pHostName,
  *                       IPV6 addresses are supported and a port
  *                       number may be included.  Note that the
  *                       IPV6 optimisation of removing a single
- *                       zero hextet in the string by using "::"
- *                       is NOT supported.  The string does not
- *                       have to be NULL terminated, it may
- *                       contain random crap after the address;
- *                       provided the first N bytes form a valid
- *                       address then the conversion will succeed.
+ *                       consecutive set of zero hextets in the
+ *                       string by using "::" is NOT supported.
+ *                       The string does not have to be NULL
+ *                       terminated, it may contain random crap
+ *                       after the address; provided the first
+ *                       N bytes form a valid address then the
+ *                       conversion will succeed.
  * @param pAddress       a pointer to a place to put the address.
  * @return               zero on success else negative error code.
  */
@@ -580,8 +581,8 @@ int32_t cellularSockStringToAddress(const char *pAddressString,
  * into a string.
  *
  * @param pIpAddress a pointer to the IP address to convert.
- * @param pBuffer    a buffer in which to place the string,
- *                   allow 64 bytes for a full IPV6 address
+ * @param pBuffer    a buffer in which to place the string.
+ *                   Allow 64 bytes for a full IPV6 address
  *                   and NULL terminator.
  * @param sizeBytes  the amount of memory pointed to by
  *                   pBuffer.
@@ -598,8 +599,8 @@ int32_t cellularSockIpAddressToString(const CellularSockIpAddress_t *pIpAddress,
  * string.
  *
  * @param pAddress   a pointer to the address to convert.
- * @param pBuffer    a buffer in which to place the string,
- *                   allow 64 bytes for a full IPV6 address
+ * @param pBuffer    a buffer in which to place the string.
+ *                   Allow 64 bytes for a full IPV6 address
  *                   with port number and NULL terminator.
  * @param sizeBytes  the amount of memory pointed to by
  *                   pBuffer.
