@@ -177,8 +177,12 @@ int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
     uart_event_t uartEvent;
 
     if (queueHandle != NULL) {
-        uartEvent.type = UART_DATA;
-        uartEvent.size = sizeBytes;
+        uartEvent.type = UART_EVENT_MAX;
+        uartEvent.size = 0;
+        if (sizeBytes >= 0) {
+            uartEvent.type = UART_DATA;
+            uartEvent.size = sizeBytes;
+        }
         errorCode = cellularPortQueueSend(queueHandle, (void *) &uartEvent);
     }
 
@@ -189,14 +193,14 @@ int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
 int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle)
 {
     int32_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
-    uart_event_t uart_event;
+    uart_event_t uartEvent;
 
     if (queueHandle != NULL) {
         sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
-        if (cellularPortQueueReceive(queueHandle, &uart_event) == 0) {
+        if (cellularPortQueueReceive(queueHandle, &uartEvent) == 0) {
             sizeOrErrorCode = CELLULAR_PORT_UNKNOWN_ERROR;
-            if (uart_event.type == UART_DATA) {
-                sizeOrErrorCode = uart_event.size;
+            if (uartEvent.type < UART_EVENT_MAX) {
+                sizeOrErrorCode = uartEvent.size;
             }
         }
     }
