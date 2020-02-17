@@ -42,6 +42,20 @@
                                             d = 0;                      \
                                         }
 
+// Swap endianness.
+#define CELLULAR_SOCK_ENDIAN_SWAP_32(x) ((((uint32_t) (x) & 0xff000000) >> 24) | \
+                                         (((uint32_t) (x) & 0x00ff0000) >> 8)  | \
+                                         (((uint32_t) (x) & 0x0000ff00) << 8)  | \
+                                         (((uint32_t) (x) & 0x000000ff) << 24))
+
+// Convert an int32_t on this processor to network byte order.
+#define CELLULAR_SOCK_HTONL(x) (isBigEndian(x) ? (x) : \
+                                CELLULAR_SOCK_ENDIAN_SWAP_32(x))
+
+// Convert network byte order int32_t to one on this processor.
+#define CELLULAR_SOCK_NTOHL(x) (isBigEndian(x) ? (x) : \
+                                CELLULAR_SOCK_ENDIAN_SWAP_32(x))
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -88,6 +102,17 @@ static bool init()
     }
 
     return gInitialised;
+}
+
+// Determine endianness.  Note that there is no reliable
+// cross-platform mechanism for doing this at compile time since
+// the pre-processor has no concept of an integer.  You _could_
+// rely on the compiler's built in __ENDIAN__ macros but these
+// aren't necessarily consistent across all platforms.
+static bool inline isBigEndian()
+{
+  const uint16_t endianness = 0x0100;
+  return (bool) (*(const uint8_t *) &endianness);
 }
 
 /* ----------------------------------------------------------------
@@ -275,10 +300,10 @@ static bool ipv6StringToAddress(const char *pAddressString,
             (g <= USHRT_MAX) && (h <= USHRT_MAX)) {
 
             // Slot the uint16_t's into the array in network-byte order
-            pAddress->ipAddress.address.ipv6[0] = (a << 16) | (b & 0xFFFF);
-            pAddress->ipAddress.address.ipv6[1] = (c << 16) | (d & 0xFFFF);
-            pAddress->ipAddress.address.ipv6[2] = (e << 16) | (f & 0xFFFF);
-            pAddress->ipAddress.address.ipv6[3] = (g << 16) | (h & 0xFFFF);
+            pAddress->ipAddress.address.ipv6[3] = (a << 16) | (b & 0xFFFF);
+            pAddress->ipAddress.address.ipv6[2] = (c << 16) | (d & 0xFFFF);
+            pAddress->ipAddress.address.ipv6[1] = (e << 16) | (f & 0xFFFF);
+            pAddress->ipAddress.address.ipv6[0] = (g << 16) | (h & 0xFFFF);
 
             // Get the port number if there was one
             if (hasPort) {
@@ -407,11 +432,13 @@ static int32_t addressToString(const CellularSockAddress_t *pAddress,
         }
         // Add the port number
         if (stringLengthOrError >= 0) {
-            stringLengthOrError += cellularPort_snprintf(pBuffer,
-                                                         sizeBytes,
-                                                         ":%u",
-                                                         pAddress->port);
-            if (stringLengthOrError >= sizeBytes) {
+            thisLength = cellularPort_snprintf(pBuffer,
+                                               sizeBytes,
+                                               ":%u",
+                                               pAddress->port);
+            if (thisLength < sizeBytes) {
+                stringLengthOrError += thisLength;
+            } else {
                 stringLengthOrError = CELLULAR_SOCK_NO_MEMORY;
             }
         }

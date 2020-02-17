@@ -565,7 +565,11 @@ int32_t cellularSockGetHostByName(const char *pHostName,
  *                       number may be included.  Note that the
  *                       IPV6 optimisation of removing a single
  *                       zero hextet in the string by using "::"
- *                       is NOT supported.
+ *                       is NOT supported.  The string does not
+ *                       have to be NULL terminated, it may
+ *                       contain random crap after the address;
+ *                       provided the first N bytes form a valid
+ *                       address then the conversion will succeed.
  * @param pAddress       a pointer to a place to put the address.
  * @return               zero on success else negative error code.
  */
