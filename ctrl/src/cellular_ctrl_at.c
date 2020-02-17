@@ -827,28 +827,28 @@ static void cellular_ctrl_at_unlock_no_data_check()
 // task will exit in an orderly fashion.
 static void task_oob(void *parameters)
 {
-    int32_t event_data_size = 0;
+    int32_t data_size_or_error = 0;
 
     CELLULAR_PORT_MUTEX_LOCK(_mtx_oob_task_running);
 
     (void) parameters;
 
-    while (event_data_size >= 0) {
-        event_data_size = cellularPortUartEventReceive(_queue_uart);
-        if (event_data_size >= 0) {
+    while (data_size_or_error >= 0) {
+        data_size_or_error = cellularPortUartEventReceive(_queue_uart);
+        if (data_size_or_error >= 0) {
 
             cellular_ctrl_at_lock();
 
-            if (((event_data_size > 0) || (_buf.recv_pos < _buf.recv_len))) {
+            if (((data_size_or_error > 0) || (_buf.recv_pos < _buf.recv_len))) {
                 if (_debug_on) {
-                    cellularPortLog("CELLULAR_AT: OoB readable %d, already buffered %u.\n", event_data_size,
+                    cellularPortLog("CELLULAR_AT: OoB readable %d, already buffered %u.\n", data_size_or_error,
                                     _buf.recv_len - _buf.recv_pos);
                 }
                 _current_scope = CELLULAR_CTRL_AT_SCOPE_TYPE_NOT_SET;
                 while (true) {
                     if (match_urc()) {
-                        event_data_size = cellularPortUartGetReceiveSize(_uart);
-                        if (!(event_data_size > 0) ||
+                        data_size_or_error = cellularPortUartGetReceiveSize(_uart);
+                        if (!(data_size_or_error > 0) ||
                             (_buf.recv_pos < _buf.recv_len)) {
                             break; // we have nothing to read anymore
                         }
@@ -941,7 +941,6 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
     _at_timeout_callback = NULL;
     _at_num_consecutive_timeouts = 0;
     _at_send_delay_ms = CELLULAR_CTRL_AT_SEND_DELAY,
-    _uart = uart;
     _last_error = CELLULAR_CTRL_AT_SUCCESS;
     _last_3gpp_error = 0;
     _oob_string_max_length = 0;
@@ -1023,9 +1022,13 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
         return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
     }
 
+    // Set _uart now that all is good
+    _uart = uart;
+
     return CELLULAR_CTRL_AT_SUCCESS;
 }
 
+// Deinitialise the AT client.
 void cellular_ctrl_at_deinit()
 {
     cellular_ctrl_at_callback_t cb;
