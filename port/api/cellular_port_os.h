@@ -161,8 +161,9 @@ int32_t cellularPortMutexCreate(CellularPortMutexHandle_t *pMutexHandle);
 /** Destroy a mutex.
  *
  * @param mutexHandle the handle of the mutex.
+ * @return            zero on success else negative error code.
  */
-void cellularPortMutexDelete(const CellularPortMutexHandle_t mutexHandle);
+int32_t cellularPortMutexDelete(const CellularPortMutexHandle_t mutexHandle);
 
 /** Lock the given mutex, waiting until it is available if
  * it is already locked.

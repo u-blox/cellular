@@ -196,11 +196,16 @@ int32_t cellularPortMutexCreate(CellularPortMutexHandle_t *pMutexHandle)
 }
 
 // Destroy a mutex.
-void cellularPortMutexDelete(const CellularPortMutexHandle_t mutexHandle)
+int32_t cellularPortMutexDelete(const CellularPortMutexHandle_t mutexHandle)
 {
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+
     if (mutexHandle != NULL) {
         vSemaphoreDelete((SemaphoreHandle_t) mutexHandle);
+        errorCode = CELLULAR_PORT_SUCCESS;
     }
+
+    return (int32_t) errorCode;
 }
 
 // Lock the given mutex.
