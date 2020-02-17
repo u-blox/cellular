@@ -280,4 +280,14 @@ void cellularPort_errno_set(int32_t _errno)
     errno = _errno;
 }
 
+/* ----------------------------------------------------------------
+ * FUNCTIONS: RAND
+ * -------------------------------------------------------------- */
+
+// rand().
+int32_t cellularPort_rand()
+{
+    return rand();
+}
+
 // End of file

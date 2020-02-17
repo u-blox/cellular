@@ -324,6 +324,16 @@ int32_t cellularPort_errno_get();
  */
 void cellularPort_errno_set(int32_t _errno);
 
+/* ----------------------------------------------------------------
+ * FUNCTIONS: RAND
+ * -------------------------------------------------------------- */
+
+/** rand().
+ *
+ * @return a random number.
+ */
+int32_t cellularPort_rand();
+
 #endif // _CELLLAR_PORT_CLIB_H_
 
 // End of file
