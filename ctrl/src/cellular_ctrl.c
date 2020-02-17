@@ -736,7 +736,13 @@ bool cellularCtrlIsPowered()
 // Determine if the cellular module is responsive.
 bool cellularCtrlIsAlive()
 {
-    return moduleIsAlive(1) == CELLULAR_CTRL_SUCCESS;
+    bool isAlive = false;
+
+    if (gInitialised) {
+        isAlive = (moduleIsAlive(1) == CELLULAR_CTRL_SUCCESS);
+    }
+
+    return isAlive;
 }
 
 // Power the cellular module on.
@@ -850,7 +856,7 @@ void cellularCtrlPowerOff(bool (*pKeepGoingCallback) (void))
     }
 }
 
-// Remove power to teh cellular module.
+// Remove power to the cellular module.
 void cellularCtrlHardPowerOff()
 {
     if (gInitialised) {
