@@ -203,6 +203,8 @@ static void connectDisconnect(CellularCtrlRat_t rat)
     CellularCtrlRat_t originalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
     uint64_t originalMask;
     char buffer[64];
+    int32_t mcc;
+    int32_t mnc;
     int32_t bytesRead;
     bool screwy = false;
     int32_t y;
@@ -285,6 +287,43 @@ static void connectDisconnect(CellularCtrlRat_t rat)
     bytesRead = cellularCtrlGetOperatorStr(buffer, sizeof(buffer));
     CELLULAR_PORT_TEST_ASSERT((bytesRead > 0) && (bytesRead < sizeof(buffer) - 1) &&
                               (bytesRead == cellularPort_strlen(buffer)));
+    cellularPortLog(" CELLULAR_CTRL_TEST: operator name is \"%s\"...\n", buffer);
+
+    // Read the MCC/MNC
+    cellularPortLog("CELLULAR_CTRL_TEST: reading the mcc/mnc...\n");
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetMccMnc(&mcc, &mnc) == 0);
+    cellularPortLog("CELLULAR_CTRL_TEST: mcc: %d, mnc %d.\n", mcc, mnc);
+
+    cellularPortLog("CELLULAR_CTRL_TEST: reading the APN...\n");
+    // First use an unrealistically short buffer and check
+    // that there is no overrun
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    bytesRead = cellularCtrlGetApnStr(buffer, 1);
+    CELLULAR_PORT_TEST_ASSERT(bytesRead == 0);
+    for (size_t x = bytesRead; x < sizeof(buffer); x++) {
+        CELLULAR_PORT_TEST_ASSERT(buffer[x] == 0);
+    }
+    // Now read it properly
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    bytesRead = cellularCtrlGetApnStr(buffer, sizeof(buffer));
+    CELLULAR_PORT_TEST_ASSERT((bytesRead > 0) && (bytesRead < sizeof(buffer) - 1) &&
+                              (bytesRead == cellularPort_strlen(buffer)));
+    cellularPortLog("CELLULAR_CTRL_TEST: APN is \"%s\"...\n", buffer);
+
+    // Read the IP address
+    cellularPortLog("CELLULAR_CTRL_TEST: check if there is an IP address...\n");
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetIpAddressStr(NULL) >= 0);
+    cellularPortLog("CELLULAR_CTRL_TEST: reading the IP address...\n");
+    bytesRead = cellularCtrlGetIpAddressStr(buffer);
+    CELLULAR_PORT_TEST_ASSERT((bytesRead > 0) && (bytesRead < sizeof(buffer) - 1) &&
+                              (bytesRead == cellularPort_strlen(buffer)));
+    cellularPortLog("CELLULAR_CTRL_TEST: IP address \"%s\".\n", buffer);
+
+    // Read the time
+    cellularPortLog("CELLULAR_CTRL_TEST: reading network time...\n");
+    y = cellularCtrlGetTimeUtc();
+    CELLULAR_PORT_TEST_ASSERT(y >= 0);
+    cellularPortLog("CELLULAR_CTRL_TEST: time is %d.\n", y);
 
     cellularPortLog("CELLULAR_CTRL_TEST: disconnecting...\n");
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlDisconnect() == 0);
@@ -302,7 +341,7 @@ static void connectDisconnect(CellularCtrlRat_t rat)
     }
 
     if ((pUsername != NULL) && (pPassword != NULL)) {
-        cellularPortLog("CELLULAR_CTRL_TEST: dconnect with a given username and password...\n");
+        cellularPortLog("CELLULAR_CTRL_TEST: connect with a given username and password...\n");
         gStopTimeMS = cellularPortGetTimeMs()  + (CELLULAR_CTRL_CONNECT_TIMEOUT_SECONDS * 1000);
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlConnect(keepGoingCallback, pApn,
                                                       pUsername, pPassword) == 0);
@@ -664,7 +703,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
     cellularPortLog("CELLULAR_CTRL_TEST: first, set the sole RAT to %d.\n", allRats[0]);
     // First get the module into a known single-RAT state
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRat(allRats[0]) == 0);
-    TEST_ASSERT(cellularCtrlReboot() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlReboot() == 0);
     //  Note the code below deliberately checks an out of range value
     for (rank = 0; (rank <= sizeof (allRats) / sizeof (allRats[0])) && 
                    (rank < CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS); rank++) {
@@ -833,10 +872,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
     cellularPortTaskBlock(100);
 }
 
-/** Test connect/disconnect on the default test RAT.
+/** Test connected things on the default test RAT.
  */
-CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestConnectDisconnect(),
-                            "connectDisconnect",
+CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestConnectedThings(),
+                            "connectedThings",
                             "ctrl")
 {
     connectDisconnect(CELLULAR_CFG_TEST_RAT);
@@ -889,7 +928,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
     // Then read out the existing band mask
     originalMask = cellularCtrlGetBandMask(CELLULAR_CFG_TEST_RAT);
 
-    cellularPortLog("CELLULAR_CTRL_TEST: setting sole RAT to %d and bandmask to 0x%xso that we can register with a network...\n",
+    cellularPortLog("CELLULAR_CTRL_TEST: setting sole RAT to %d and bandmask to 0x%x so that we can register with a network...\n",
                     CELLULAR_CFG_TEST_RAT, CELLULAR_CFG_TEST_BANDMASK);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRat(CELLULAR_CFG_TEST_RAT) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT,
@@ -948,6 +987,254 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
     if (screwy) {
         cellularPortLog("CELLULAR_CTRL_TEST: !!! ATTENTION: the RAT settings of the module under test may have been left screwy, please check!!!\n");
     }
+
+    cellularCtrlPowerOff(NULL);
+
+    // Check the number of consecutive AT timeouts
+    y = cellularCtrlGetConsecutiveAtTimeouts();
+    cellularPortLog("CELLULAR_CTRL_TEST: there have been %d consecutive AT timeouts.\n", y);
+    CELLULAR_PORT_TEST_ASSERT(y <= CELLULAR_CTRL_AT_CONSECUTIVE_TIMEOUTS_LIMIT);
+
+    cellularCtrlDeinit();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
+    cellularPortDeinit();
+
+    // Allow idle task to run so that any deleted
+    // tasks are actually deleted, required by some
+    // operating systems (e.g. freeRTOS)
+    cellularPortTaskBlock(100);
+}
+
+/** Test reading the radio parameters.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
+                            "readRadioParameters",
+                            "ctrl")
+{
+    CellularPortQueueHandle_t queueHandle;
+    CellularCtrlRat_t originalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
+    uint64_t originalMask;
+    int32_t count;
+    int32_t snrDb;
+    bool screwy = false;
+    int32_t y;
+
+    for (size_t x = 0; x < sizeof (originalRats) / sizeof (originalRats[0]); x++) {
+        originalRats[x] = CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED;
+    }
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
+                                                   CELLULAR_CFG_WHRE_PIN_RXD,
+                                                   CELLULAR_CFG_WHRE_PIN_CTS,
+                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+                                                   CELLULAR_CFG_BAUD_RATE,
+                                                   CELLULAR_CFG_RTS_THRESHOLD,
+                                                   CELLULAR_CFG_UART,
+                                                   &queueHandle) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
+                                               CELLULAR_CFG_WHRE_PIN_VINT,
+                                               false,
+                                               CELLULAR_CFG_UART,
+                                               queueHandle) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
+
+    cellularPortLog("CELLULAR_CTRL_TEST: preparing for test...\n");
+    // First, read out the existing RATs so that we can put them back
+    for (size_t x = 0; x < sizeof (originalRats) / sizeof (originalRats[0]); x++) {
+        originalRats[x] = cellularCtrlGetRat(x);
+    }
+    // Read out the existing band mask
+    originalMask = cellularCtrlGetBandMask(CELLULAR_CFG_TEST_RAT);
+
+    cellularPortLog("CELLULAR_CTRL_TEST: setting sole RAT to %d and bandmask to 0x%x so that we can register with a network...\n",
+                    CELLULAR_CFG_TEST_RAT, CELLULAR_CFG_TEST_BANDMASK);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRat(CELLULAR_CFG_TEST_RAT) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT,
+                                                      CELLULAR_CFG_TEST_BANDMASK) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlReboot() == 0);
+
+    cellularPortLog("CELLULAR_CTRL_TEST: checking values before a refresh (should return errors)...\n");
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRssiDbm() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrpDbm() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrqDbm() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetSnrDb(&snrDb) != 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetCellId() == -1);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetEarfcn() == -1);
+
+    cellularPortLog("CELLULAR_CTRL_TEST: checking values after a refresh but before network registration (should return errors)...\n");
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlRefreshRadioParameters() != 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRssiDbm() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrpDbm() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrqDbm() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetSnrDb(&snrDb) != 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetCellId() == -1);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetEarfcn() == -1);
+
+    cellularPortLog("CELLULAR_CTRL_TEST: checking values after registration...\n");
+    gStopTimeMS = cellularPortGetTimeMs()  + (CELLULAR_CTRL_CONNECT_TIMEOUT_SECONDS * 1000);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlConnect(keepGoingCallback, NULL, NULL, NULL) == 0);
+    cellularPortLog("CELLULAR_CTRL_TEST: cellularCtrlGetNetworkStatus() %d.\n",
+                    cellularCtrlGetNetworkStatus());
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetNetworkStatus() == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED);
+    // Attempt this a number of times as it can return a temporary "operation not allowed" error
+    for (count = 10; (cellularCtrlRefreshRadioParameters() != 0) && (count > 0); count--) {
+        cellularPortTaskBlock(1000);
+    }
+    CELLULAR_PORT_TEST_ASSERT(count > 0);
+    // Should now have everything
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrpDbm() < 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrqDbm() < 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetCellId() >= 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetEarfcn() >= 0);
+    // ...however RSSI can take a long time to
+    // get so keep trying if it's not arrived
+    for (count = 30; (cellularCtrlGetRssiDbm() == 0) && (count > 0); count--) {
+        cellularCtrlRefreshRadioParameters();
+        cellularPortTaskBlock(1000);
+    }
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRssiDbm() < 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetSnrDb(&snrDb) == 0);
+    cellularPortLog("CELLULAR_CTRL_TEST: SNR is %d dB.\n", snrDb);
+
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlDisconnect() == 0);
+
+    cellularPortLog("CELLULAR_CTRL_TEST: completed, tidying up...\n");
+    // No asserts here, we need it to plough on and succeed
+    if (cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT, originalMask) != 0) {
+        cellularPortLog("CELLULAR_CTRL_TEST: !!! ATTENTION: the band mask for cat-M1 on the module under test may have been left screwy, please check!!!\n");
+    }
+    for (size_t x = 0; x < sizeof (originalRats) / sizeof (originalRats[0]); x++) {
+        cellularCtrlSetRatRank(originalRats[x], x);
+    }
+    cellularCtrlReboot();
+    for (size_t x = 0; x < sizeof (originalRats) / sizeof (originalRats[0]); x++) {
+        if (cellularCtrlGetRat(x) != originalRats[x]) {
+            screwy = true;
+        }
+    }
+    if (screwy) {
+        cellularPortLog("CELLULAR_CTRL_TEST:  !!! ATTENTION: the RAT settings of the module under test may have been left screwy, please check!!!\n");
+    }
+    cellularCtrlPowerOff(NULL);
+
+    // Check the number of consecutive AT timeouts
+    y = cellularCtrlGetConsecutiveAtTimeouts();
+    cellularPortLog("CELLULAR_CTRL_TEST: there have been %d consecutive AT timeouts.\n", y);
+    CELLULAR_PORT_TEST_ASSERT(y <= CELLULAR_CTRL_AT_CONSECUTIVE_TIMEOUTS_LIMIT);
+
+    cellularCtrlDeinit();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
+    cellularPortDeinit();
+
+    // Allow idle task to run so that any deleted
+    // tasks are actually deleted, required by some
+    // operating systems (e.g. freeRTOS)
+    cellularPortTaskBlock(100);
+}
+
+/** Get IMEI etc.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadImeiEtc(),
+                            "readImeiEtc",
+                            "ctrl")
+{
+    CellularPortQueueHandle_t queueHandle;
+    char buffer[64];
+    int32_t bytesRead;
+    int32_t y;
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
+                                                   CELLULAR_CFG_WHRE_PIN_RXD,
+                                                   CELLULAR_CFG_WHRE_PIN_CTS,
+                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+                                                   CELLULAR_CFG_BAUD_RATE,
+                                                   CELLULAR_CFG_RTS_THRESHOLD,
+                                                   CELLULAR_CFG_UART,
+                                                   &queueHandle) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
+                                               CELLULAR_CFG_WHRE_PIN_VINT,
+                                               false,
+                                               CELLULAR_CFG_UART,
+                                               queueHandle) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
+
+    cellularPortLog("CELLULAR_CTRL_TEST: getting and checking IMEI...\n");
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetImei(buffer) >= 0);
+    for (size_t x = 0; x < sizeof(buffer); x++) {
+        if (x < CELLULAR_CTRL_IMEI_SIZE) {
+            CELLULAR_PORT_TEST_ASSERT((buffer[x] >= '0') && (buffer[x] <= '9'));
+        } else {
+            CELLULAR_PORT_TEST_ASSERT(buffer[x] == 0);
+        }
+    }
+    cellularPortLog("CELLULAR_CTRL_TEST: getting and checking IMSI...\n");
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetImsi(buffer) >= 0);
+    for (size_t x = 0; x < sizeof(buffer); x++) {
+        if (x < CELLULAR_CTRL_IMSI_SIZE) {
+            CELLULAR_PORT_TEST_ASSERT((buffer[x] >= '0') && (buffer[x] <= '9'));
+        } else {
+            CELLULAR_PORT_TEST_ASSERT(buffer[x] == 0);
+        }
+    }
+    cellularPortLog("CELLULAR_CTRL_TEST: getting and checking ICCID...\n");
+    // First use an unrealistically short buffer and check
+    // that there is no overrun
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    bytesRead = cellularCtrlGetIccidStr(buffer, 1);
+    CELLULAR_PORT_TEST_ASSERT(bytesRead == 0);
+    for (size_t x = bytesRead; x < sizeof(buffer); x++) {
+        CELLULAR_PORT_TEST_ASSERT(buffer[x] == 0);
+    }
+    // Now read it properly
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetIccidStr(buffer, sizeof(buffer)) >= 0);
+    // Can't really do a check here as the number of digits
+    // in an ICCID can vary
+    cellularPortLog("CELLULAR_CTRL_TEST: getting and checking manufacturer string...\n");
+    // First use an unrealistically short buffer and check
+    // that there is no overrun
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    bytesRead = cellularCtrlGetManufacturerStr(buffer, 1);
+    CELLULAR_PORT_TEST_ASSERT(bytesRead == 0);
+    for (size_t x = bytesRead; x < sizeof(buffer); x++) {
+        CELLULAR_PORT_TEST_ASSERT(buffer[x] == 0);
+    }
+    // Now read it properly
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    bytesRead = cellularCtrlGetManufacturerStr(buffer, sizeof(buffer));
+    CELLULAR_PORT_TEST_ASSERT((bytesRead > 0) && (bytesRead < sizeof(buffer) - 1) && (bytesRead == cellularPort_strlen(buffer)));
+    cellularPortLog("CELLULAR_CTRL_TEST: getting and checking model string...\n");
+    // First use an unrealistically short buffer and check
+    // that there is no overrun
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    bytesRead = cellularCtrlGetModelStr(buffer, 1);
+    CELLULAR_PORT_TEST_ASSERT(bytesRead == 0);
+    for (size_t x = bytesRead; x < sizeof(buffer); x++) {
+        CELLULAR_PORT_TEST_ASSERT(buffer[x] == 0);
+    }
+    // Now read it properly
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    bytesRead = cellularCtrlGetModelStr(buffer, sizeof(buffer));
+    CELLULAR_PORT_TEST_ASSERT((bytesRead > 0) && (bytesRead < sizeof(buffer) - 1) && (bytesRead == cellularPort_strlen(buffer)));
+    cellularPortLog("CELLULAR_CTRL_TEST: getting and checking firmware version string...\n");
+    // First use an unrealistically short buffer and check
+    // that there is no overrun
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    bytesRead = cellularCtrlGetFirmwareVersionStr(buffer, 1);
+    CELLULAR_PORT_TEST_ASSERT(bytesRead == 0);
+    for (size_t x = bytesRead; x < sizeof(buffer); x++) {
+        CELLULAR_PORT_TEST_ASSERT(buffer[x] == 0);
+    }
+    // Now read it properly
+    pCellularPort_memset(buffer, 0, sizeof(buffer));
+    bytesRead = cellularCtrlGetFirmwareVersionStr(buffer, sizeof(buffer));
+    CELLULAR_PORT_TEST_ASSERT((bytesRead > 0) && (bytesRead < sizeof(buffer) - 1) && (bytesRead == cellularPort_strlen(buffer)));
 
     cellularCtrlPowerOff(NULL);
 

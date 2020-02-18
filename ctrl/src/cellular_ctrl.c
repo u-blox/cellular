@@ -1494,14 +1494,14 @@ int32_t cellularCtrlGetIpAddressStr(char *pStr)
 // Get the APN currently in use.
 int32_t cellularCtrlGetApnStr(char *pStr, size_t size)
 {
-    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlErrorCode_t errorCodeOrSize = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t bytesRead;
     int32_t atError;
 
     if (gInitialised) {
-        errorCode = CELLULAR_CTRL_INVALID_PARAMETER;
+        errorCodeOrSize = CELLULAR_CTRL_INVALID_PARAMETER;
         if (pStr != NULL) {
-            errorCode = CELLULAR_CTRL_AT_ERROR;
+            errorCodeOrSize = CELLULAR_CTRL_AT_ERROR;
             cellular_ctrl_at_lock();
             cellular_ctrl_at_cmd_start("AT+CGDCONT?");
             cellular_ctrl_at_cmd_stop();
@@ -1513,7 +1513,7 @@ int32_t cellularCtrlGetApnStr(char *pStr, size_t size)
             cellular_ctrl_at_resp_stop();
             atError = cellular_ctrl_at_unlock_return_error();
             if ((bytesRead >= 0) && (atError == 0)) {
-                errorCode = CELLULAR_CTRL_SUCCESS;
+                errorCodeOrSize = bytesRead;
                 cellularPortLog("CELLULAR_CTRL: APN is %s.\n", pStr);
             } else {
                 cellularPortLog("CELLULAR_CTRL: unable to read APN.\n");
@@ -1521,7 +1521,7 @@ int32_t cellularCtrlGetApnStr(char *pStr, size_t size)
         }
     }
 
-    return (int32_t) errorCode;
+    return (int32_t) errorCodeOrSize;
 }
 
 // Refresh the radio parameters.

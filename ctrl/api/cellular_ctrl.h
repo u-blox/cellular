@@ -468,7 +468,7 @@ int32_t cellularCtrlGetActiveRat();
  */
 int32_t cellularCtrlGetOperatorStr(char *pStr, size_t size);
 
-/** Get the MCC?MNC of the network on which the cellular module is
+/** Get the MCC/MNC of the network on which the cellular module is
  * registered.  An error will be returned if the module is not
  * registered on the network at the time this is called.
  *
@@ -488,10 +488,10 @@ int32_t cellularCtrlGetMccMnc(int32_t *pMcc, int32_t *pMnc);
  *                a string and a NULL terminator will be added.
  *                May be set to NULL for a simple test as to
  *                whether an IP address has been allocated or not.
- * @return        on success, the number of characters copied into
- *                pStr NOT including the NULL terminator (i.e.
- *                as strlen() would return), on failure negative
- *                error code.
+ * @return        on success, the number of characters that would
+ *                be copied into into pStr if it is not NULL,
+ *                NOT including the terminator (i.e. as strlen()
+ *                would return), on failure negative error code.
  */
 int32_t cellularCtrlGetIpAddressStr(char *pStr);
 
