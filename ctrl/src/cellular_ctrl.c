@@ -393,7 +393,7 @@ static bool prepareConnect()
 
     cellularPortLog("CELLULAR_CTRL: preparing to connect...\n");
     // Make sure URC handler is registered
-    cellular_ctrl_at_set_urc_handler("CEREG:", CEREG_urc, NULL);
+    cellular_ctrl_at_set_urc_handler("+CEREG:", CEREG_urc, NULL);
 
     // Switch on the unsolicited result codes for registration
     // on 2G and cat-M1/NB1
@@ -1220,7 +1220,7 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     char imsi[CELLULAR_CTRL_IMSI_SIZE];
     const char *pApnConfig = NULL;
-    int32_t startTime;
+    int64_t startTime;
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_INVALID_PARAMETER;
@@ -1253,10 +1253,10 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
 
                 if (errorCode == CELLULAR_CTRL_SUCCESS) {
                     cellularPortLog("CELLULAR_CTRL: connected after %lld second(s).\n",
-                                    cellularPortGetTimeMs() - startTime);
+                                    (cellularPortGetTimeMs() - startTime) / 1000);
                 } else {
                     cellularPortLog("CELLULAR_CTRL: connection attempt stopped after %lld second(s).\n",
-                                    cellularPortGetTimeMs() - startTime);
+                                    (cellularPortGetTimeMs() - startTime) / 1000);
                 }
                 // This to avoid warnings about unused variables when 
                 // cellularPortLog() is compiled out
@@ -1708,7 +1708,7 @@ int32_t cellularCtrlGetImei(char *pImei)
 }
 
 // Get the 15 digit IMSI of the cellular module.
-int32_t cellularGetImsi(char *pImsi)
+int32_t cellularCtrlGetImsi(char *pImsi)
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t bytesRead;
@@ -1740,7 +1740,7 @@ int32_t cellularGetImsi(char *pImsi)
 }
 
 // Get the ICCID of the cellular module.
-int32_t cellularGetIccidStr(char *pStr, size_t size)
+int32_t cellularCtrlGetIccidStr(char *pStr, size_t size)
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t bytesRead;
@@ -1770,25 +1770,25 @@ int32_t cellularGetIccidStr(char *pStr, size_t size)
 }
 
 // Get the manufacturer string from the cellular module.
-int32_t cellularGetManufacturerStr(char *pStr, size_t size)
+int32_t cellularCtrlGetManufacturerStr(char *pStr, size_t size)
 {
     return getString("AT+CGMI", pStr, size);
 }
 
 // Get the model string from the cellular module.
-int32_t cellularGetModelStr(char *pStr, size_t size)
+int32_t cellularCtrlGetModelStr(char *pStr, size_t size)
 {
     return getString("AT+CGMM", pStr, size);
 }
 
 // Get the firmware version string from the cellular module.
-int32_t cellularGetFirmwareVersionStr(char *pStr, size_t size)
+int32_t cellularCtrlGetFirmwareVersionStr(char *pStr, size_t size)
 {
     return getString("AT+CGMR", pStr, size);
 }
 
 // Get the UTC time according to cellular.
-int32_t cellularGetTimeUtc()
+int32_t cellularCtrlGetTimeUtc()
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t timeUtc;

@@ -126,8 +126,8 @@ typedef enum {
                                   //< returned as this type.  Otherwise the
                                   //< enum could, in some cases, have an
                                   //< underlying type of unsigned and hence
-                                  // < 0 checks will always be false and you
-                                  // might not be warned of this.
+                                  //< < 0 checks will always be false and you
+                                  //< might not be warned of this.
     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
     CELLULAR_CTRL_RAT_CATM1,
     CELLULAR_CTRL_RAT_NB1,
@@ -149,7 +149,7 @@ typedef enum {
                                              //< underlying type of unsigned
                                              //< and hence < 0 checks will
                                              //< always be false and you
-                                             // might not be warned of this.
+                                             //< might not be warned of this.
     CELLULAR_CTRL_NETWORK_STATUS_UNKNOWN,
     CELLULAR_CTRL_NETWORK_STATUS_NOT_REGISTERED,
     CELLULAR_CTRL_NETWORK_STATUS_SEARCHING,
