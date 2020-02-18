@@ -34,10 +34,10 @@
 #endif
 
 #ifndef CELLULAR_CFG_TEST_BANDMASK
-/** The bandmask to use during testing, favourite being
- * band 5 as it's not used by a network on-air.
+/** The bandmask to use during testing. 0x080092 is bands
+ * 2, 5, 8 and 20.
  */
-# define CELLULAR_CFG_TEST_BANDMASK   0x10
+# define CELLULAR_CFG_TEST_BANDMASK   0x080092
 #endif
 
 #ifndef CELLULAR_CFG_TEST_APN
