@@ -32,7 +32,7 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
-/** The North American bands, for cat-M1
+/** The North American bands, for cat-M1.
  */
 #define CELLULAR_CTRL_BAND_MASK_NORTH_AMERICA_CATM1_DEFAULT 0x000000400B0F189FLL
 
@@ -66,7 +66,7 @@
 /** The maximum number of simultaneous radio access technologies
  *  supported by the cellular module.
  */
-#define CELLULAR_CTRL_MAX_NUM_RATS 2
+#define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 2
 
 /** The PDP context ID to use.
  */
@@ -120,9 +120,18 @@ typedef enum {
 /** The possible radio access technologies.
  */
 typedef enum {
+    CELLULAR_CTRL_RAT_DUMMY = -1, //<! Added to ensure that the compiler
+                                  //< treats values of this type as signed
+                                  //< in case an error code is to be
+                                  //< returned as this type.  Otherwise the
+                                  //< enum could, in some cases, have an
+                                  //< underlying type of unsigned and hence
+                                  // < 0 checks will always be false and you
+                                  // might not be warned of this.
     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
     CELLULAR_CTRL_RAT_CATM1,
-    CELLULAR_CTRL_RAT_NB1
+    CELLULAR_CTRL_RAT_NB1,
+    CELLULAR_CTRL_MAX_NUM_RATS
 } CellularCtrlRat_t;
 
 /** The current network status.  Note: if the values here
@@ -130,6 +139,17 @@ typedef enum {
  * implement based on the values.
  */
 typedef enum {
+    CELLULAR_CTRL_NETWORK_STATUS_DUMMY = -1, //<! Added to ensure that the
+                                             //< compiler treats values of
+                                             //< this type as signed in case
+                                             //< an error code is to be
+                                             //< returned as this type.
+                                             //< Otherwise the enum could,
+                                             //< in some cases, have an
+                                             //< underlying type of unsigned
+                                             //< and hence < 0 checks will
+                                             //< always be false and you
+                                             // might not be warned of this.
     CELLULAR_CTRL_NETWORK_STATUS_UNKNOWN,
     CELLULAR_CTRL_NETWORK_STATUS_NOT_REGISTERED,
     CELLULAR_CTRL_NETWORK_STATUS_SEARCHING,
@@ -345,7 +365,7 @@ int32_t cellularCtrlSetRatRank(CellularCtrlRat_t rat,
  * @return     the radio access technology being used at that
  *             rank.
  */
-CellularCtrlRat_t cellularCtrlGetRat(int32_t rank);
+int32_t cellularCtrlGetRat(int32_t rank);
 
 /** Get the rank at which the given radio access technology
  * is being used by the cellular module.

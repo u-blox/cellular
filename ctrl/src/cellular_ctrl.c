@@ -1017,18 +1017,21 @@ int32_t cellularCtrlSetRat(CellularCtrlRat_t rat)
 int32_t cellularCtrlSetRatRank(CellularCtrlRat_t rat, int32_t rank)
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
-    int32_t rats[CELLULAR_CTRL_MAX_NUM_RATS];
+    int32_t rats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_INVALID_PARAMETER;
+        // Allow unknown RAT here in order that the caller
+        // can remove a RAT from the list
         if ((rat >= CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) &&
             (rat < CELLULAR_CTRL_MAX_NUM_RATS)) {
-            // Assume there are no RATs
-            for (size_t x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
-                rats[x] = CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED;
-            }
-            // Get the existing RATs
-            if ((rank >= 0) && (rank < CELLULAR_CTRL_MAX_NUM_RATS)) {
+            if ((rank >= 0) &&
+                (rank < CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS)) {
+                // Assume there are no RATs
+                for (size_t x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
+                    rats[x] = CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED;
+                }
+                // Get the existing RATs
                 errorCode = CELLULAR_CTRL_AT_ERROR;
                 for (size_t x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
                     rats[x] = cellularCtrlGetRat(x);
@@ -1076,9 +1079,10 @@ int32_t cellularCtrlSetRatRank(CellularCtrlRat_t rat, int32_t rank)
 }
 
 // Get the radio access technology at the given rank.
-CellularCtrlRat_t cellularCtrlGetRat(int32_t rank)
+int32_t cellularCtrlGetRat(int32_t rank)
 {
-    CellularCtrlRat_t rats[CELLULAR_CTRL_MAX_NUM_RATS];
+    CellularCtrlErrorCode_t errorCodeOrRat = CELLULAR_CTRL_NOT_INITIALISED;
+    CellularCtrlRat_t rats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
     int32_t rat;
 
     // Assume there are no RATs
@@ -1087,7 +1091,8 @@ CellularCtrlRat_t cellularCtrlGetRat(int32_t rank)
     }
 
     if (gInitialised) {
-        if ((rank >= 0) && (rank < CELLULAR_CTRL_MAX_NUM_RATS)) {
+        errorCodeOrRat = CELLULAR_CTRL_INVALID_PARAMETER;
+        if ((rank >= 0) && (rank < CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS)) {
             // Get the RAT from the module
             cellular_ctrl_at_lock();
             cellular_ctrl_at_cmd_start("AT+URAT?");
@@ -1104,18 +1109,16 @@ CellularCtrlRat_t cellularCtrlGetRat(int32_t rank)
             }
             cellular_ctrl_at_resp_stop();
             cellular_ctrl_at_unlock();
+            errorCodeOrRat = rats[rank];
             cellularPortLog("CELLULAR_CTRL: RATs are:\n");
             for (size_t x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
                 cellularPortLog("  rank[%d]: %d (in module terms %d).\n",
                                 x, rats[x], gCellularRatToLocalRat[rats[x]]);
             }
-        } else {
-            // Set rank to 0 so that we return CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED
-            rank = 0;
         }
     }
 
-    return rats[rank];
+    return (int32_t) errorCodeOrRat;
 }
 
 // Get the rank at which the given RAT is used.
@@ -1126,7 +1129,7 @@ int32_t cellularCtrlGetRatRank(CellularCtrlRat_t rat)
 
     if (gInitialised) {
         errorCodeOrRank = CELLULAR_CTRL_INVALID_PARAMETER;
-        if ((rat >= CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) &&
+        if ((rat > CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) &&
             (rat < CELLULAR_CTRL_MAX_NUM_RATS)) {
             errorCodeOrRank = CELLULAR_CTRL_NOT_FOUND;
             // Get the RATs from the module
