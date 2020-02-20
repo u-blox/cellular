@@ -483,9 +483,10 @@ int32_t cellularCtrlGetMccMnc(int32_t *pMcc, int32_t *pMnc);
 /** Return the IP address of the currently active connection.
  *
  * @param pStr    should point to storage of length at least 
- *                CELLULAR_CTRL_IP_ADDRESS_SIZE bytes in size.  On return
- *                the IP address will be written to pStr as
- *                a string and a NULL terminator will be added.
+ *                CELLULAR_CTRL_IP_ADDRESS_SIZE bytes in size.
+ *                On return the IP address will be written to
+ *                pStr as a string and a NULL terminator will
+ *                be added.
  *                May be set to NULL for a simple test as to
  *                whether an IP address has been allocated or not.
  * @return        on success, the number of characters that would

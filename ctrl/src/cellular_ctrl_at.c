@@ -371,7 +371,7 @@ static int32_t poll_timeout(int32_t at_timeout)
     if (at_timeout >= 0) {
         // No need to worry about overflow here, we're never awake
         // for long enough
-        int64_t now_ms = cellularPortGetTimeMs();
+        int64_t now_ms = cellularPortGetTickTimeMs();
         if (now_ms >= _start_time_ms + at_timeout) {
             timeout = 0;
         } else if (_start_time_ms + at_timeout - now_ms > INT_MAX) {
@@ -593,14 +593,14 @@ static bool match_urc()
         if (_buf.recv_len >= prefix_len) {
             if (match(oob->prefix, prefix_len)) {
                 set_scope(CELLULAR_CTRL_AT_SCOPE_TYPE_INFO);
-                int64_t now_ms = cellularPortGetTimeMs();
+                int64_t now_ms = cellularPortGetTickTimeMs();
                 if (oob->cb) {
                     oob->cb(oob->cb_param);
                 }
                 information_response_stop();
                 // Add the amount of time spent in the URC
                 // world to the start time
-                _start_time_ms += cellularPortGetTimeMs() - now_ms;
+                _start_time_ms += cellularPortGetTickTimeMs() - now_ms;
 
                 return true;
             }
@@ -863,7 +863,7 @@ static void task_oob(void *parameters)
                         }
                         // No need to worry about overflow here, we're never awake
                         // for long enough
-                        _start_time_ms = cellularPortGetTimeMs();
+                        _start_time_ms = cellularPortGetTickTimeMs();
                     }
                 }
                 if (_debug_on) {
@@ -1153,7 +1153,7 @@ void cellular_ctrl_at_lock()
         cellular_ctrl_at_clear_error();
         // No need to worry about overflow here, we're never awake
         // for long enough
-        _start_time_ms = cellularPortGetTimeMs();
+        _start_time_ms = cellularPortGetTickTimeMs();
     }
 }
 
@@ -1310,7 +1310,7 @@ int32_t cellular_ctrl_at_read_bytes(uint8_t *buf, size_t len)
 }
 
 int32_t cellular_ctrl_at_read_string(char *buf, size_t size,
-                              bool read_even_stop_tag)
+                                     bool read_even_stop_tag)
 {
     if ((_uart < 0) || (_last_error != CELLULAR_CTRL_AT_SUCCESS) ||
         !_stop_tag || (_stop_tag->found &&
@@ -1674,7 +1674,7 @@ void cellular_ctrl_at_resp_stop()
 
         // No need to worry about overflow here, we're never awake
         // for long enough
-        _last_response_stop_ms = cellularPortGetTimeMs();
+        _last_response_stop_ms = cellularPortGetTickTimeMs();
     }
 }
 
@@ -1684,7 +1684,7 @@ void cellular_ctrl_at_cmd_start(const char *cmd)
 
     if (_uart >= 0) {
         if (_at_send_delay_ms) {
-            delay_ms = (_last_response_stop_ms + _at_send_delay_ms) - cellularPortGetTimeMs();
+            delay_ms = (_last_response_stop_ms + _at_send_delay_ms) - cellularPortGetTickTimeMs();
             if (delay_ms > 0) {
                 cellularPortTaskBlock(delay_ms);
             }
@@ -1818,6 +1818,21 @@ bool cellular_ctrl_at_sync(int timeout_ms)
             }
         }
         cellularPortLog("CELLULAR_AT: sync failed.\n");
+    }
+
+    return false;
+}
+
+// Wait for a single character to arrive.
+bool cellular_ctrl_at_wait_char(char chr)
+{
+    int32_t c;
+
+    if (_uart >= 0) {
+        c = get_char();
+        if (c == chr) {
+            return true;
+        }
     }
 
     return false;

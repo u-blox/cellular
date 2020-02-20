@@ -323,11 +323,11 @@ void cellular_ctrl_at_skip_len(int32_t len, uint32_t count);
  */
 void cellular_ctrl_at_skip_param(uint32_t count);
 
-/** Reads given number of bytes from receiving buffer without
- * checking any sub-parameter delimiters, such as comma. Stop
- * tags are still obeyed though, so for a blind read of len
- * bytes without stopping, call at_set_stop_tag(NULL),
- * to remove the stop tag before calling this.
+/** Reads given number of bytes from receiving buffer.  Delimiters
+ * and stop-tags are obeyed if they are found outside quotes
+ * so if you want to stop them getting in the way call
+ * cellular_ctrl_at_set_delimiter(0) and
+ * cellular_ctrl_at_set_stop_tag(NULL), before calling this.
  *
  * @param buf output buffer for the read.
  * @param len maximum number of bytes to read.
@@ -336,7 +336,7 @@ void cellular_ctrl_at_skip_param(uint32_t count);
  */
 int32_t cellular_ctrl_at_read_bytes(uint8_t *buf, size_t len);
 
-/** Reads chars from reading buffer. Terminates with null. Skips
+/** Reads chars from reading buffer. Terminates with NULL. Skips
  * the quotation marks. Stops on delimiter or stop tag.
  *
  * @param str                output buffer for the read.
@@ -429,6 +429,17 @@ bool cellular_ctrl_at_info_elem(char start_tag);
  * @return true if stop tag is found, false otherwise.
  */
 bool cellular_ctrl_at_consume_to_stop_tag();
+
+/** Special case: wait for a single character to
+ * arrive.  This can be used without starting
+ * a command or response, it doesn't care.
+ * The character is consumed.
+ *
+ * @param chr the character that is expected.
+ * @return    true if the character that arrived
+ *            matched chr, else false.
+ */
+bool cellular_ctrl_at_wait_char(char chr);
 
 /** Return the last 3GPP error code.
  *

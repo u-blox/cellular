@@ -68,7 +68,7 @@
 #define  CELLULAR_SOCK_ENOSYS          38      //<! Function not implemented.
 #define  CELLULAR_SOCK_ENOTEMPTY       39      //<! Directory not empty.
 #define  CELLULAR_SOCK_ELOOP           40      //<! Too many symbolic links encountered.
-#define  CELLULAR_SOCK_EWOULDBLOCK     EAGAIN  //<! Operation would block.
+#define  CELLULAR_SOCK_EWOULDBLOCK     CELLULAR_SOCK_EAGAIN  //<! Operation would block.
 #define  CELLULAR_SOCK_ENOMSG          42      //<! No message of desired type.
 #define  CELLULAR_SOCK_EIDRM           43      //<! Identifier removed.
 #define  CELLULAR_SOCK_ECHRNG          44      //<! Channel number out of range.
@@ -86,7 +86,7 @@
 #define  CELLULAR_SOCK_EBADRQC         56      //<! Invalid request code.
 #define  CELLULAR_SOCK_EBADSLT         57      //<! Invalid slot.
 
-#define  CELLULAR_SOCK_EDEADLOCK       EDEADLK
+#define  CELLULAR_SOCK_EDEADLOCK       CELLULAR_SOCK_EDEADLK
 
 #define  CELLULAR_SOCK_EBFONT          59      //<! Bad font file format.
 #define  CELLULAR_SOCK_ENOSTR          60      //<! Device not a stream.

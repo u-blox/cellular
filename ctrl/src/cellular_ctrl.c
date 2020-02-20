@@ -48,7 +48,7 @@
 /** A struct defining a callback plus its optional parameter.
  */
 typedef struct {
-    void (*pFunction)(void  *);
+    void (*pFunction) (void *);
     void *pParam;
 } CellularCtrlCallback_t;
 
@@ -1233,7 +1233,7 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
                     pApnConfig = apnconfig(imsi);
                 }
                 // Now try to connect, potentially multiple times
-                startTime = cellularPortGetTimeMs();
+                startTime = cellularPortGetTickTimeMs();
                 do {
                     if (pApnConfig != NULL) {
                         pApn = _APN_GET(pApnConfig);
@@ -1253,10 +1253,10 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
 
                 if (errorCode == CELLULAR_CTRL_SUCCESS) {
                     cellularPortLog("CELLULAR_CTRL: connected after %lld second(s).\n",
-                                    (cellularPortGetTimeMs() - startTime) / 1000);
+                                    (cellularPortGetTickTimeMs() - startTime) / 1000);
                 } else {
                     cellularPortLog("CELLULAR_CTRL: connection attempt stopped after %lld second(s).\n",
-                                    (cellularPortGetTimeMs() - startTime) / 1000);
+                                    (cellularPortGetTickTimeMs() - startTime) / 1000);
                 }
                 // This to avoid warnings about unused variables when 
                 // cellularPortLog() is compiled out

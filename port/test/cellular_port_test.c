@@ -159,8 +159,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
 
-    timeNowMs = cellularPortGetTimeMs();
-    cellularPortLog("CELLULAR_PORT_TEST: time now is %d.\n",
+    timeNowMs = cellularPortGetTickTimeMs();
+    cellularPortLog("CELLULAR_PORT_TEST: tick time now is %d.\n",
                     timeNowMs);
 
     cellularPortLog("CELLULAR_PORT_TEST: creating a mutex...\n");
@@ -228,8 +228,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
     cellularPortLog("CELLULAR_PORT_TEST: deleting queue...\n");
     CELLULAR_PORT_TEST_ASSERT(cellularPortQueueDelete(gQueueHandle) == 0);
 
-    timeNowMs = cellularPortGetTimeMs() - timeNowMs;
-    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTimeMs() the test took %d ms.\n",
+    timeNowMs = cellularPortGetTickTimeMs() - timeNowMs;
+    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() the test took %d ms.\n",
                     timeNowMs);
     CELLULAR_PORT_TEST_ASSERT((timeNowMs > 0) &&
                               (timeNowMs < CELLULAR_PORT_TEST_OS_GUARD_DURATION_MS));

@@ -61,6 +61,48 @@
 # define CELLULAR_CFG_TEST_PASSWORD   NULL
 #endif
 
+#ifndef CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS
+// The time in seconds allowed for a connection to complete.
+#define CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS 240
+#endif
+
+#ifndef CELLULAR_CFG_TEST_ECHO_SERVER_DOMAIN_NAME
+/** Echo server to use for sockets testing as a domain name.
+ */
+# define CELLULAR_CFG_TEST_ECHO_SERVER_DOMAIN_NAME  "echo.u-blox.com"
+#endif
+
+#ifndef CELLULAR_CFG_TEST_ECHO_SERVER_IP_ADDRESS
+/** Echo server to use for sockets testing as an IP address.
+ */
+# define CELLULAR_CFG_TEST_ECHO_SERVER_IP_ADDRESS  "195.34.89.241"
+#endif
+
+#ifndef CELLULAR_CFG_TEST_ECHO_SERVER_UDP_PORT
+/** Port number on the echo server to use for UDP testing.
+ */
+# define CELLULAR_CFG_TEST_ECHO_SERVER_UDP_PORT  7
+#endif
+
+#ifndef CELLULAR_CFG_TEST_ECHO_SERVER_TCP_PORT
+/** Port number on the echo server to use for TCP testing.
+ */
+# define CELLULAR_CFG_TEST_ECHO_SERVER_TCP_PORT  7
+#endif
+
+#ifndef CELLULAR_CFG_TEST_LOCAL_PORT
+/** Local port number, used when testing binding.
+ */
+# define CELLULAR_CFG_TEST_LOCAL_PORT 65543
+#endif
+
+#ifndef CELLULAR_CFG_TEST_UDP_RETRIES
+/** The number of retries to allow when sendingrunning
+ * data over UDP.
+ */
+# define CELLULAR_CFG_TEST_UDP_RETRIES 5
+#endif
+
 #endif // _CELLULAR_CFG_TEST_H_
 
 // End of file

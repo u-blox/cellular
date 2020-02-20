@@ -264,8 +264,8 @@ CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandl
  * PUBLIC FUNCTIONS: TIME
  * -------------------------------------------------------------- */
 
-// Get the current time in milliseconds.
-int64_t cellularPortGetTimeMs()
+// Get the current tick converted to a time in milliseconds.
+int64_t cellularPortGetTickTimeMs()
 {
     return esp_timer_get_time() / 1000;
 }

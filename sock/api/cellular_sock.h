@@ -20,7 +20,7 @@
 /* No #includes allowed here */
 
 /* This header file defines the cellular sockets API.  These
-  functions are thread-safe.
+ * functions are thread-safe.
  */
 
 /* ----------------------------------------------------------------
@@ -177,6 +177,21 @@
  * COMPILE-TIME MACROS: MISC
  * -------------------------------------------------------------- */
 
+/** The size that should be allowed for an address string, 
+ * which could be IPV6 and could include a port number.
+ */
+#define CELLULAR_SOCK_ADDRESS_STRING_MAX_LENGTH_BYTES 64
+
+/** The maximum size of send/receive thing we can handle
+ * at any one time.  Note that this is ONLY the max
+ * packet size for UDP; TCP is a stream.
+ */
+#define CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES 1024
+
+/** The maximum size of UDP packet we can send.
+ */
+#define CELLULAR_SOCK_MAX_UDP_PACKET_SIZE CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES
+
 /** The maximum number of sockets that can be in existence at once.
  */
 #define CELLULAR_SOCK_MAX 256
@@ -187,6 +202,10 @@
  * automatic variables.  A size of 256 will be 256 / 8 = 32 bytes.
  */
 #define CELLULAR_SOCK_DESCRIPTOR_SETSIZE CELLULAR_SOCK_MAX
+
+/** The default socket timeout in milliseconds.
+ */
+#define CELLULAR_SOCK_TIMEOUT_DEFAULT_MS 10000
 
 /** Zero a file descriptor set.
  */
@@ -320,7 +339,7 @@ int32_t cellularSockConnect(CellularSockDescriptor_t descriptor,
  * with a call to cellularSockShutdown() before it is closed.
  *
  * @param descriptor the descriptor of the socket to be closed.
- * @return       zero on success else negative error code.
+ * @return           zero on success else negative error code.
  */
 int32_t cellularSockClose(CellularSockDescriptor_t descriptor);
 
@@ -384,9 +403,16 @@ int32_t cellularSockGetOption(CellularSockDescriptor_t descriptor,
 /** Send a datagram to the given host.
  *
  * @param descriptor     the descriptor of the socket.
- * @param pRemoteAddress the address of the remote host to send to.
- * @param pData          the data to send.
- * @param dataSizeBytes  the number of bytes of data to send.
+ * @param pRemoteAddress the address of the remote host to send to;
+ *                       may be NULL in which case the address
+ *                       from the cellularSockConnect() call
+ *                       is used (and if no cellularSockConnect()
+ *                       has been called on he socket this will
+ *                       fail).
+ * @param pData          the data to send, may be NULL, in which
+ *                       case this function does nothing.
+ * @param dataSizeBytes  the number of bytes of data to send;
+ *                       must be zero if pData is NULL.
  * @return               on success the number of bytes sent else
  *                       negative error code.
  */
@@ -398,7 +424,8 @@ int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
  *
  * @param descriptor     the descriptor of the socket.
  * @param pRemoteAddress a place to put the address of the remote
- *                       host from which the datagram was received.
+ *                       host from which the datagram was received;
+ *                       may be NULL.
  * @param pData          a buffer in which to store the arriving
  *                       datagram.
  * @param dataSizeBytes  the number of bytes of storage available
@@ -423,7 +450,6 @@ int32_t cellularSockReceiveFrom(CellularSockDescriptor_t descriptor,
  *                       negative error code.
  */
 int32_t cellularSockWrite(CellularSockDescriptor_t descriptor,
-                          const CellularSockAddress_t *pRemoteAddress,
                           const void *pData, size_t dataSizeBytes);
 
 /** Receive data.
@@ -447,6 +473,53 @@ int32_t cellularSockRead(CellularSockDescriptor_t descriptor,
  */
 int32_t cellularSockShutdown(CellularSockDescriptor_t descriptor,
                              CellularSockShutdown_t how);
+
+/* ----------------------------------------------------------------
+ * FUNCTIONS: ASYNC
+ * -------------------------------------------------------------- */
+
+/** Register a callback which will be called when incoming
+ * data has arrived on a socket.
+ * IMPORTANT: don't spend long in your callback, i.e. don'table
+ * call back into this API, don't call things that will cause any
+ * sort of processing load or might get stuck.  It must return
+ * quickly as data reception and communication with the cellular
+ * module in general is blocked while the callback is executing.
+ *
+ * @param descriptor     the descriptor of the socket.
+ * @param pCallback      the function to call when data arrives,
+ *                       use NULL to cancel a previously
+ *                       registered callback.
+ * @param pCallbackParam parameter to be passed to the
+ *                       pCallback function when it is called;
+ *                       may be NULL.
+ * @return               zero on success else negative error code.
+ */
+int32_t cellularSockCallbackData(CellularSockDescriptor_t descriptor,
+                                 void (*pCallback) (void *),
+                                 void *pCallbackParam);
+
+/** Register a callback which will be called when a socket is 
+ * closed by the remote host.
+ * IMPORTANT: don't spend long in your callback, i.e. don'table
+ * call back into this API, don't call things that will cause any
+ * sort of processing load or might get stuck.  It must return
+ * quickly as data reception and communication with the cellular
+ * module in general is blocked while the callback is executing.
+ *
+ * @param descriptor     the descriptor of the socket.
+ * @param pCallback      the function to call, use NULL
+ *                       to cancel a previously registered
+ *                       callback.
+ * @param pCallbackParam parameter to be passed to the
+ *                       pCallback function when it is
+ *                       called; may be NULL.
+ * @return               zero on success else negative error
+ *                       code.
+ */
+int32_t cellularSockCallbackClosed(CellularSockDescriptor_t descriptor,
+                                   void (*pCallback) (void *),
+                                   void *pCallbackParam);
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: TCP INCOMING (TCP SERVER) ONLY
@@ -547,7 +620,9 @@ int32_t cellularSockGetLocalAddress(CellularSockDescriptor_t descriptor,
  * @param pHostName      a string representing the host to search
  *                       for, e.g. "google.com" or "192.168.1.0".
  * @param pHostIpAddress a pointer to a place to put the IP address
- *                       of the host.
+ *                       of the host.  Set this to NULL to determine
+ *                       if a host is there without bothering to return
+ *                       the address.
  * @return               zero on success else negative error code.
  */
 int32_t cellularSockGetHostByName(const char *pHostName,

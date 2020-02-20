@@ -49,7 +49,7 @@
 #define CELLULAR_CTRL_AT_CONSECUTIVE_TIMEOUTS_LIMIT 0
 
 // The time in seconds allowed for a connection to complete.
-#define CELLULAR_CTRL_CONNECT_TIMEOUT_SECONDS 240
+#define CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS 240
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -71,7 +71,7 @@ static bool keepGoingCallback()
 {
     bool keepGoing = true;
 
-    if (cellularPortGetTimeMs() > gStopTimeMS) {
+    if (cellularPortGetTickTimeMs() > gStopTimeMS) {
         keepGoing = false;
     }
 
@@ -149,7 +149,7 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
             // called here as we've no control over how long the
             // module takes to power off.
             pKeepGoingCallback = keepGoingCallback;
-            gStopTimeMS = cellularPortGetTimeMs() + CELLULAR_CTRL_TEST_POWER_OFF_TIME_MS;
+            gStopTimeMS = cellularPortGetTickTimeMs() + CELLULAR_CTRL_TEST_POWER_OFF_TIME_MS;
         }
         cellularCtrlPowerOff(pKeepGoingCallback);
     }
@@ -258,7 +258,7 @@ static void connectDisconnect(CellularCtrlRat_t rat)
     }
 
     cellularPortLog("CELLULAR_CTRL_TEST: set a very short connect time-out to achieve a fail...\n");
-    gStopTimeMS = cellularPortGetTimeMs() + 0;
+    gStopTimeMS = cellularPortGetTickTimeMs() + 0;
 
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlConnect(keepGoingCallback, NULL, NULL, NULL) != 0);
     // It is possible that, underneath us, the module has autonomously connected
@@ -266,8 +266,9 @@ static void connectDisconnect(CellularCtrlRat_t rat)
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlDisconnect() == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetNetworkStatus() != CELLULAR_CTRL_NETWORK_STATUS_REGISTERED);
 
-    cellularPortLog("CELLULAR_CTRL_TEST: connect with all NULL parameters...\n");
-    gStopTimeMS = cellularPortGetTimeMs()  + (CELLULAR_CTRL_CONNECT_TIMEOUT_SECONDS * 1000);
+    cellularPortLog("CELLULAR_CTRL_TEST: waiting %d second(s) to connect with all NULL parameters...\n",
+                    CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS);
+    gStopTimeMS = cellularPortGetTickTimeMs()  + (CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS * 1000);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlConnect(keepGoingCallback, NULL, NULL, NULL) == 0);
     cellularPortLog("CELLULAR_CTRL_TEST: RAT %d, cellularCtrlGetNetworkStatus() %d.\n",
                     rat, cellularCtrlGetNetworkStatus());
@@ -329,8 +330,9 @@ static void connectDisconnect(CellularCtrlRat_t rat)
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlDisconnect() == 0);
 
     if (pApn != NULL) {
-        cellularPortLog("CELLULAR_CTRL_TEST: connect with a given APN (\"%s\")...\n", pApn);
-        gStopTimeMS = cellularPortGetTimeMs()  + (CELLULAR_CTRL_CONNECT_TIMEOUT_SECONDS * 1000);
+        cellularPortLog("CELLULAR_CTRL_TEST: waiting %d second(s) to connect to APN \"%s\"...\n",
+                        CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS, pApn);
+        gStopTimeMS = cellularPortGetTickTimeMs()  + (CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS * 1000);
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlConnect(keepGoingCallback, pApn, NULL, NULL) == 0);
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetNetworkStatus() == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED);
 
@@ -341,8 +343,9 @@ static void connectDisconnect(CellularCtrlRat_t rat)
     }
 
     if ((pUsername != NULL) && (pPassword != NULL)) {
-        cellularPortLog("CELLULAR_CTRL_TEST: connect with a given username and password...\n");
-        gStopTimeMS = cellularPortGetTimeMs()  + (CELLULAR_CTRL_CONNECT_TIMEOUT_SECONDS * 1000);
+        cellularPortLog("CELLULAR_CTRL_TEST: waiting %d second(s) to connect to given username and password...\n",
+                        CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS);
+        gStopTimeMS = cellularPortGetTickTimeMs()  + (CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS * 1000);
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlConnect(keepGoingCallback, pApn,
                                                       pUsername, pPassword) == 0);
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetNetworkStatus() == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED);
@@ -948,7 +951,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
     }
 
     cellularPortLog("CELLULAR_CTRL_TEST: trying to set MNO profile while connected...\n");
-    gStopTimeMS = cellularPortGetTimeMs()  + (CELLULAR_CTRL_CONNECT_TIMEOUT_SECONDS * 1000);
+    gStopTimeMS = cellularPortGetTickTimeMs()  + (CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS * 1000);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlConnect(keepGoingCallback, NULL, NULL, NULL) == 0);
     cellularPortLog("CELLULAR_CTRL_TEST: cellularCtrlGetNetworkStatus() %d.\n",
                     cellularCtrlGetNetworkStatus());
@@ -1073,7 +1076,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetEarfcn() == -1);
 
     cellularPortLog("CELLULAR_CTRL_TEST: checking values after registration...\n");
-    gStopTimeMS = cellularPortGetTimeMs()  + (CELLULAR_CTRL_CONNECT_TIMEOUT_SECONDS * 1000);
+    gStopTimeMS = cellularPortGetTickTimeMs()  + (CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS * 1000);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlConnect(keepGoingCallback, NULL, NULL, NULL) == 0);
     cellularPortLog("CELLULAR_CTRL_TEST: cellularCtrlGetNetworkStatus() %d.\n",
                     cellularCtrlGetNetworkStatus());
