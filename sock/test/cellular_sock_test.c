@@ -143,6 +143,15 @@ static const char gSendData[] =  "_____0000:012345678901234567890123456789012345
                                  "_____2000:0123456789012345678901234567890123456789"
                                  "01234567890123456789012345678901234567890123456789";
 
+// Mutex wait on for data arrival.
+static CellularPortMutexHandle_t gMutexHandleDataReceived = NULL;
+
+// Mutex to show that the receive data task is running.
+static CellularPortMutexHandle_t gMutexHandleDataReceivedTaskRunning = NULL;
+
+// Task to receive data.
+static CellularPortTaskHandle_t gTaskHandleDataReceived = NULL;
+
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS
  * -------------------------------------------------------------- */
@@ -311,6 +320,40 @@ static void networkDisconnect()
     }
 }
 
+// Check a buffer against the contents of gSendData
+// and print out useful info if they differ
+static bool checkAgainstSendData(char *pDataReceived, size_t sizeBytes)
+{
+    bool success = true;
+    int32_t x;
+    int32_t y;
+    int32_t z;
+
+    if (sizeBytes == sizeof(gSendData)) {
+        for (x = 0; ((*(pDataReceived + x) == *(gSendData + x))) && (x < (int32_t) sizeof(gSendData)); x++) {
+        }
+        if (x != (int32_t) sizeof(gSendData)) {
+            y = x - 5;
+            if (y < 0) {
+                y = 0;
+            }
+            z = 10;
+            if (y + z > sizeof(gSendData)) {
+                z = sizeof(gSendData) - y;
+            }
+            cellularPortLog("CELLULAR_TEST_SOCK: difference at character %d (sent \"%*.*s\", received \"%*.*s\").\n",
+                             x + 1, z, z, gSendData + y, z, z, pDataReceived + y);
+            success = false;
+        }
+    } else {
+        cellularPortLog("CELLULAR_TEST_SOCK: %d byte(s) missing (%d byte(s) received when %d were expected)).\n",
+                         sizeof(gSendData) - sizeBytes, sizeBytes, sizeof(gSendData));
+        success = false;
+    }
+
+    return success;
+}
+
 // Do a UDP socket echo test to a given host of a given packet size.
 static void doUdpEchoBasic(CellularSockDescriptor_t sockDescriptor,
                            CellularSockAddress_t *pRemoteAddress,
@@ -360,10 +403,81 @@ static void doUdpEchoBasic(CellularSockDescriptor_t sockDescriptor,
     cellularPort_free(pDataReceived);
 }
 
+// Task to receive UPD packets asynchronously.
+static void receiveDataTaskUdp(void *pParameters)
+{
+    int32_t lockResult;
+    int32_t waitCountSeconds = 0;
+    char *pDataReceived;
+    size_t offset = 0;
+    size_t sizeBytes;
+    bool success = false;
+    size_t packetCount = 0;
+    CellularSockDescriptor_t sockDescriptor;
+
+    cellularPortLog("1 Boo!.\n");
+    cellularPortTaskBlock(100);
+
+    CELLULAR_PORT_MUTEX_LOCK(gMutexHandleDataReceivedTaskRunning);
+
+    cellularPortLog("2 Boo!.\n");
+    cellularPortTaskBlock(100);
+
+    sockDescriptor = *((CellularSockDescriptor_t *) pParameters);
+
+    cellularPortLog("3 Boo!.\n");
+    cellularPortTaskBlock(100);
+
+    pDataReceived = (char *) pCellularPort_malloc(sizeof(gSendData));
+    CELLULAR_PORT_TEST_ASSERT(pDataReceived != NULL)
+    pCellularPort_memset(pDataReceived, 0, sizeof(gSendData));
+
+    cellularPortLog("4 Boo!.\n");
+    cellularPortTaskBlock(100);
+
+    while ((waitCountSeconds < 20) && (offset < sizeof(gSendData))) {
+        // Try to lock the received data mutex
+        lockResult = cellularPortMutexTryLock(gMutexHandleDataReceived, 1000);
+        if (lockResult == 0) {
+            // We were able to unlock the mutex, which must mean there's data
+            // Lock it again and process the data
+            CELLULAR_PORT_TEST_ASSERT(cellularPortMutexUnlock(gMutexHandleDataReceived) == 0);
+            // Do a receive
+            sizeBytes = cellularSockReceiveFrom(sockDescriptor, NULL,
+                                                pDataReceived + offset,
+                                                sizeof(gSendData) - offset);
+            CELLULAR_PORT_TEST_ASSERT(sizeBytes > 0);
+            if (sizeBytes > 0) {
+                offset += sizeBytes;
+                packetCount++;
+            }
+            cellularPortTaskBlock(1000);
+        }
+        waitCountSeconds++;
+    }
+
+    // Check that we reassembled everything correctly
+    success = checkAgainstSendData(pDataReceived, offset);
+    cellularPort_free(pDataReceived);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: async received data task exiting after receiving %d packet(s) totalling %d byte(s) in %d second(s)ish.\n",
+                    packetCount + 1, offset, waitCountSeconds);
+
+    CELLULAR_PORT_TEST_ASSERT(success);
+
+    CELLULAR_PORT_MUTEX_UNLOCK(gMutexHandleDataReceivedTaskRunning);
+
+    // Delete ourself: only valid way out in Free RTOS
+    cellularPortTaskDelete(NULL);
+}
+
 // Set the passed-in parameter pointer to be true.
 static void setBool(void *pParam)
 {
     *((bool *) pParam) = true;
+    if (gMutexHandleDataReceived != NULL) {
+        cellularPortMutexUnlock(gMutexHandleDataReceived);
+    }
 }
 
 /* ----------------------------------------------------------------
@@ -621,7 +735,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
     cellularPortTaskBlock(100);
 }
 
-
 /** UDP echo test that throws up multiple packets
  * before addressing the received packets.
  * TODO: test error cases.
@@ -635,14 +748,12 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
     CellularSockDescriptor_t sockDescriptor;
     int32_t errorCode;
     bool dataCallbackCalled;
-    bool packetLoss;
+    bool allPacketsReceived;
     bool success;
     int32_t tries = 0;
     size_t sizeBytes = 0;
     size_t offset;
     int32_t x;
-    int32_t y;
-    int32_t z;
     char *pDataReceived;
     int64_t startTimeMs;
 
@@ -702,15 +813,14 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
 
     do {
         cellularPortLog("CELLULAR_TEST_SOCK: UDP packet size test, test try %d, flushing socket...\n", tries + 1);
-
-        //  pDataReceived = (char *) pCellularPort_malloc(CELLULAR_SOCK_MAX_UDP_PACKET_SIZE);
-        // CELLULAR_PORT_TEST_ASSERT(pDataReceived != NULL);
-        // TODO set a short socket timeout just for this bit
-        // while (cellularSockReceiveFrom(sockDescriptor, NULL, pDataReceived,
-        //                                CELLULAR_SOCK_MAX_UDP_PACKET_SIZE) > 0) {
+        pDataReceived = (char *) pCellularPort_malloc(CELLULAR_SOCK_MAX_UDP_PACKET_SIZE);
+        CELLULAR_PORT_TEST_ASSERT(pDataReceived != NULL);
+        /// TODO set a short socket timeout just for this bit
+        while (cellularSockReceiveFrom(sockDescriptor, NULL, pDataReceived,
+                                       CELLULAR_SOCK_MAX_UDP_PACKET_SIZE) > 0) {
             // Throw it away
-        // }
-        // cellularPort_free(pDataReceived);
+        }
+        cellularPort_free(pDataReceived);
 
         // Throw random sized UDP packets up...
         offset = 0;
@@ -722,7 +832,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
                 sizeBytes = sizeof(gSendData) - offset;
             }
             success = false;
-            for (y = 0; !success && (y < CELLULAR_CFG_TEST_UDP_RETRIES); y++) {
+            for (size_t y = 0; !success && (y < CELLULAR_CFG_TEST_UDP_RETRIES); y++) {
                 cellularPortLog("CELLULAR_TEST_SOCK: sending UDP packet number %d, size %d byte(s), send try %d.\n",
                                 x + 1, sizeBytes, y + 1);
                 if (cellularSockSendTo(sockDescriptor, &remoteAddress,
@@ -742,12 +852,11 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
         pCellularPort_memset(pDataReceived, 0, sizeof(gSendData));
         startTimeMs = cellularPortGetTickTimeMs();
         offset = 0;
-        packetLoss = false;
-        for (x = 0; offset < sizeof(gSendData) &&
+        for (x = 0; (offset < sizeof(gSendData)) &&
                     (cellularPortGetTickTimeMs() - startTimeMs < 10000); x++) {
             sizeBytes = cellularSockReceiveFrom(sockDescriptor, NULL,
                                                 pDataReceived + offset,
-                                                sizeof(gSendData) - sizeBytes);
+                                                sizeof(gSendData) - offset);
             if (sizeBytes > 0) {
                 cellularPortLog("CELLULAR_TEST_SOCK: received UDP packet number %d, size %d byte(s).\n",
                                 x + 1, sizeBytes);
@@ -758,32 +867,12 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
         cellularPortLog("CELLULAR_TEST_SOCK: either received everything back or timed out waiting.\n");
 
         // Check that we reassembled everything correctly
-        if (sizeBytes == sizeof(gSendData)) {
-            for (x = 0; ((*(pDataReceived + x) == *(gSendData + x))) && (x < (int32_t) sizeof(gSendData)); x++) {
-            }
-            if (x != (int32_t) sizeof(gSendData)) {
-                y = x - 5;
-                if (y < 0) {
-                    y = 0;
-                }
-                z = 10;
-                if (y + z > sizeof(gSendData)) {
-                    z = sizeof(gSendData) - y;
-                }
-                cellularPortLog("CELLULAR_TEST_SOCK: difference at character %d (sent \"%*.*s\", received \"%*.*s\").\n",
-                                 x + 1, z, z, gSendData + y, z, z, pDataReceived + y);
-                packetLoss = true;
-            }
-        } else {
-            cellularPortLog("CELLULAR_TEST_SOCK: %d byte(s) missing (%d byte(s) received when %d were expected)).\n",
-                             sizeof(gSendData) - sizeBytes, sizeBytes, sizeof(gSendData));
-            packetLoss = true;
-        }
+        allPacketsReceived = checkAgainstSendData(pDataReceived, sizeBytes);
         cellularPort_free(pDataReceived);
         tries++;
-    } while (packetLoss && (tries < CELLULAR_CFG_TEST_UDP_RETRIES));
+    } while (!allPacketsReceived && (tries < CELLULAR_CFG_TEST_UDP_RETRIES));
 
-    CELLULAR_PORT_TEST_ASSERT(!packetLoss);
+    CELLULAR_PORT_TEST_ASSERT(allPacketsReceived);
     CELLULAR_PORT_TEST_ASSERT(dataCallbackCalled);
 
     cellularPortLog("CELLULAR_TEST_SOCK: closing socket...\n");
@@ -810,5 +899,147 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
     // operating systems (e.g. freeRTOS)
     cellularPortTaskBlock(100);
 }
+
+/** UDP echo test that does asynchronous receive.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
+                            "udpEchoAsync",
+                            "sock")
+{
+    CellularPortQueueHandle_t queueHandle;
+    CellularSockAddress_t remoteAddress;
+    CellularSockDescriptor_t sockDescriptor;
+    int32_t errorCode;
+    bool dataCallbackCalled;
+    bool success;
+    size_t sizeBytes = 0;
+    size_t offset = 0;
+    int32_t x = 0;
+    void *pParam = &sockDescriptor;
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
+                                                   CELLULAR_CFG_WHRE_PIN_RXD,
+                                                   CELLULAR_CFG_WHRE_PIN_CTS,
+                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+                                                   CELLULAR_CFG_BAUD_RATE,
+                                                   CELLULAR_CFG_RTS_THRESHOLD,
+                                                   CELLULAR_CFG_UART,
+                                                   &queueHandle) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
+                                               CELLULAR_CFG_WHRE_PIN_VINT,
+                                               false,
+                                               CELLULAR_CFG_UART,
+                                               queueHandle) == 0);
+
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
+
+    // Connect to the cellular network
+    networkConnect(CELLULAR_CFG_TEST_APN,
+                   CELLULAR_CFG_TEST_USERNAME,
+                   CELLULAR_CFG_TEST_PASSWORD);
+
+    // Reset errno at the start
+    cellularPort_errno_set(0);
+
+    cellularPortLog("CELLULAR_TEST_SOCK: doing DNS look-up on \"%s\"...\n",
+                    CELLULAR_CFG_TEST_ECHO_SERVER_DOMAIN_NAME);
+    errorCode = cellularSockGetHostByName(CELLULAR_CFG_TEST_ECHO_SERVER_DOMAIN_NAME,
+                                          &(remoteAddress.ipAddress));
+    cellularPortLog("CELLULAR_TEST_SOCK: cellularSockGetHostByName() returned %d.\n",
+                    errorCode);
+    CELLULAR_PORT_TEST_ASSERT(errorCode == 0);
+    remoteAddress.port = CELLULAR_CFG_TEST_ECHO_SERVER_UDP_PORT;
+
+    cellularPortLog("CELLULAR_TEST_SOCK: creating UDP socket...\n");
+    sockDescriptor = cellularSockCreate(CELLULAR_SOCK_TYPE_DGRAM,
+                                        CELLULAR_SOCK_PROTOCOL_UDP);
+    cellularPortLog("CELLULAR_TEST_SOCK: UDP socket descriptor 0x%x, errno %d.\n",
+                    sockDescriptor, cellularPort_errno_get());
+    CELLULAR_PORT_TEST_ASSERT(sockDescriptor >= 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+
+    // Create a mutex that we can wait on for received data.
+    CELLULAR_PORT_TEST_ASSERT(cellularPortMutexCreate(&gMutexHandleDataReceived) == 0);
+
+    // Create a mutex that we can use to indicate that the
+    // received data task is running
+    CELLULAR_PORT_TEST_ASSERT(cellularPortMutexCreate(&gMutexHandleDataReceivedTaskRunning) == 0);
+
+    // Create a task that will receive the data
+    CELLULAR_PORT_TEST_ASSERT(cellularPortTaskCreate(receiveDataTaskUdp,
+                                                     "testTaskRxData",
+                                                     5128, (void **) &pParam, 20,
+                                                     &gTaskHandleDataReceived) == 0);
+
+    // Set up the callback that will signal data reception
+    CELLULAR_PORT_TEST_ASSERT(cellularSockRegisterCallbackData(sockDescriptor,
+                                                               setBool,
+                                                               &dataCallbackCalled) == 0);
+
+    cellularPortLog("CELLULAR_TEST_SOCK: sending to address ");
+    printAddress(&remoteAddress, true);
+    cellularPortLog("...\n");
+
+    // Throw random sized UDP packets up...
+    offset = 0;
+    x = 0;
+    while (offset < sizeof(gSendData)) {
+        sizeBytes = (cellularPort_rand() % (CELLULAR_SOCK_MAX_UDP_PACKET_SIZE / 2)) + 1;
+        sizeBytes = fix(sizeBytes, CELLULAR_SOCK_MAX_UDP_PACKET_SIZE / 2);
+        if (offset + sizeBytes > sizeof(gSendData)) {
+            sizeBytes = sizeof(gSendData) - offset;
+        }
+        success = false;
+        for (size_t y = 0; !success && (y < CELLULAR_CFG_TEST_UDP_RETRIES); y++) {
+            cellularPortLog("CELLULAR_TEST_SOCK: sending UDP packet number %d, size %d byte(s), send try %d.\n",
+                            x + 1, sizeBytes, y + 1);
+            if (cellularSockSendTo(sockDescriptor, &remoteAddress,
+                                   gSendData + offset, sizeBytes) == sizeBytes) {
+                success = true;
+                offset += sizeBytes;
+            }
+        }
+        x++;
+        CELLULAR_PORT_TEST_ASSERT(success);
+    }
+    cellularPortLog("CELLULAR_TEST_SOCK: a total of %d UDP packet(s) sent, %d byte(s).\n",
+                    x + 1, offset);
+
+    // Wait for the receive task to finish receiving them
+    CELLULAR_PORT_MUTEX_LOCK(gMutexHandleDataReceivedTaskRunning);
+    CELLULAR_PORT_MUTEX_UNLOCK(gMutexHandleDataReceivedTaskRunning);
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortMutexDelete(gMutexHandleDataReceived) == 0);
+    gMutexHandleDataReceived = NULL;
+    CELLULAR_PORT_TEST_ASSERT(cellularPortMutexDelete(gMutexHandleDataReceivedTaskRunning) == 0);
+    gMutexHandleDataReceivedTaskRunning = NULL;
+
+    cellularPortLog("CELLULAR_TEST_SOCK: closing socket...\n");
+    errorCode = cellularSockClose(sockDescriptor);
+    cellularPortLog("CELLULAR_TEST_SOCK: cellularSockClose() returned %d, errno %d.\n",
+                    errorCode, cellularPort_errno_get());
+    CELLULAR_PORT_TEST_ASSERT(errorCode >= 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+
+    cellularPortLog("CELLULAR_TEST_SOCK: cleaning up...\n");
+    cellularSockCleanUp();
+
+    // Disconnect from the cellular network and tidy up
+    networkDisconnect();
+
+    cellularCtrlPowerOff(NULL);
+
+    cellularCtrlDeinit();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
+    cellularPortDeinit();
+
+    // Allow idle task to run so that any deleted
+    // tasks are actually deleted, required by some
+    // operating systems (e.g. freeRTOS)
+    cellularPortTaskBlock(100);
+}
+
 
 // End of file
