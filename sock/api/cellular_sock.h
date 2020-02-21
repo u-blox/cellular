@@ -312,7 +312,7 @@ typedef enum {
 } CellularSockErrorCode_t;
 
 /* ----------------------------------------------------------------
- * FUNCTIONS: CREATE/OPEN/CLOSE
+ * FUNCTIONS: CREATE/OPEN/CLOSE/CLEAN-UP
  * -------------------------------------------------------------- */
 
 /** Create a socket.
@@ -342,6 +342,15 @@ int32_t cellularSockConnect(CellularSockDescriptor_t descriptor,
  * @return           zero on success else negative error code.
  */
 int32_t cellularSockClose(CellularSockDescriptor_t descriptor);
+
+/** In order to maintain thread-safe operation, when a socket is
+ * closed, either locally or by the remote host, it is only marked
+ * as closed and the memory is retained, since some other thread
+ * may be refering to it.  Call this clean-up function when you
+ * are sure that there is no socket activity, either from us or
+ * the remote host, in order to free that memory.
+ */
+void cellularSockCleanUp();
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: CONFIGURE
@@ -480,11 +489,12 @@ int32_t cellularSockShutdown(CellularSockDescriptor_t descriptor,
 
 /** Register a callback which will be called when incoming
  * data has arrived on a socket.
- * IMPORTANT: don't spend long in your callback, i.e. don'table
+ * IMPORTANT: don't spend long in your callback, i.e. don't
  * call back into this API, don't call things that will cause any
  * sort of processing load or might get stuck.  It must return
  * quickly as data reception and communication with the cellular
  * module in general is blocked while the callback is executing.
+ * A short printf() or sending an OS signal is fine.
  *
  * @param descriptor     the descriptor of the socket.
  * @param pCallback      the function to call when data arrives,
@@ -495,17 +505,18 @@ int32_t cellularSockShutdown(CellularSockDescriptor_t descriptor,
  *                       may be NULL.
  * @return               zero on success else negative error code.
  */
-int32_t cellularSockCallbackData(CellularSockDescriptor_t descriptor,
-                                 void (*pCallback) (void *),
-                                 void *pCallbackParam);
+int32_t cellularSockRegisterCallbackData(CellularSockDescriptor_t descriptor,
+                                         void (*pCallback) (void *),
+                                         void *pCallbackParam);
 
 /** Register a callback which will be called when a socket is 
  * closed by the remote host.
- * IMPORTANT: don't spend long in your callback, i.e. don'table
+ * IMPORTANT: don't spend long in your callback, i.e. don't
  * call back into this API, don't call things that will cause any
  * sort of processing load or might get stuck.  It must return
  * quickly as data reception and communication with the cellular
  * module in general is blocked while the callback is executing.
+ * A short printf() or sending an OS signal is fine.
  *
  * @param descriptor     the descriptor of the socket.
  * @param pCallback      the function to call, use NULL
@@ -517,9 +528,9 @@ int32_t cellularSockCallbackData(CellularSockDescriptor_t descriptor,
  * @return               zero on success else negative error
  *                       code.
  */
-int32_t cellularSockCallbackClosed(CellularSockDescriptor_t descriptor,
-                                   void (*pCallback) (void *),
-                                   void *pCallbackParam);
+int32_t cellularSockRegisterCallbackClosed(CellularSockDescriptor_t descriptor,
+                                           void (*pCallback) (void *),
+                                           void *pCallbackParam);
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: TCP INCOMING (TCP SERVER) ONLY

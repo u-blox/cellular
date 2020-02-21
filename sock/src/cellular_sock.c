@@ -69,7 +69,8 @@
 typedef enum {
     CELLULAR_SOCK_STATE_CREATED,
     CELLULAR_SOCK_STATE_CONNECTED,
-    CELLULAR_SOCK_STATE_SHUTDOWN
+    CELLULAR_SOCK_STATE_SHUTDOWN,
+    CELLULAR_SOCK_STATE_CLOSED
 } CellularSockState_t;
 
 // A socket.
@@ -104,7 +105,10 @@ typedef struct CellularSockContainer_t {
 static bool gInitialised = false;
 
 // Mutex to protect the container list.
-static CellularPortMutexHandle_t gMutex = NULL;
+static CellularPortMutexHandle_t gMutexContainer = NULL;
+
+// Mutex to protect just the callbacks in the container list.
+static CellularPortMutexHandle_t gMutexCallbacks = NULL;
 
 // Root of the socket container list.
 static CellularSockContainer_t *gpContainerListHead = NULL;
@@ -118,12 +122,7 @@ static CellularSockDescriptor_t gNextDescriptor = 0;
 
 // Find the socket container for the given modem handle.
 // This does NOT lock the mutex, you need to do that.
-static CellularSockContainer_t **ppContainerFindByModemHandle(int32_t modemHandle);
-
-// Free container by pointer.
-// If there are no containers left, deinit() is called
-// This does NOT lock the mutex, you need to do that.
-static void containerFreePP(CellularSockContainer_t **ppContainer);
+static CellularSockContainer_t *pContainerFindByModemHandle(int32_t modemHandle);
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS: URCs
@@ -134,7 +133,7 @@ static void UUSORD_UUSORF_urc(void *pUnused)
 {
     int32_t modemHandle;
     int32_t dataSizeBytes;
-    CellularSockContainer_t **ppContainer = NULL;
+    CellularSockContainer_t *pContainer = NULL;
 
     (void) pUnused;
 
@@ -144,20 +143,21 @@ static void UUSORD_UUSORF_urc(void *pUnused)
 
     if (modemHandle >= 0) {
 
-        CELLULAR_PORT_MUTEX_LOCK(gMutex);
+        // Don't lock the container mutex here as this
+        // needs to be called while a send or receive is
+        // in progress and that already has the mutex
 
         // Find the container
-        ppContainer = ppContainerFindByModemHandle(modemHandle);
-        if ((ppContainer != NULL) && (*ppContainer != NULL)) {
+        pContainer = pContainerFindByModemHandle(modemHandle);
+        if (pContainer != NULL) {
             // Set pending bytes
-            (*ppContainer)->socket.pendingBytes = dataSizeBytes;
-            if ((*ppContainer)->socket.pPendingDataCallback != NULL) {
-                (*ppContainer)->socket.pPendingDataCallback((*ppContainer)->socket.pPendingDataCallbackParam);
+            pContainer->socket.pendingBytes = dataSizeBytes;
+            CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
+            if (pContainer->socket.pPendingDataCallback != NULL) {
+                pContainer->socket.pPendingDataCallback(pContainer->socket.pPendingDataCallbackParam);
             }
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
         }
-
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
-
     }
 }
 
@@ -165,7 +165,7 @@ static void UUSORD_UUSORF_urc(void *pUnused)
 static void UUSOCL_urc(void *pUnused)
 {
     int32_t modemHandle;
-    CellularSockContainer_t **ppContainer = NULL;
+    CellularSockContainer_t *pContainer = NULL;
 
     (void) pUnused;
 
@@ -173,17 +173,20 @@ static void UUSOCL_urc(void *pUnused)
     modemHandle = cellular_ctrl_at_read_int();
     if (modemHandle >= 0) {
 
-        CELLULAR_PORT_MUTEX_LOCK(gMutex);
-
-        ppContainer = ppContainerFindByModemHandle(modemHandle);
-        if ((*ppContainer)->socket.pConnectionClosedCallback != NULL) {
-            (*ppContainer)->socket.pConnectionClosedCallback((*ppContainer)->socket.pConnectionClosedCallbackParam);
+        // Don't lock the container mutex here as this
+        // needs to be called while a send or receive is
+        // in progress and that already has the mutex
+        pContainer = pContainerFindByModemHandle(modemHandle);
+        if (pContainer != NULL) {
+            // Mark the container as closed
+            pContainer->socket.state = CELLULAR_SOCK_STATE_CLOSED;
+            CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
+            if (pContainer->socket.pConnectionClosedCallback != NULL) {
+                pContainer->socket.pConnectionClosedCallback(pContainer->socket.pConnectionClosedCallbackParam);
+            }
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
         }
 
-        // Free the container
-        containerFreePP(ppContainer);
-
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
     }
 }
 
@@ -206,14 +209,21 @@ static void UUPSDD_urc(void *pUnused)
 // Initialise.
 static bool init()
 {
+    // The mutexes are set up once only
+    if (gMutexContainer == NULL) {
+        cellularPortMutexCreate(&gMutexContainer);
+    }
+    if (gMutexCallbacks == NULL) {
+        cellularPortMutexCreate(&gMutexCallbacks);
+    }
+
     if (!gInitialised) {
-        if (gMutex == NULL) {
-            cellularPortMutexCreate(&gMutex);
-        }
         cellular_ctrl_at_set_urc_handler("+UUSORD:", UUSORD_UUSORF_urc, NULL);
         cellular_ctrl_at_set_urc_handler("+UUSORF:", UUSORD_UUSORF_urc, NULL);
         cellular_ctrl_at_set_urc_handler("+UUSOCL:", UUSOCL_urc, NULL);
         cellular_ctrl_at_set_urc_handler("+UUPSDD:", UUPSDD_urc, NULL);
+        // For neatness, doesn't actually matter
+        gNextDescriptor = 0;
         gInitialised = true;
     }
 
@@ -224,8 +234,8 @@ static bool init()
 static void deinitButNotMutex()
 {
     if (gInitialised) {
-        // IMPORTANT: can't delete the mutex here as we can't
-        // know if anyone has hold of it.  It just has to remain.
+        // IMPORTANT: can't delete the mutexes here as we can't
+        // know if anyone has hold of them.  They just have to remain.
         cellular_ctrl_at_remove_urc_handler("+UUSORD:");
         cellular_ctrl_at_remove_urc_handler("+UUSORF:");
         cellular_ctrl_at_remove_urc_handler("+UUSOCL:");
@@ -250,6 +260,7 @@ static bool inline isBigEndian()
  * -------------------------------------------------------------- */
 
 // Find the socket container for the given descriptor.
+// Will not find sockets in state CLOSED.
 // This does NOT lock the mutex, you need to do that.
 static CellularSockContainer_t *pContainerFindByDescriptor(CellularSockDescriptor_t descriptor)
 {
@@ -259,7 +270,8 @@ static CellularSockContainer_t *pContainerFindByDescriptor(CellularSockDescripto
     for (size_t x = 0; (pContainerThis != NULL) &&
                        (pContainer == NULL) &&
                        (x < CELLULAR_SOCK_MAX); x++) {
-        if (pContainerThis->descriptor == descriptor) {
+        if ((pContainerThis->descriptor == descriptor) &&
+            (pContainerThis->socket.state != CELLULAR_SOCK_STATE_CLOSED)) {
             pContainer = pContainerThis;
         }
         pContainerThis = pContainerThis->pNext;
@@ -269,45 +281,25 @@ static CellularSockContainer_t *pContainerFindByDescriptor(CellularSockDescripto
 }
 
 // Find the socket container for the given modem handle.
+// Will not find sockets in state CLOSED.
 // This does NOT lock the mutex, you need to do that.
-static CellularSockContainer_t **ppContainerFindByModemHandle(int32_t modemHandle)
+static CellularSockContainer_t *pContainerFindByModemHandle(int32_t modemHandle)
 {
-    CellularSockContainer_t **ppContainer = NULL;
-    CellularSockContainer_t **ppContainerThis = &gpContainerListHead;
-
-    for (size_t x = 0; (*ppContainerThis != NULL) &&
-                       (ppContainer == NULL) &&
-                       (x < CELLULAR_SOCK_MAX); x++) {
-        if ((*ppContainerThis)->socket.modemHandle == modemHandle) {
-            ppContainer = ppContainerThis;
-        }
-        ppContainerThis = &(*ppContainerThis)->pNext;
-    }
-
-    return ppContainer;
-}
-
-// Determine whether the given container pointer is still valid.
-// This does NOT lock the mutex, you need to do that.
-static bool containerIsStillValid(CellularSockContainer_t *pContainer)
-{
-    CellularSockContainer_t *pContainerFound = NULL;
+    CellularSockContainer_t *pContainer = NULL;
     CellularSockContainer_t *pContainerThis = gpContainerListHead;
 
     for (size_t x = 0; (pContainerThis != NULL) &&
-                       (pContainerFound == NULL) &&
+                       (pContainer == NULL) &&
                        (x < CELLULAR_SOCK_MAX); x++) {
-        if ((pContainerThis == pContainer) &&
-            (pContainerThis->descriptor == pContainer->descriptor)) {
-            pContainerFound = pContainerThis;
+        if ((pContainerThis->socket.modemHandle == modemHandle) &&
+            (pContainerThis->socket.state != CELLULAR_SOCK_STATE_CLOSED)) {
+            pContainer = pContainerThis;
         }
         pContainerThis = pContainerThis->pNext;
     }
 
-    return (pContainerFound == pContainer);
+    return pContainer;
 }
-
-
 
 // Create a container with the given descriptor.
 // This does NOT lock the mutex, you need to do that.
@@ -336,32 +328,6 @@ static CellularSockContainer_t *pContainerCreate(CellularSockDescriptor_t descri
     return pContainer;
 }
 
-// Free container by pointer.
-// If there are no containers left, deinit() is called
-// This does NOT lock the mutex, you need to do that.
-static void containerFreePP(CellularSockContainer_t **ppContainer)
-{
-    if ((ppContainer != NULL) && (*ppContainer != NULL)) {
-        // If there is a previous container, move its pNext
-        if ((*ppContainer)->pPrevious != NULL) {
-            (*ppContainer)->pPrevious->pNext = (*ppContainer)->pNext;
-        }
-        // If there is a next container, move its pPrevious
-        if ((*ppContainer)->pNext != NULL) {
-            (*ppContainer)->pNext->pPrevious = (*ppContainer)->pPrevious;
-        }
-
-        // Free the memory and NULL the pointer
-        cellularPort_free(*ppContainer);
-        *ppContainer = NULL;
-
-        // If everything has been closed, we can deinit()
-        if (gpContainerListHead == NULL) {
-            deinitButNotMutex();
-        }
-    }
-}
-
 // Free the container corresponding to the descriptor.
 // This does NOT lock the mutex, you need to do that.
 static bool containerFree(CellularSockDescriptor_t descriptor)
@@ -382,7 +348,18 @@ static bool containerFree(CellularSockDescriptor_t descriptor)
 
     if ((ppContainer != NULL) && (*ppContainer != NULL)) {
         // If we found it, free it
-        containerFreePP(ppContainer);
+        // If there is a previous container, move its pNext
+        if ((*ppContainer)->pPrevious != NULL) {
+            (*ppContainer)->pPrevious->pNext = (*ppContainer)->pNext;
+        }
+        // If there is a next container, move its pPrevious
+        if ((*ppContainer)->pNext != NULL) {
+            (*ppContainer)->pNext->pPrevious = (*ppContainer)->pPrevious;
+        }
+
+        // Free the memory and NULL the pointer
+        cellularPort_free(*ppContainer);
+        *ppContainer = NULL;
         success = true;
     }
 
@@ -787,9 +764,7 @@ int32_t send(CellularSockContainer_t *pContainer,
 // Notes: pRemoteAddress may be NULL, it is valid
 // to receive a zero length UDP packet, one whole
 // UDP packet is received by each USORF command,
-// gMutex must be locked on entry, pContainer may
-// not be valid after this function exits, see
-// comments below for why.
+// gMutexContainer must be locked on entry.
 int32_t receiveFrom(CellularSockContainer_t *pContainer,
                     CellularSockAddress_t *pRemoteAddress,
                     void *pData, size_t dataSizeBytes)
@@ -816,8 +791,6 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
     // so the overhead is 77 bytes.
 
     // Run around the loop until a packet of data turns up or we time out
-    // Note: while() loop condition must not check pContainer, for
-    // reasons see below
     while (success && (dataSizeBytes > 0) && (receivedSize < 0)) {
         wantedReceiveSize = CELLULAR_SOCK_MAX_UDP_PACKET_SIZE;
         if (wantedReceiveSize > dataSizeBytes) {
@@ -872,15 +845,8 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
             }
         } else if (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.timeoutMs) {
             // Yield to the AT parser task that is listening for URCs
-            // the indicated incoming data
-            cellularPortMutexUnlock(gMutex);
+            // that indicated incoming data
             cellularPortTaskBlock(10);
-            cellularPortMutexLock(gMutex);
-            // Check that the container hasn't been closed or
-            // some such while we were away
-            if (!containerIsStillValid(pContainer)) {
-                success = false;
-            }
         } else {
             // Timeout with nothing received
             success = false;
@@ -891,9 +857,6 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
             }
         }
     }
-
-    // Note: pContainer may have been messed with while we were allowing
-    // the URC processing in, do not rely on it here.
 
     if (success && (receivedSize >= 0) && (pRemoteAddress != NULL) && (port >= 0)) {
         success = (cellularSockStringToAddress(buffer, pRemoteAddress) == 0);
@@ -914,9 +877,7 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
 }
 
 // Receive data, TCP style.
-// Note: gMutex must be locked on entry, pContainer
-// may not be valid after this function exits,
-// see comments below for why.
+// Note: gMutexContainer must be locked on entry.
 int32_t receive(CellularSockContainer_t *pContainer,
                 void *pData, size_t dataSizeBytes)
 {
@@ -931,8 +892,6 @@ int32_t receive(CellularSockContainer_t *pContainer,
 
     // Run around the loop until we run out of room in the buffer
     // or we time out
-    // Note: while() loop condition must not check pContainer, for
-    // reasons see below
     while (success && (dataSizeBytes > 0)) {
         wantedReceiveSize = CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES;
         if (wantedReceiveSize > dataSizeBytes) {
@@ -983,15 +942,8 @@ int32_t receive(CellularSockContainer_t *pContainer,
             }
         } else if (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.timeoutMs) {
             // Yield to the AT parser task that is listening for URCs
-            // the indicated incoming data
-            cellularPortMutexUnlock(gMutex);
+            // that indicated incoming data
             cellularPortTaskBlock(10);
-            cellularPortMutexLock(gMutex);
-            // Check that the container hasn't been closed or
-            // some such while we were away
-            if (!containerIsStillValid(pContainer)) {
-                success = false;
-            }
         } else {
             if (receivedSize == 0) {
                 // Timeout with nothing received
@@ -1006,9 +958,6 @@ int32_t receive(CellularSockContainer_t *pContainer,
             break;
         }
     }
-
-    // Note: pContainer may have been messed with while we were allowing
-    // the URC processing in, do not rely on it here.
 
     // Set the return code
     if (success) {
@@ -1043,7 +992,7 @@ int32_t cellularSockCreate(CellularSockType_t type,
             if ((protocol == CELLULAR_SOCK_PROTOCOL_TCP) ||
                 (protocol == CELLULAR_SOCK_PROTOCOL_UDP)) {
 
-                CELLULAR_PORT_MUTEX_LOCK(gMutex);
+                CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
 
                 // Find the next free descriptor
                 for (count = 0; (descriptorOrErrorCode < 0) &&
@@ -1095,17 +1044,15 @@ int32_t cellularSockCreate(CellularSockType_t type,
                     pContainer->socket.modemHandle = cellular_ctrl_at_read_int();
                     cellular_ctrl_at_resp_stop();
                     if (cellular_ctrl_at_unlock_return_error() == 0) {
-                        // All is good
-                        descriptorOrErrorCode = CELLULAR_SOCK_SUCCESS;
+                        // All is good, no need to set descriptorOrErrorCode
+                        // as it was already set above
                         cellularPortLog("CELLULAR_SOCK: socket created, descriptor %d, modem handle %d.\n",
                                         descriptorOrErrorCode,
                                         pContainer->socket.modemHandle);
                     } else {
                         // If the modem could not create the socket,
                         // free the container once more
-                        CELLULAR_PORT_MUTEX_LOCK(gMutex);
                         containerFree(descriptorOrErrorCode);
-                        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
                         descriptorOrErrorCode = CELLULAR_SOCK_BSD_ERROR;
                         // Use a distinctly different errno for this
                         errno = CELLULAR_SOCK_EIO;
@@ -1116,7 +1063,7 @@ int32_t cellularSockCreate(CellularSockType_t type,
                     errno = CELLULAR_SOCK_ENOBUFS;
                 }
 
-                CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
+                CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
 
             } else {
                 // Not a protocol we support
@@ -1153,7 +1100,7 @@ int32_t cellularSockConnect(CellularSockDescriptor_t descriptor,
         if ((pRemoteAddress != NULL) &&
             (addressToString(pRemoteAddress, false, buffer, sizeof(buffer)) > 0)) {
 
-            CELLULAR_PORT_MUTEX_LOCK(gMutex);
+            CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
 
             // Find the container
             pContainer = pContainerFindByDescriptor(descriptor);
@@ -1206,7 +1153,7 @@ int32_t cellularSockConnect(CellularSockDescriptor_t descriptor,
                 errno = CELLULAR_SOCK_EBADF;
             }
 
-            CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
 
         } else {
             // Seems appropriate
@@ -1234,7 +1181,7 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor)
 
     if (init()) {
 
-        CELLULAR_PORT_MUTEX_LOCK(gMutex);
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
 
         // Find the container
         pContainer = pContainerFindByDescriptor(descriptor);
@@ -1251,10 +1198,11 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor)
                                 descriptor,
                                 pContainer->socket.modemHandle);
                 errorCode = CELLULAR_SOCK_SUCCESS;
-                // Now free the container
-                if (!containerFree(descriptor)) {
-                    cellularPortLog("CELLULAR_SOCK: warning, socket is closed but couldn't free the memory.\n");
-                }
+                // Now mark the socket as closed.
+                // Socket is only freed by a call to
+                // cellularSockCleanUp() in order to ensure
+                // thread-safeness
+                pContainer->socket.state = CELLULAR_SOCK_STATE_CLOSED;
             } else {
                 // Use a distinctly different errno for this
                 errno = CELLULAR_SOCK_EIO;
@@ -1267,7 +1215,7 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor)
             errno = CELLULAR_SOCK_EBADF;
         }
 
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
 
     } else {
         // The only reason initialisation might fail
@@ -1280,6 +1228,53 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor)
     }
 
     return (int32_t) errorCode;
+}
+
+// Clean-up memory occupied by closed sockets.
+void cellularSockCleanUp()
+{
+    CellularSockContainer_t *pContainer = gpContainerListHead;
+    CellularSockContainer_t *pTmp;
+
+    if (gInitialised) {
+
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
+
+        // Move through the list removing closed sockets
+        while (pContainer != NULL) {
+            if (pContainer->socket.state == CELLULAR_SOCK_STATE_CLOSED) {
+                // If there is a previous container, move its pNext
+                if (pContainer->pPrevious != NULL) {
+                    pContainer->pPrevious->pNext = pContainer->pNext;
+                } else {
+                    // If there is no previous container, must be
+                    // at the start of the list so move the head
+                    // pointer on instead
+                    gpContainerListHead = pContainer->pNext;
+                }
+                // If there is a next container, move its pPrevious
+                if (pContainer->pNext != NULL) {
+                    pContainer->pNext->pPrevious = pContainer->pPrevious;
+                }
+
+                // Remember the next pointer
+                pTmp = pContainer->pNext;
+                // Free the memory
+                cellularPort_free(pContainer);
+                // Move to the next entry
+                pContainer = pTmp;
+            } else {
+                pContainer = pContainer->pNext;
+            }
+        }
+
+        // If everything has been closed, we can deinit()
+        if (gpContainerListHead == NULL) {
+            deinitButNotMutex();
+        }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
+    }
 }
 
 /* ----------------------------------------------------------------
@@ -1343,7 +1338,7 @@ int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
 
     if (init()) {
 
-        CELLULAR_PORT_MUTEX_LOCK(gMutex);
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
 
         // Find the container
         pContainer = pContainerFindByDescriptor(descriptor);
@@ -1396,7 +1391,7 @@ int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
             errno = CELLULAR_SOCK_EBADF;
         }
 
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
 
     } else {
         // The only reason initialisation might fail
@@ -1422,10 +1417,10 @@ int32_t cellularSockReceiveFrom(CellularSockDescriptor_t descriptor,
 
     if (init()) {
 
-        CELLULAR_PORT_MUTEX_LOCK(gMutex);
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
+
         // Find the container
         pContainer = pContainerFindByDescriptor(descriptor);
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
 
         // If we have found the container, talk to cellular to
         // do the receiving
@@ -1440,9 +1435,6 @@ int32_t cellularSockReceiveFrom(CellularSockDescriptor_t descriptor,
                         (pContainer->socket.protocol == CELLULAR_SOCK_PROTOCOL_TCP)) {
                         errorCodeOrSize = receiveFrom(pContainer, pRemoteAddress,
                                                       pData, dataSizeBytes);
-                        // Note: pContainer may have been messed with while
-                        // we were inside receiveFrom(), don't rely
-                        // on it after this point
                     } else {
                         // Should never get here, throw 'em a googley so that the
                         // error is distinct
@@ -1457,6 +1449,8 @@ int32_t cellularSockReceiveFrom(CellularSockDescriptor_t descriptor,
             // Indicate that we weren't passed a valid socket descriptor
             errno = CELLULAR_SOCK_EBADF;
         }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
 
     } else {
         // The only reason initialisation might fail
@@ -1487,10 +1481,10 @@ int32_t cellularSockWrite(CellularSockDescriptor_t descriptor,
         // Check parameters
         if (pData != NULL) {
 
-            CELLULAR_PORT_MUTEX_LOCK(gMutex);
+            CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
+
             // Find the container
             pContainer = pContainerFindByDescriptor(descriptor);
-            CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
 
             // If we have found the container, talk to cellular to
             // do the sending
@@ -1526,6 +1520,9 @@ int32_t cellularSockWrite(CellularSockDescriptor_t descriptor,
                 // Indicate that we weren't passed a valid socket descriptor
                 errno = CELLULAR_SOCK_EBADF;
             }
+
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
+
         } else {
             // Invalid argument
             errno = CELLULAR_SOCK_EINVAL;
@@ -1553,10 +1550,10 @@ int32_t cellularSockRead(CellularSockDescriptor_t descriptor,
 
     if (init()) {
 
-        CELLULAR_PORT_MUTEX_LOCK(gMutex);
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
+
         // Find the container
         pContainer = pContainerFindByDescriptor(descriptor);
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
 
         // If we have found the container, talk to cellular to
         // do the receiving
@@ -1570,9 +1567,6 @@ int32_t cellularSockRead(CellularSockDescriptor_t descriptor,
                         if ((pData != NULL) && (dataSizeBytes != 0)) {
                             if (pContainer->socket.protocol == CELLULAR_SOCK_PROTOCOL_TCP) {
                                 errorCodeOrSize = receive(pContainer, pData, dataSizeBytes);
-                                // Note: pContainer may have been messed with while
-                                // we were inside receive(), don't rely
-                                // on it after this point
                             }
                         } else {
                             // Not an error, just nothing to do
@@ -1592,6 +1586,8 @@ int32_t cellularSockRead(CellularSockDescriptor_t descriptor,
             // Indicate that we weren't passed a valid socket descriptor
             errno = CELLULAR_SOCK_EBADF;
         }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
 
     } else {
         // The only reason initialisation might fail
@@ -1622,9 +1618,9 @@ int32_t cellularSockShutdown(CellularSockDescriptor_t descriptor,
  * -------------------------------------------------------------- */
 
 // Register a callback for incoming data.
-int32_t cellularSockCallbackData(CellularSockDescriptor_t descriptor,
-                                 void (*pCallback) (void *),
-                                 void *pCallbackParam)
+int32_t cellularSockRegisterCallbackData(CellularSockDescriptor_t descriptor,
+                                         void (*pCallback) (void *),
+                                         void *pCallbackParam)
 {
     CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
     int32_t errno = CELLULAR_SOCK_ENONE;
@@ -1632,22 +1628,28 @@ int32_t cellularSockCallbackData(CellularSockDescriptor_t descriptor,
 
     if (init()) {
 
-        CELLULAR_PORT_MUTEX_LOCK(gMutex);
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
 
         // Find the container
         pContainer = pContainerFindByDescriptor(descriptor);
 
         // If we have found the container, set up the callback
         if (pContainer != NULL) {
+
+            CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
+
             pContainer->socket.pPendingDataCallback = pCallback;
             pContainer->socket.pPendingDataCallbackParam = pCallbackParam;
+
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
+
             errorCode = CELLULAR_SOCK_SUCCESS;
         } else {
             // Indicate that we weren't passed a valid socket descriptor
             errno = CELLULAR_SOCK_EBADF;
         }
 
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
 
     } else {
         // The only reason initialisation might fail
@@ -1663,9 +1665,9 @@ int32_t cellularSockCallbackData(CellularSockDescriptor_t descriptor,
 }
 
 // Register a callback for socket closed.
-int32_t cellularSockCallbackClosed(CellularSockDescriptor_t descriptor,
-                                   void (*pCallback) (void *),
-                                   void *pCallbackParam)
+int32_t cellularSockRegisterCallbackClosed(CellularSockDescriptor_t descriptor,
+                                           void (*pCallback) (void *),
+                                           void *pCallbackParam)
 {
     CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
     int32_t errno = CELLULAR_SOCK_ENONE;
@@ -1673,22 +1675,28 @@ int32_t cellularSockCallbackClosed(CellularSockDescriptor_t descriptor,
 
     if (init()) {
 
-        CELLULAR_PORT_MUTEX_LOCK(gMutex);
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
 
         // Find the container
         pContainer = pContainerFindByDescriptor(descriptor);
 
-        // If we have found the container, set up the callback
+        // If we have found the container, set up the callbacks
         if (pContainer != NULL) {
+
+            CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
+
             pContainer->socket.pConnectionClosedCallback = pCallback;
             pContainer->socket.pConnectionClosedCallbackParam = pCallbackParam;
+
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
+
             errorCode = CELLULAR_SOCK_SUCCESS;
         } else {
             // Indicate that we weren't passed a valid socket descriptor
             errno = CELLULAR_SOCK_EBADF;
         }
 
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
 
     } else {
         // The only reason initialisation might fail
@@ -1771,7 +1779,7 @@ int32_t cellularSockGetRemoteAddress(CellularSockDescriptor_t descriptor,
         // Check parameters
         if (pRemoteAddress != NULL) {
 
-            CELLULAR_PORT_MUTEX_LOCK(gMutex);
+            CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
 
             // Find the container
             pContainer = pContainerFindByDescriptor(descriptor);
@@ -1791,7 +1799,7 @@ int32_t cellularSockGetRemoteAddress(CellularSockDescriptor_t descriptor,
                 errno = CELLULAR_SOCK_EBADF;
             }
 
-            CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
 
         } else {
             // Invalid argument
@@ -1824,7 +1832,7 @@ int32_t cellularSockGetLocalAddress(CellularSockDescriptor_t descriptor,
         // Check parameters
         if (pLocalAddress != NULL) {
 
-            CELLULAR_PORT_MUTEX_LOCK(gMutex);
+            CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
 
             // Check that the descriptor is at least valid
             pContainer = pContainerFindByDescriptor(descriptor);
@@ -1845,7 +1853,7 @@ int32_t cellularSockGetLocalAddress(CellularSockDescriptor_t descriptor,
                 errno = CELLULAR_SOCK_EBADF;
             }
 
-            CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
+            CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
 
         } else {
             // Nothing to do
@@ -1874,45 +1882,46 @@ int32_t cellularSockGetHostByName(const char *pHostName,
     int32_t bytesRead;
     int32_t atError;
 
-    if (init()) {
-        // Check parameter
-        if (pHostName != NULL) {
-            cellularPortLog("CELLULAR_SOCK: looking up IP address of \"%s\".\n",
-                            pHostName);
-            cellular_ctrl_at_lock();
-            // Allow plenty of time
-            cellular_ctrl_at_set_at_timeout(60000, false);
-            cellular_ctrl_at_cmd_start("AT+UDNSRN=");
-            cellular_ctrl_at_write_int(0);
-            cellular_ctrl_at_write_string(pHostName, true);
-            cellular_ctrl_at_cmd_stop();
-            cellular_ctrl_at_resp_start("+UDNSRN:", false);
-            bytesRead = cellular_ctrl_at_read_string(buffer,
-                                                     sizeof(buffer),
-                                                     false);
-            cellular_ctrl_at_resp_stop();
-            cellular_ctrl_at_restore_at_timeout();
-            atError = cellular_ctrl_at_unlock_return_error();
-            if ((bytesRead >= 0) && (atError == 0)) {
-                // All is good
-                cellularPortLog("CELLULAR_SOCK: found it at \"%.*s\".\n",
-                                bytesRead, buffer);
-                if (pHostIpAddress != NULL) {
-                    // Convert to struct
-                    if (cellularSockStringToAddress(buffer,
-                                                    &address) == 0) {
-                        pCellularPort_memcpy(pHostIpAddress,
-                                             &(address.ipAddress),
-                                             sizeof(*pHostIpAddress));
-                        errorCode = CELLULAR_SOCK_SUCCESS;
-                    }
-                } else {
+    // No need to call init() here, this does not use the mutexes
+    if (pHostName != NULL) {
+        cellularPortLog("CELLULAR_SOCK: looking up IP address of \"%s\".\n",
+                        pHostName);
+        cellular_ctrl_at_lock();
+        // Allow plenty of time
+        cellular_ctrl_at_set_at_timeout(60000, false);
+        cellular_ctrl_at_cmd_start("AT+UDNSRN=");
+        cellular_ctrl_at_write_int(0);
+        cellular_ctrl_at_write_string(pHostName, true);
+        cellular_ctrl_at_cmd_stop();
+        cellular_ctrl_at_resp_start("+UDNSRN:", false);
+        bytesRead = cellular_ctrl_at_read_string(buffer,
+                                                 sizeof(buffer),
+                                                 false);
+        cellular_ctrl_at_resp_stop();
+        cellular_ctrl_at_restore_at_timeout();
+        atError = cellular_ctrl_at_unlock_return_error();
+        if ((bytesRead >= 0) && (atError == 0)) {
+            // All is good
+            cellularPortLog("CELLULAR_SOCK: found it at \"%.*s\".\n",
+                            bytesRead, buffer);
+            if (pHostIpAddress != NULL) {
+                // Convert to struct
+                if (cellularSockStringToAddress(buffer,
+                                                &address) == 0) {
+                    pCellularPort_memcpy(pHostIpAddress,
+                                         &(address.ipAddress),
+                                         sizeof(*pHostIpAddress));
                     errorCode = CELLULAR_SOCK_SUCCESS;
                 }
             } else {
-                cellularPortLog("CELLULAR_SOCK: host not found.\n");
+                errorCode = CELLULAR_SOCK_SUCCESS;
             }
+        } else {
+            cellularPortLog("CELLULAR_SOCK: host not found.\n");
         }
+    } else {
+        // Nothing to do
+        errorCode = CELLULAR_SOCK_SUCCESS;
     }
 
     return (int32_t) errorCode;
@@ -1928,7 +1937,7 @@ int32_t cellularSockStringToAddress(const char *pAddressString,
 {
     CellularSockErrorCode_t errorCode = CELLULAR_SOCK_INVALID_PARAMETER;
 
-    // No need to call init() here, this is not a sockets function
+    // No need to call init() here, this does not use the mutexes
     if ((pAddressString != NULL) && (pAddress != NULL)) {
         errorCode = CELLULAR_SOCK_INVALID_ADDRESS;
         if (addressStringIsIpv4(pAddressString)) {
@@ -1952,7 +1961,7 @@ int32_t cellularSockIpAddressToString(const CellularSockIpAddress_t *pIpAddress,
 {
     CellularSockErrorCode_t stringLengthOrErrorCode = CELLULAR_SOCK_INVALID_PARAMETER;
 
-    // No need to call init() here, this is not a sockets function
+    // No need to call init() here, this does not use the mutexes
     if ((pIpAddress != NULL) && (pBuffer != NULL)) {
         stringLengthOrErrorCode = ipAddressToString(pIpAddress,
                                                     pBuffer,
@@ -1969,7 +1978,7 @@ int32_t cellularSockAddressToString(const CellularSockAddress_t *pAddress,
 {
     CellularSockErrorCode_t stringLengthOrErrorCode = CELLULAR_SOCK_INVALID_PARAMETER;
 
-    // No need to call init() here, this is not a sockets function
+    // No need to call init() here, this does not use the mutexes
     if ((pAddress != NULL) && (pBuffer != NULL)) {
         stringLengthOrErrorCode = addressToString(pAddress,
                                                   true,
