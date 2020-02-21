@@ -477,7 +477,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
 }
 
 /** UDP echo test.
- * TODO: test errors.
+ * TODO: test errors cases.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
                             "udpEcho",

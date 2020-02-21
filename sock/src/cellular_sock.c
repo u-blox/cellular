@@ -287,6 +287,28 @@ static CellularSockContainer_t **ppContainerFindByModemHandle(int32_t modemHandl
     return ppContainer;
 }
 
+// Determine whether the given container pointer is still valid.
+// This does NOT lock the mutex, you need to do that.
+static bool containerIsStillValid(CellularSockContainer_t *pContainer)
+{
+    CellularSockContainer_t *pContainerFound = NULL;
+    CellularSockContainer_t *pContainerThis = gpContainerListHead;
+
+    for (size_t x = 0; (pContainerThis != NULL) &&
+                       (pContainerFound == NULL) &&
+                       (x < CELLULAR_SOCK_MAX); x++) {
+        if ((pContainerThis == pContainer) &&
+            (pContainerThis->descriptor == pContainer->descriptor)) {
+            pContainerFound = pContainerThis;
+        }
+        pContainerThis = pContainerThis->pNext;
+    }
+
+    return (pContainerFound == pContainer);
+}
+
+
+
 // Create a container with the given descriptor.
 // This does NOT lock the mutex, you need to do that.
 static CellularSockContainer_t *pContainerCreate(CellularSockDescriptor_t descriptor)
@@ -764,7 +786,10 @@ int32_t send(CellularSockContainer_t *pContainer,
 // Receive data, UDP style.
 // Notes: pRemoteAddress may be NULL, it is valid
 // to receive a zero length UDP packet, one whole
-// UDP packet is received by each USORF command.
+// UDP packet is received by each USORF command,
+// gMutex must be locked on entry, pContainer may
+// not be valid after this function exits, see
+// comments below for why.
 int32_t receiveFrom(CellularSockContainer_t *pContainer,
                     CellularSockAddress_t *pRemoteAddress,
                     void *pData, size_t dataSizeBytes)
@@ -791,6 +816,8 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
     // so the overhead is 77 bytes.
 
     // Run around the loop until a packet of data turns up or we time out
+    // Note: while() loop condition must not check pContainer, for
+    // reasons see below
     while (success && (dataSizeBytes > 0) && (receivedSize < 0)) {
         wantedReceiveSize = CELLULAR_SOCK_MAX_UDP_PACKET_SIZE;
         if (wantedReceiveSize > dataSizeBytes) {
@@ -844,8 +871,16 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
                 success = false;
             }
         } else if (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.timeoutMs) {
-            // Yield to the AT parser task that is listening for incoming data
+            // Yield to the AT parser task that is listening for URCs
+            // the indicated incoming data
+            cellularPortMutexUnlock(gMutex);
             cellularPortTaskBlock(10);
+            cellularPortMutexLock(gMutex);
+            // Check that the container hasn't been closed or
+            // some such while we were away
+            if (!containerIsStillValid(pContainer)) {
+                success = false;
+            }
         } else {
             // Timeout with nothing received
             success = false;
@@ -856,6 +891,9 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
             }
         }
     }
+
+    // Note: pContainer may have been messed with while we were allowing
+    // the URC processing in, do not rely on it here.
 
     if (success && (receivedSize >= 0) && (pRemoteAddress != NULL) && (port >= 0)) {
         success = (cellularSockStringToAddress(buffer, pRemoteAddress) == 0);
@@ -876,6 +914,9 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
 }
 
 // Receive data, TCP style.
+// Note: gMutex must be locked on entry, pContainer
+// may not be valid after this function exits,
+// see comments below for why.
 int32_t receive(CellularSockContainer_t *pContainer,
                 void *pData, size_t dataSizeBytes)
 {
@@ -890,6 +931,8 @@ int32_t receive(CellularSockContainer_t *pContainer,
 
     // Run around the loop until we run out of room in the buffer
     // or we time out
+    // Note: while() loop condition must not check pContainer, for
+    // reasons see below
     while (success && (dataSizeBytes > 0)) {
         wantedReceiveSize = CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES;
         if (wantedReceiveSize > dataSizeBytes) {
@@ -939,8 +982,16 @@ int32_t receive(CellularSockContainer_t *pContainer,
                 success = false;
             }
         } else if (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.timeoutMs) {
-            // Yield to the AT parser task that is listening for incoming data
+            // Yield to the AT parser task that is listening for URCs
+            // the indicated incoming data
+            cellularPortMutexUnlock(gMutex);
             cellularPortTaskBlock(10);
+            cellularPortMutexLock(gMutex);
+            // Check that the container hasn't been closed or
+            // some such while we were away
+            if (!containerIsStillValid(pContainer)) {
+                success = false;
+            }
         } else {
             if (receivedSize == 0) {
                 // Timeout with nothing received
@@ -955,6 +1006,9 @@ int32_t receive(CellularSockContainer_t *pContainer,
             break;
         }
     }
+
+    // Note: pContainer may have been messed with while we were allowing
+    // the URC processing in, do not rely on it here.
 
     // Set the return code
     if (success) {
@@ -1290,9 +1344,9 @@ int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
     if (init()) {
 
         CELLULAR_PORT_MUTEX_LOCK(gMutex);
+
         // Find the container
         pContainer = pContainerFindByDescriptor(descriptor);
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
 
         // If we have found the container, talk to cellular to
         // do the sending
@@ -1324,6 +1378,8 @@ int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
                             (pContainer->socket.protocol == CELLULAR_SOCK_PROTOCOL_TCP)) {
                             errorCodeOrSize = sendTo(pContainer, pRemoteAddress,
                                                      pData, dataSizeBytes);
+
+                            // the AT parser in, do not rely on it here.
                         } else {
                             // Should never get here, throw 'em a googley so that the
                             // error is distinct
@@ -1339,6 +1395,8 @@ int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
             // Indicate that we weren't passed a valid socket descriptor
             errno = CELLULAR_SOCK_EBADF;
         }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
 
     } else {
         // The only reason initialisation might fail
@@ -1382,6 +1440,9 @@ int32_t cellularSockReceiveFrom(CellularSockDescriptor_t descriptor,
                         (pContainer->socket.protocol == CELLULAR_SOCK_PROTOCOL_TCP)) {
                         errorCodeOrSize = receiveFrom(pContainer, pRemoteAddress,
                                                       pData, dataSizeBytes);
+                        // Note: pContainer may have been messed with while
+                        // we were inside receiveFrom(), don't rely
+                        // on it after this point
                     } else {
                         // Should never get here, throw 'em a googley so that the
                         // error is distinct
@@ -1509,6 +1570,9 @@ int32_t cellularSockRead(CellularSockDescriptor_t descriptor,
                         if ((pData != NULL) && (dataSizeBytes != 0)) {
                             if (pContainer->socket.protocol == CELLULAR_SOCK_PROTOCOL_TCP) {
                                 errorCodeOrSize = receive(pContainer, pData, dataSizeBytes);
+                                // Note: pContainer may have been messed with while
+                                // we were inside receive(), don't rely
+                                // on it after this point
                             }
                         } else {
                             // Not an error, just nothing to do
