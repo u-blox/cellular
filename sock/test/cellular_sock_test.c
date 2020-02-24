@@ -156,6 +156,17 @@ static const char gSendData[] =  "_____0000:012345678901234567890123456789012345
                                  "_____2000:0123456789012345678901234567890123456789"
                                  "01234567890123456789012345678901234567890123456789";
 
+// A string of all possible characters, including strings`
+// that might appear as terminators in the AT interfacce,
+// and including an 'x' on the end which is intended to be
+// overwritten with a NULL in order to test that NULLs are
+// carried through also
+static const char gAllChars[] = "The quick brown fox jumps over the lazy dog 0123456789 "
+                                "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e"
+                                "\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c"
+                                "\x1d\x1e!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~\x7f"
+                                "\r\nOK\r\n \r\nERROR\r\nx";
+
 // Queue on which to send notifications of data arrival.
 static CellularPortQueueHandle_t gQueueHandleDataReceived = NULL;
 
@@ -396,6 +407,7 @@ static bool checkAgainstSendData(char *pDataReceived, size_t sizeBytes)
 // Do a UDP socket echo test to a given host of a given packet size.
 static void doUdpEchoBasic(CellularSockDescriptor_t sockDescriptor,
                            CellularSockAddress_t *pRemoteAddress,
+                           const char *pSendData,
                            size_t sendSizeBytes)
 {
     bool success = false;
@@ -410,7 +422,7 @@ static void doUdpEchoBasic(CellularSockDescriptor_t sockDescriptor,
         cellularPortLog("CELLULAR_SOCK_TEST: echo testing UDP packet size %d byte(s), try %d.\n",
                         sendSizeBytes, x + 1);
         sizeBytes = cellularSockSendTo(sockDescriptor, pRemoteAddress,
-                                       (void *) gSendData, sendSizeBytes);
+                                       (void *) pSendData, sendSizeBytes);
         if (sizeBytes >= 0) {
            cellularPortLog("CELLULAR_SOCK_TEST: sent %d byte(s).\n", sizeBytes);
         } else {
@@ -429,7 +441,7 @@ static void doUdpEchoBasic(CellularSockDescriptor_t sockDescriptor,
                 cellularPortLog("CELLULAR_SOCK_TEST: received nothing back.\n");
             }
             if (sizeBytes == sendSizeBytes) {
-                CELLULAR_PORT_TEST_ASSERT(cellularPort_memcmp(gSendData, pDataReceived + CELLULAR_SOCK_TEST_GUARD_LENGTH_SIZE_BYTES, sendSizeBytes) == 0);
+                CELLULAR_PORT_TEST_ASSERT(cellularPort_memcmp(pSendData, pDataReceived + CELLULAR_SOCK_TEST_GUARD_LENGTH_SIZE_BYTES, sendSizeBytes) == 0);
                 for (size_t x = 0; x < CELLULAR_SOCK_TEST_GUARD_LENGTH_SIZE_BYTES; x++) {
                     CELLULAR_PORT_TEST_ASSERT(*(pDataReceived + x) == CELLULAR_SOCK_TEST_FILL_CHARACTER);
                     CELLULAR_PORT_TEST_ASSERT(*(pDataReceived + CELLULAR_SOCK_TEST_GUARD_LENGTH_SIZE_BYTES + sendSizeBytes + x) == CELLULAR_SOCK_TEST_FILL_CHARACTER);
@@ -715,7 +727,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
     printAddress(&remoteAddress, true);
     cellularPortLog("...\n");
     // Test min size
-    doUdpEchoBasic(sockDescriptor, &remoteAddress, 1);
+    doUdpEchoBasic(sockDescriptor, &remoteAddress, gSendData, 1);
 
     CELLULAR_PORT_TEST_ASSERT(dataCallbackCalled);
     dataCallbackCalled = false;
@@ -724,13 +736,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
                                                                NULL, NULL) == 0);
 
     // Test max size
-    doUdpEchoBasic(sockDescriptor, &remoteAddress, CELLULAR_SOCK_TEST_MAX_UDP_PACKET_SIZE);
+    doUdpEchoBasic(sockDescriptor, &remoteAddress, gSendData, CELLULAR_SOCK_TEST_MAX_UDP_PACKET_SIZE);
 
     // Test some random sizes in-between
     for (size_t x = 0; x < 10; x++) {
         sizeBytes = (cellularPort_rand() % CELLULAR_SOCK_TEST_MAX_UDP_PACKET_SIZE) + 1;
         sizeBytes = fix(sizeBytes, CELLULAR_SOCK_TEST_MAX_UDP_PACKET_SIZE);
-        doUdpEchoBasic(sockDescriptor, &remoteAddress, sizeBytes);
+        doUdpEchoBasic(sockDescriptor, &remoteAddress, gSendData, sizeBytes);
     }
 
     cellularPortLog("CELLULAR_SOCK_TEST: check that cellularSockGetRemoteAddress() fails...\n");
@@ -756,9 +768,12 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
 
     cellularPortLog("CELLULAR_SOCK_TEST: second run after connect()...\n");
-    // Test min and max only this time
-    doUdpEchoBasic(sockDescriptor, NULL, 1);
-    doUdpEchoBasic(sockDescriptor, NULL, CELLULAR_SOCK_TEST_MAX_UDP_PACKET_SIZE);
+    // Test min and max
+    doUdpEchoBasic(sockDescriptor, NULL, gSendData, 1);
+    doUdpEchoBasic(sockDescriptor, NULL, gSendData, CELLULAR_SOCK_TEST_MAX_UDP_PACKET_SIZE);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: testing that we can send and receive all possible characters...\n");
+    doUdpEchoBasic(sockDescriptor, NULL, gAllChars, sizeof(gAllChars));
 
     cellularPortLog("CELLULAR_SOCK_TEST: closing socket...\n");
     errorCode = cellularSockClose(sockDescriptor);
@@ -1101,6 +1116,5 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdp(),
     // operating systems (e.g. freeRTOS)
     cellularPortTaskBlock(100);
 }
-
 
 // End of file
