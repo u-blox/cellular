@@ -189,8 +189,15 @@
 #define CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES 1024
 
 /** The maximum size of UDP packet we can send.
+ * Note that this is the absolute maximum value and not
+ * the sensible limit for unfragmentable UDP packets
+ * on a public network, which is more like 500 bytes.
  */
 #define CELLULAR_SOCK_MAX_UDP_PACKET_SIZE CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES
+
+/** The maximum size of TCP packet we can send.
+ */
+#define CELLULAR_SOCK_MAX_TCP_PACKET_SIZE CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES
 
 /** The maximum number of sockets that can be in existence at once.
  */
@@ -232,6 +239,15 @@
                                             ((d) < CELLULAR_SOCK_DESCRIPTOR_SETSIZE)) { \
                                             (*(pSet))[(d) / 8] & (1 << ((d) & 7));      \
                                         }
+
+/** The number of statically allocated sockets.  When
+ * more than this number of sockets are required to
+ * be open simultaneously they will be malloc()ed and
+ * it is up to the user to call cellularSockCleanUp()
+ * to release the memory occupied by closed malloc()ed
+ * sockets when done.
+ */
+#define CELLULAR_SOCK_NUM_STATIC_SOCKETS 8
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -346,9 +362,12 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor);
 /** In order to maintain thread-safe operation, when a socket is
  * closed, either locally or by the remote host, it is only marked
  * as closed and the memory is retained, since some other thread
- * may be refering to it.  Call this clean-up function when you
- * are sure that there is no socket activity, either from us or
- * the remote host, in order to free that memory.
+ * may be refering to it.  If you ever have more than
+ * CELLULAR_SOCK_NUM_STATIC_SOCKETS open at the same time then
+ * you must call this clean-up function when you are sure that
+ * there is no socket activity, either from us or the remote host,
+ * in order to free memory malloc()ed for those additional
+ * sockets.
  */
 void cellularSockCleanUp();
 
@@ -495,6 +514,11 @@ int32_t cellularSockShutdown(CellularSockDescriptor_t descriptor,
  * quickly as data reception and communication with the cellular
  * module in general is blocked while the callback is executing.
  * A short printf() or sending an OS signal is fine.
+ * ALSO IMPORTANT: if you use the callback to send an OS
+ * signal to a task that then calls one of this module's data
+ * reception functions, make sure that task is running at a
+ * priority lower than CELLULAR_CTRL_CALLBACK_PRIORITY otherwise
+ * it will lock-out this module.
  *
  * @param descriptor     the descriptor of the socket.
  * @param pCallback      the function to call when data arrives,

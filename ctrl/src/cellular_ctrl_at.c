@@ -999,7 +999,9 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
 
     // Start a task to handle out of band responses
     if (cellularPortTaskCreate(task_oob, "at_task_oob", 2048,
-                               NULL, 12, &_task_handle_oob) != 0) {
+                               NULL,
+                               CELLULAR_CTRL_AT_TASK_URC_HANDLER_PRIORITY,
+                               &_task_handle_oob) != 0) {
         cellularPortMutexDelete(_mtx_stream);
         cellularPortMutexDelete(_mtx_oob_task_running);
         cellularPortMutexDelete(_mtx_callbacks_task_running);
@@ -1010,7 +1012,9 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
     // Start a task to run callbacks and a queue to feed it
     if (cellularPortTaskCreate(task_callbacks, "at_callbacks",
                                CELLULAR_CTRL_AT_TASK_STACK_CALLBACK_SIZE_BYTES,
-                               NULL, 15, &_task_handle_callbacks) != 0) {
+                               NULL,
+                               CELLULAR_CTRL_AT_TASK_URC_CALLBACK_PRIORITY,
+                               &_task_handle_callbacks) != 0) {
         // Get oob task to exit
         cellularPortUartEventSend(_queue_uart, -1);
         CELLULAR_PORT_MUTEX_LOCK(_mtx_oob_task_running);

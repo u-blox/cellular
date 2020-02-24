@@ -93,6 +93,7 @@ typedef enum {
 typedef struct CellularSockContainer_t {
     struct CellularSockContainer_t *pPrevious;
     CellularSockDescriptor_t descriptor;
+    bool isStatic;
     CellularSockSocket_t socket;
     struct CellularSockContainer_t *pNext;
 } CellularSockContainer_t;
@@ -115,6 +116,9 @@ static CellularSockContainer_t *gpContainerListHead = NULL;
 
 // The next descriptor to use.
 static CellularSockDescriptor_t gNextDescriptor = 0;
+
+// Containers for statically allocated sockets.
+static CellularSockContainer_t gStaticContainers[CELLULAR_SOCK_NUM_STATIC_SOCKETS];
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTION PROTOTYPES (ONLY WHERE REQUIRED)
@@ -152,11 +156,12 @@ static void UUSORD_UUSORF_urc(void *pUnused)
         if (pContainer != NULL) {
             // Set pending bytes
             pContainer->socket.pendingBytes = dataSizeBytes;
-            CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
             if (pContainer->socket.pPendingDataCallback != NULL) {
-                pContainer->socket.pPendingDataCallback(pContainer->socket.pPendingDataCallbackParam);
+                CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
+                cellular_ctrl_at_urc_callback(pContainer->socket.pPendingDataCallback,
+                                              pContainer->socket.pPendingDataCallbackParam);
+                CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
             }
-            CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
         }
     }
 }
@@ -180,11 +185,12 @@ static void UUSOCL_urc(void *pUnused)
         if (pContainer != NULL) {
             // Mark the container as closed
             pContainer->socket.state = CELLULAR_SOCK_STATE_CLOSED;
-            CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
             if (pContainer->socket.pConnectionClosedCallback != NULL) {
-                pContainer->socket.pConnectionClosedCallback(pContainer->socket.pConnectionClosedCallbackParam);
+                CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
+                cellular_ctrl_at_urc_callback(pContainer->socket.pConnectionClosedCallback,
+                                              pContainer->socket.pConnectionClosedCallbackParam);
+                CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
             }
-            CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
         }
 
     }
@@ -209,6 +215,10 @@ static void UUPSDD_urc(void *pUnused)
 // Initialise.
 static bool init()
 {
+    CellularSockContainer_t **ppContainer = &gpContainerListHead;
+    CellularSockContainer_t *pTmp = NULL;
+    CellularSockContainer_t **ppPreviousNext = NULL;
+
     // The mutexes are set up once only
     if (gMutexContainer == NULL) {
         cellularPortMutexCreate(&gMutexContainer);
@@ -222,8 +232,21 @@ static bool init()
         cellular_ctrl_at_set_urc_handler("+UUSORF:", UUSORD_UUSORF_urc, NULL);
         cellular_ctrl_at_set_urc_handler("+UUSOCL:", UUSOCL_urc, NULL);
         cellular_ctrl_at_set_urc_handler("+UUPSDD:", UUPSDD_urc, NULL);
-        // For neatness, doesn't actually matter
-        gNextDescriptor = 0;
+
+        //  Link the static containers into the start of the container list
+        for (size_t x = 0; x < sizeof(gStaticContainers) / sizeof(gStaticContainers[0]); x++) {
+            *ppContainer = &gStaticContainers[x];
+            (*ppContainer)->isStatic = true;
+            (*ppContainer)->socket.state= CELLULAR_SOCK_STATE_CLOSED;
+            (*ppContainer)->pNext = NULL;
+            if (ppPreviousNext != NULL) {
+                *ppPreviousNext = *ppContainer;
+            }
+            ppPreviousNext = &((*ppContainer)->pNext);
+            (*ppContainer)->pPrevious = pTmp;
+            pTmp = *ppContainer;
+        }
+
         gInitialised = true;
     }
 
@@ -301,34 +324,61 @@ static CellularSockContainer_t *pContainerFindByModemHandle(int32_t modemHandle)
     return pContainer;
 }
 
-// Create a container with the given descriptor.
+// Create a socket in a container with the given descriptor.
 // This does NOT lock the mutex, you need to do that.
-static CellularSockContainer_t *pContainerCreate(CellularSockDescriptor_t descriptor)
+static CellularSockContainer_t *pSockContainerCreate(CellularSockDescriptor_t descriptor,
+                                                     CellularSockType_t type,
+                                                     CellularSockProtocol_t protocol)
 {
     CellularSockContainer_t *pContainer = NULL;
     CellularSockContainer_t *pContainerPrevious = NULL;
     CellularSockContainer_t **ppContainerThis = &gpContainerListHead;
 
-    // Go to the end of the list
-    while (*ppContainerThis != NULL) {
+    // Traverse the list, stopping if there is a container
+    // that holds a closed socket, which we could re-use
+    while ((*ppContainerThis != NULL) && (pContainer == NULL)) {
+        if ((*ppContainerThis)->socket.state == CELLULAR_SOCK_STATE_CLOSED) {
+            pContainer = *ppContainerThis;
+        }
         pContainerPrevious = *ppContainerThis;
         ppContainerThis = &((*ppContainerThis)->pNext);
     }
 
-    // Allocate memory for the new container and add it to the list
-    pContainer = (CellularSockContainer_t *) pCellularPort_malloc(sizeof (*pContainer));
+    if (pContainer == NULL) {
+        // Reached the end of the list and found no re-usable
+        // containers, so allocate memory for the new container
+        // and add it to the list
+        pContainer = (CellularSockContainer_t *) pCellularPort_malloc(sizeof (*pContainer));
+        if (pContainer != NULL) {
+            pContainer->pPrevious = pContainerPrevious;
+            pContainer->pNext = NULL;
+            *ppContainerThis = pContainer;
+        }
+    }
+
+    // Set up the new container and socket
     if (pContainer != NULL) {
         pContainer->descriptor = descriptor;
-        pCellularPort_memset(&(pContainer->socket), 0, sizeof(pContainer->socket));
-        pContainer->pPrevious = pContainerPrevious;
-        pContainer->pNext = NULL;
-        *ppContainerThis = pContainer;
+        pCellularPort_memset(&(pContainer->socket),
+                             0,
+                             sizeof(pContainer->socket));
+        pContainer->socket.type = type;
+        pContainer->socket.protocol = protocol;
+        pContainer->socket.modemHandle = -1;
+        pContainer->socket.state = CELLULAR_SOCK_STATE_CREATED;
+        pContainer->socket.timeoutMs = CELLULAR_SOCK_TIMEOUT_DEFAULT_MS;
+        pContainer->socket.nonBlocking = false;
+        pContainer->socket.pPendingDataCallback = NULL;
+        pContainer->socket.pPendingDataCallbackParam = NULL;
+        pContainer->socket.pConnectionClosedCallback = NULL;
+        pContainer->socket.pConnectionClosedCallbackParam = NULL;
     }
 
     return pContainer;
 }
 
 // Free the container corresponding to the descriptor.
+// Has no effect on static containers.
 // This does NOT lock the mutex, you need to do that.
 static bool containerFree(CellularSockDescriptor_t descriptor)
 {
@@ -347,19 +397,24 @@ static bool containerFree(CellularSockDescriptor_t descriptor)
     }
 
     if ((ppContainer != NULL) && (*ppContainer != NULL)) {
-        // If we found it, free it
-        // If there is a previous container, move its pNext
-        if ((*ppContainer)->pPrevious != NULL) {
-            (*ppContainer)->pPrevious->pNext = (*ppContainer)->pNext;
-        }
-        // If there is a next container, move its pPrevious
-        if ((*ppContainer)->pNext != NULL) {
-            (*ppContainer)->pNext->pPrevious = (*ppContainer)->pPrevious;
+        if (!(*ppContainer)->isStatic) {
+            // If we found it, and it wasn't static, free it
+            // If there is a previous container, move its pNext
+            if ((*ppContainer)->pPrevious != NULL) {
+                (*ppContainer)->pPrevious->pNext = (*ppContainer)->pNext;
+            }
+            // If there is a next container, move its pPrevious
+            if ((*ppContainer)->pNext != NULL) {
+                (*ppContainer)->pNext->pPrevious = (*ppContainer)->pPrevious;
+            }
+
+            // Free the memory and NULL the pointer
+            cellularPort_free(*ppContainer);
+            *ppContainer = NULL;
+        } else {
+            // Nothing to do for a static container, 
         }
 
-        // Free the memory and NULL the pointer
-        cellularPort_free(*ppContainer);
-        *ppContainer = NULL;
         success = true;
     }
 
@@ -1003,23 +1058,10 @@ int32_t cellularSockCreate(CellularSockType_t type,
                         gNextDescriptor = descriptor;
                         CELLULAR_SOCK_INC_DESCRIPTOR(gNextDescriptor);
                         // Found a free descriptor, now try to
-                        // create the container
-                        pContainer = pContainerCreate(descriptor);
+                        // create the socket in a container
+                        pContainer = pSockContainerCreate(descriptor,
+                                                          type, protocol);
                         if (pContainer != NULL) {
-                            // Container allocated, fill in the socket values
-                            pCellularPort_memset(&(pContainer->socket),
-                                                 0,
-                                                 sizeof(pContainer->socket));
-                            pContainer->socket.type = type;
-                            pContainer->socket.protocol = protocol;
-                            pContainer->socket.modemHandle = -1;
-                            pContainer->socket.state = CELLULAR_SOCK_STATE_CREATED;
-                            pContainer->socket.timeoutMs = CELLULAR_SOCK_TIMEOUT_DEFAULT_MS;
-                            pContainer->socket.nonBlocking = false;
-                            pContainer->socket.pPendingDataCallback = NULL;
-                            pContainer->socket.pPendingDataCallbackParam = NULL;
-                            pContainer->socket.pConnectionClosedCallback = NULL;
-                            pContainer->socket.pConnectionClosedCallbackParam = NULL;
                             descriptorOrErrorCode = descriptor;
                         } else {
                             cellularPortLog("CELLULAR_SOCK: unable to allocate memory for socket.\n");
@@ -1235,6 +1277,7 @@ void cellularSockCleanUp()
 {
     CellularSockContainer_t *pContainer = gpContainerListHead;
     CellularSockContainer_t *pTmp;
+    size_t numNonClosedSockets = 0;
 
     if (gInitialised) {
 
@@ -1243,33 +1286,41 @@ void cellularSockCleanUp()
         // Move through the list removing closed sockets
         while (pContainer != NULL) {
             if (pContainer->socket.state == CELLULAR_SOCK_STATE_CLOSED) {
-                // If there is a previous container, move its pNext
-                if (pContainer->pPrevious != NULL) {
-                    pContainer->pPrevious->pNext = pContainer->pNext;
-                } else {
-                    // If there is no previous container, must be
-                    // at the start of the list so move the head
-                    // pointer on instead
-                    gpContainerListHead = pContainer->pNext;
-                }
-                // If there is a next container, move its pPrevious
-                if (pContainer->pNext != NULL) {
-                    pContainer->pNext->pPrevious = pContainer->pPrevious;
-                }
+                if (!(pContainer->isStatic)) {
+                    // If this socket is not static, uncouple it
+                    // If there is a previous container, move its pNext
+                    if (pContainer->pPrevious != NULL) {
+                        pContainer->pPrevious->pNext = pContainer->pNext;
+                    } else {
+                        // If there is no previous container, must be
+                        // at the start of the list so move the head
+                        // pointer on instead
+                        gpContainerListHead = pContainer->pNext;
+                    }
+                    // If there is a next container, move its pPrevious
+                    if (pContainer->pNext != NULL) {
+                        pContainer->pNext->pPrevious = pContainer->pPrevious;
+                    }
 
-                // Remember the next pointer
-                pTmp = pContainer->pNext;
-                // Free the memory
-                cellularPort_free(pContainer);
-                // Move to the next entry
-                pContainer = pTmp;
+                    // Remember the next pointer
+                    pTmp = pContainer->pNext;
+                    // Free the memory
+                    cellularPort_free(pContainer);
+                    // Move to the next entry
+                    pContainer = pTmp;
+                } else {
+                    // Just move on
+                   pContainer = pContainer->pNext;
+                }
             } else {
+                // Move on but count the number of non-closed sockets
+                numNonClosedSockets++;
                 pContainer = pContainer->pNext;
             }
         }
 
         // If everything has been closed, we can deinit()
-        if (gpContainerListHead == NULL) {
+        if (numNonClosedSockets == 0) {
             deinitButNotMutex();
         }
 

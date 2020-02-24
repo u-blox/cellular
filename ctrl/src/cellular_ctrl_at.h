@@ -29,11 +29,36 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
+/** The task priority for the URC handler.
+ */
+#ifndef CELLULAR_CTRL_AT_TASK_URC_HANDLER_PRIORITY
+# define CELLULAR_CTRL_AT_TASK_URC_HANDLER_PRIORITY 12
+#endif
+
+/** The task priority for any callback made via
+ * cellular_ctrl_at_urc_callback().
+ */
+#ifndef CELLULAR_CTRL_AT_TASK_URC_CALLBACK_PRIORITY
+# ifdef CELLULAR_CTRL_CALLBACK_PRIORITY
+#  if (CELLULAR_CTRL_CALLBACK_PRIORITY >= CELLULAR_CTRL_AT_TASK_URC_HANDLER_PRIORITY)
+#   error CELLULAR_CTRL_CALLBACK_PRIORITY must be less than CELLULAR_CTRL_AT_TASK_URC_HANDLER_PRIORITY
+#  else
+#   define CELLULAR_CTRL_AT_TASK_URC_CALLBACK_PRIORITY CELLULAR_CTRL_CALLBACK_PRIORITY
+#  endif
+# else 
+#  define CELLULAR_CTRL_AT_TASK_URC_CALLBACK_PRIORITY 15
+# endif
+#endif
+
 /** The stack size of the task in the context of which the callbacks
  * of URCs will be run.
  */
 #ifndef CELLULAR_CTRL_AT_TASK_STACK_CALLBACK_SIZE_BYTES
-# define CELLULAR_CTRL_AT_TASK_STACK_CALLBACK_SIZE_BYTES (1024 * 5)
+# ifdef CELLULAR_CTRL_CALLBACK_STACK_SIZE_BYTES
+#  define CELLULAR_CTRL_AT_TASK_STACK_CALLBACK_SIZE_BYTES CELLULAR_CTRL_CALLBACK_STACK_SIZE_BYTES
+# else 
+#  define CELLULAR_CTRL_AT_TASK_STACK_CALLBACK_SIZE_BYTES (1024 * 5)
+# endif
 #endif
 
 /* ----------------------------------------------------------------
@@ -133,8 +158,9 @@ void cellular_ctrl_at_remove_urc_handler(const char *prefix);
  * in preference to making a direct call to the callback as it
  * queues the callback neatly, allowing other URC handlers
  * to run without blocking the UART.  The callback is
- * executed in a task with AT_TASK_STACK_CALLBACK_SIZE_BYTES
- * of stack.
+ * executed in a task with
+ * CELLULAR_CTRL_AT_TASK_STACK_CALLBACK_SIZE_BYTES of stack running
+ * at priority CELLULAR_CTRL_AT_TASK_URC_CALLBACK_PRIORITY.
  *
  * @param callback        the callback function.
  * @param callback_param  the single callback parametrers.
