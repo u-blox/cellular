@@ -193,9 +193,26 @@
  */
 #define CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES 1024
 
-/** The maximum number of sockets that can be in existence at once.
+/** The maximum number of simultaneously open sockets
+ * for the cellular module.
  */
-#define CELLULAR_SOCK_MAX 256
+#define CELLULAR_SOCK_MODULE_MAX_NUM_SOCKETS 7
+
+/** The number of statically allocated sockets.  When
+ * more than this number of sockets are required to
+ * be open simultaneously they will be malloc()ed and
+ * it is up to the user to call cellularSockCleanUp()
+ * to release the memory occupied by closed malloc()ed
+ * sockets when done.
+ */
+#define CELLULAR_SOCK_NUM_STATIC_SOCKETS CELLULAR_SOCK_MODULE_MAX_NUM_SOCKETS
+
+/** The maximum number of sockets that can be in existence at once.
+ * Note: this software doesn't care how big this number is,
+ * subject to heap memory availability, but the cellular module
+ * does
+ */
+#define CELLULAR_SOCK_MAX CELLULAR_SOCK_MODULE_MAX_NUM_SOCKETS
 
 /** The maximum number of sockets that can be cellularSockSelect()ed
  * from.  Note that increasing this may increase stack usage
@@ -233,15 +250,6 @@
                                             ((d) < CELLULAR_SOCK_DESCRIPTOR_SETSIZE)) { \
                                             (*(pSet))[(d) / 8] & (1 << ((d) & 7));      \
                                         }
-
-/** The number of statically allocated sockets.  When
- * more than this number of sockets are required to
- * be open simultaneously they will be malloc()ed and
- * it is up to the user to call cellularSockCleanUp()
- * to release the memory occupied by closed malloc()ed
- * sockets when done.
- */
-#define CELLULAR_SOCK_NUM_STATIC_SOCKETS 7
 
 /* ----------------------------------------------------------------
  * TYPES

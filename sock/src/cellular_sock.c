@@ -38,9 +38,9 @@
  * -------------------------------------------------------------- */
 
 // Increment a socket descriptor.
-#define CELLULAR_SOCK_INC_DESCRIPTOR(d) (d)++;                          \
-                                        if ((d) >= CELLULAR_SOCK_MAX) { \
-                                            d = 0;                      \
+#define CELLULAR_SOCK_INC_DESCRIPTOR(d) (d)++;         \
+                                        if ((d) < 0) { \
+                                            d = 0;     \
                                         }
 
 // Swap endianness.
