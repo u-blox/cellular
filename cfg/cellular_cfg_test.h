@@ -78,6 +78,12 @@
 # define CELLULAR_CFG_TEST_ECHO_UDP_SERVER_IP_ADDRESS  "195.34.89.241"
 #endif
 
+#ifndef CELLULAR_CFG_TEST_ECHO_UDP_SERVER_PORT
+/** Port number on the echo server to use for UDP testing.
+ */
+# define CELLULAR_CFG_TEST_ECHO_UDP_SERVER_PORT  7
+#endif
+
 #ifndef CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME
 /** Echo server to use for TCP sockets testing as a domain name.
  * (note: the u-blox one adds a prefix to the echoed TCP packets
@@ -94,16 +100,10 @@
 # define CELLULAR_CFG_TEST_ECHO_TCP_SERVER_IP_ADDRESS  "52.215.34.155"
 #endif
 
-#ifndef CELLULAR_CFG_TEST_ECHO_SERVER_UDP_PORT
-/** Port number on the echo server to use for UDP testing.
- */
-# define CELLULAR_CFG_TEST_ECHO_SERVER_UDP_PORT  7
-#endif
-
-#ifndef CELLULAR_CFG_TEST_ECHO_SERVER_TCP_PORT
+#ifndef CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT
 /** Port number on the echo server to use for TCP testing.
  */
-# define CELLULAR_CFG_TEST_ECHO_SERVER_TCP_PORT  7
+# define CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT  7
 #endif
 
 #ifndef CELLULAR_CFG_TEST_LOCAL_PORT
