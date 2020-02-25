@@ -182,22 +182,16 @@
  */
 #define CELLULAR_SOCK_ADDRESS_STRING_MAX_LENGTH_BYTES 64
 
-/** The maximum size of send/receive thing we can handle
- * at any one time.  Note that this is ONLY the max
- * packet size for UDP; TCP is a stream.
+/** The maximum amount of data that we can cram in
+ * over the cellular interface in one go.  For UDP this
+ * is the maximum packet size, though of course the public
+ * internet is generally limited to 500 bytes as fragmentation
+ * (bad for UDP) will occur above that.  For TCP this is
+ * the maximum that one can write at any one time and
+ * bears no explicit relation to packet size since
+ * TCP is a stream.
  */
 #define CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES 1024
-
-/** The maximum size of UDP packet we can send.
- * Note that this is the absolute maximum value and not
- * the sensible limit for unfragmentable UDP packets
- * on a public network, which is more like 500 bytes.
- */
-#define CELLULAR_SOCK_MAX_UDP_PACKET_SIZE CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES
-
-/** The maximum size of TCP packet we can send.
- */
-#define CELLULAR_SOCK_MAX_TCP_PACKET_SIZE CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES
 
 /** The maximum number of sockets that can be in existence at once.
  */
@@ -247,7 +241,7 @@
  * to release the memory occupied by closed malloc()ed
  * sockets when done.
  */
-#define CELLULAR_SOCK_NUM_STATIC_SOCKETS 8
+#define CELLULAR_SOCK_NUM_STATIC_SOCKETS 7
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -494,6 +488,9 @@ int32_t cellularSockRead(CellularSockDescriptor_t descriptor,
                          void *pData, size_t dataSizeBytes);
 
 /** Prepare a TCP socket for being closed.
+ * This is provided for BSD socket compatibility however
+ * it is not required for the u-blox AT sockets interface; all it
+ * does here is prevent further reads/writes to the socket.
  *
  * @param descriptor the descriptor of the socket to be prepared.
  * @param how        what type of shutdown to perform.

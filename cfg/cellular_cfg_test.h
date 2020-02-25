@@ -66,16 +66,32 @@
 #define CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS 240
 #endif
 
-#ifndef CELLULAR_CFG_TEST_ECHO_SERVER_DOMAIN_NAME
-/** Echo server to use for sockets testing as a domain name.
+#ifndef CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME
+/** Echo server to use for UDP sockets testing as a domain name.
  */
-# define CELLULAR_CFG_TEST_ECHO_SERVER_DOMAIN_NAME  "echo.u-blox.com"
+# define CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME  "echo.u-blox.com"
 #endif
 
-#ifndef CELLULAR_CFG_TEST_ECHO_SERVER_IP_ADDRESS
-/** Echo server to use for sockets testing as an IP address.
+#ifndef CELLULAR_CFG_TEST_ECHO_UDP_SERVER_IP_ADDRESS
+/** Echo server to use for UDP sockets testing as an IP address.
  */
-# define CELLULAR_CFG_TEST_ECHO_SERVER_IP_ADDRESS  "195.34.89.241"
+# define CELLULAR_CFG_TEST_ECHO_UDP_SERVER_IP_ADDRESS  "195.34.89.241"
+#endif
+
+#ifndef CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME
+/** Echo server to use for TCP sockets testing as a domain name.
+ * (note: the u-blox one adds a prefix to the echoed TCP packets
+ * which is undesirable; mbed don't seem to mind us using theirs).
+ */
+# define CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME  "echo.mbedcloudtesting.com"
+#endif
+
+#ifndef CELLULAR_CFG_TEST_ECHO_TCP_SERVER_IP_ADDRESS
+/** Echo server to use for TCP sockets testing as an IP address.
+ * (note: the u-blox one adds a prefix to the echoed TCP packets
+ * which is undesirable; mbed don't seem to mind us using theirs).
+ */
+# define CELLULAR_CFG_TEST_ECHO_TCP_SERVER_IP_ADDRESS  "52.215.34.155"
 #endif
 
 #ifndef CELLULAR_CFG_TEST_ECHO_SERVER_UDP_PORT
