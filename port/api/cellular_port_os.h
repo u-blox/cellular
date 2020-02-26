@@ -51,6 +51,13 @@ typedef void * CellularPortQueueHandle_t;
  */
 typedef void * CellularPortTaskHandle_t;
 
+/** struct timeval.
+ */
+typedef struct timeval {
+   int32_t tv_sec;    //<! seconds. */
+   int32_t tv_usec;   //<! microseconds. */
+} CellularPort_timeval;
+
 /* ----------------------------------------------------------------
  * FUNCTIONS: TASKS
  * -------------------------------------------------------------- */

@@ -41,7 +41,7 @@
  */
 #define CELLULAR_SOCK_OPT_ACCEPTCONN   0x0002
 
-/** Socket option: allow local address reuse.
+/** Socket option: allow local address re-use.
  * The value matches LWIP.
  */
 #define CELLULAR_SOCK_OPT_REUSEADDR    0x0004
@@ -70,6 +70,11 @@
  * The value matches LWIP.
  */
 #define CELLULAR_SOCK_OPT_OOBINLINE    0x0100
+
+/** Socket option: allow local address and port
+ * re-use.  The value matches LWIP.
+ */
+#define CELLULAR_SOCK_OPT_REUSEPORT    0x0200
 
 /** Socket option: send buffer size.
  * The value matches LWIP.
@@ -223,7 +228,7 @@
 
 /** The default socket timeout in milliseconds.
  */
-#define CELLULAR_SOCK_TIMEOUT_DEFAULT_MS 10000
+#define CELLULAR_SOCK_RECEIVE_TIMEOUT_DEFAULT_MS 10000
 
 /** Zero a file descriptor set.
  */
@@ -313,6 +318,14 @@ typedef enum {
     CELLULAR_SOCK_SHUTDOWN_READ_WRITE = 2
 } CellularSockShutdown_t;
 
+/** Struct to define the CELLULAR_SOCK_OPT_LINGER socket option.
+ * This struct matches that of LWIP.
+ */
+typedef struct {
+       int32_t l_onoff;   //<! option on/off.
+       int32_t l_linger;  //<! linger time in seconds.
+} CellularSockLinger_t;
+
 /** Error codes.
  */
 typedef enum {
@@ -392,7 +405,12 @@ int32_t cellularSockFctl(CellularSockDescriptor_t descriptor,
                          int32_t command,
                          int32_t value);
 
-/** Set the options for the given socket.
+/** Set the options for the given socket.  This function obeys
+ * the BSD socket conventions and hence, for instance, to set
+ * the socket receive timeout one would pass in a level
+ * of CELLULAR_SOCK_OPT_LEVEL_SOCK, and option value of 
+ * CELLULAR_SOCK_OPT_RCVTIMEO and then the option value would be
+ * a pointer to a structure of type CellularPort_timeval.
  *
  * @param descriptor        the descriptor of the socket.
  * @param level             the option level
@@ -415,16 +433,20 @@ int32_t cellularSockSetOption(CellularSockDescriptor_t descriptor,
  *                           (see CELLULAR_SOCK_OPT_LEVEL*).
  * @param option             the option (see CELLULAR_SOCK_OPT*).
  * @param pOptionValue       a pointer to a place to put the option value.
+ *                           May be NULL in which case pOptionValueLength
+ *                           still returns the length that would have
+ *                           been written.
  * @param pOptionValueLength when called, the length of the space pointed
  *                           to by pOptionValue, on return the length
- *                           of data in bytes written to pOptionValue.
+ *                           of data in bytes that would be written to
+ *                           pOptionValue if it were not NULL.
  * @return                   zero on success else negative error code.
  */
 int32_t cellularSockGetOption(CellularSockDescriptor_t descriptor,
                               int32_t level,
                               uint32_t option,
                               void *pOptionValue,
-                              size_t optionValueLength);
+                              size_t *pOptionValueLength);
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: UDP ONLY

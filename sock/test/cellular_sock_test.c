@@ -64,15 +64,24 @@ typedef struct {
     bool shouldError;
 } CellularSockTestAddress_t;
 
-// Type for getting parameters through to echoDataTaskTcp()
+// Type for getting parameters through to echoDataTaskTcp().
 typedef struct {
     CellularSockDescriptor_t sockDescriptor;
     const char *pSendData;
     size_t sendDataSizeBytes;
 } CellularSockTestTcpEchoAsyncParams_t;
 
+// Definition of a supported socket option.
+typedef struct {
+    int32_t level;
+    uint32_t option;
+    size_t length;
+    bool (*pComparer) (const void *, const void *);
+    void (*pChanger) (void *);
+} CellularSockTestOption_t;
+
 /* ----------------------------------------------------------------
- * VARIABLES
+ * VARIABLES: MISC
  * -------------------------------------------------------------- */
 
 // Used for keepGoingCallback() timeout.
@@ -190,7 +199,128 @@ static CellularPortTaskHandle_t gTaskHandleDataReceived = NULL;
 static int32_t gAsyncReturnCode;
 
 /* ----------------------------------------------------------------
- * STATIC FUNCTIONS
+ * STATIC FUNCTIONS: SOCKET OPTIONS RELATED
+ * -------------------------------------------------------------- */
+
+// Compare two int32_t values.
+bool compareInt32(const void *p1, const void *p2)
+{
+    return *(const int32_t *) p1 == *(const int32_t *) p2;
+}
+
+// Change an int32_t value.
+void changeInt32(void *p) {
+    (*((int32_t *) p))++;
+}
+
+// Change an int32_t keeping it positive.
+void changeInt32Positive(void *p) {
+    (*((int32_t *) p))++;
+    if (*(int32_t *) p < 0) {
+        *(int32_t *) p = 0;
+    }
+}
+
+// Change value modulo 256.
+void changeMod256(void *p) {
+    *(int32_t *) p = (*((int32_t *) p) + 1) % 256;
+}
+
+// Change value modulo 256 and non-zero.
+void changeMod256NonZero(void *p) {
+    *(int32_t *) p = (*((int32_t *) p) + 1) % 256;
+    if (*(int32_t *) p == 0) {
+        *(int32_t *) p = 1;
+    }
+}
+
+// Change a value modulo 2.
+void changeMod2(void *p) {
+    *(int32_t *) p = (*((int32_t *) p) + 1) % 2;
+}
+
+// Compare two CellularPort_timeval values.
+bool compareTimeval(const void *p1, const void *p2)
+{
+    int64_t timevalUSec1;
+    int64_t timevalUSec2;
+
+    timevalUSec1 = ((int64_t) ((const CellularPort_timeval *) p1)->tv_sec) * 1000000 + 
+                   ((const CellularPort_timeval *) p1)->tv_usec;
+    timevalUSec2 = ((int64_t) ((const CellularPort_timeval *) p2)->tv_sec) * 1000000 + 
+                   ((const CellularPort_timeval *) p2)->tv_usec;
+
+    return timevalUSec1 == timevalUSec2;
+}
+
+// Increment the contents of a CellularPort_timeval value.
+// Note: increment by 1000 in order that it makes a difference
+// as the underlying time only has a resolution of milliseconds
+void changeTimevalMs(void *p)
+{
+    int64_t timevalUSec;
+
+    timevalUSec = ((int64_t) ((CellularPort_timeval *) p)->tv_sec) * 1000000 + 
+                  ((CellularPort_timeval *) p)->tv_usec;
+    timevalUSec += 1000;
+
+    ((CellularPort_timeval *) p)->tv_sec = timevalUSec / 1000000;
+    ((CellularPort_timeval *) p)->tv_usec = timevalUSec % 1000000;
+}
+
+// Compare two CellularPort_linger values.
+bool compareLinger(const void *p1, const void *p2)
+{
+    bool result = false;
+
+    result = (((const CellularSockLinger_t *) p1)->l_onoff == ((const CellularSockLinger_t *) p1)->l_onoff);
+    if (((const CellularSockLinger_t *) p1)->l_onoff || ((const CellularSockLinger_t *) p2)->l_onoff) {
+        result = (((const CellularSockLinger_t *) p1)->l_linger == ((const CellularSockLinger_t *) p2)->l_linger);
+    }
+
+    return result;
+}
+
+// Increment the contents of a CellularPort_linger value.
+// Note: changes both the on/off and the value
+void changeLinger(void *p)
+{
+    // If linger is not on the linger value will not be filled
+    // in so set it to something sensible
+    if (((CellularSockLinger_t *) p)->l_onoff == 0) {
+        ((CellularSockLinger_t *) p)->l_linger = 0;
+    }
+
+    ((CellularSockLinger_t *) p)->l_onoff = (((CellularSockLinger_t *) p)->l_onoff + 1) % 2;
+    ((CellularSockLinger_t *) p)->l_linger = (((CellularSockLinger_t *) p)->l_linger + 1) % 32768;
+}
+
+/* ----------------------------------------------------------------
+ * VARIABLES: SUPPORTED SOCKET OPTIONS
+ * -------------------------------------------------------------- */
+
+// Table of supported socket options.
+static CellularSockTestOption_t gSupportedOptions[] = {
+    {CELLULAR_SOCK_OPT_LEVEL_SOCK, CELLULAR_SOCK_OPT_REUSEADDR,    sizeof(int32_t),              compareInt32,   changeMod2},
+    {CELLULAR_SOCK_OPT_LEVEL_SOCK, CELLULAR_SOCK_OPT_KEEPALIVE,    sizeof(int32_t),              compareInt32,   changeMod2},
+#if !CELLULAR_CFG_MODULE_SARA_R4
+    {CELLULAR_SOCK_OPT_LEVEL_SOCK, CELLULAR_SOCK_OPT_BROADCAST,    sizeof(int32_t),              compareInt32,   changeMod2},
+    {CELLULAR_SOCK_OPT_LEVEL_SOCK, CELLULAR_SOCK_OPT_REUSEPORT,    sizeof(int32_t),              compareInt32,   changeMod2},
+    // This next one removed for SARA-R4 as it won't let me switch linger off, i.e.
+    // "AT+USOSO=0,65535,128,0" returns "+CME ERROR: Operation not allowed"
+    {CELLULAR_SOCK_OPT_LEVEL_SOCK, CELLULAR_SOCK_OPT_LINGER,       sizeof(CellularSockLinger_t), compareLinger,  changeLinger},
+#endif
+    {CELLULAR_SOCK_OPT_LEVEL_SOCK, CELLULAR_SOCK_OPT_RCVTIMEO,     sizeof(CellularPort_timeval), compareTimeval, changeTimevalMs},
+    {CELLULAR_SOCK_OPT_LEVEL_IP,   CELLULAR_SOCK_OPT_IP_TOS,       sizeof(int32_t),              compareInt32,   changeMod256},
+    {CELLULAR_SOCK_OPT_LEVEL_IP,   CELLULAR_SOCK_OPT_IP_TTL,       sizeof(int32_t),              compareInt32,   changeMod256NonZero},
+    {CELLULAR_SOCK_OPT_LEVEL_TCP,  CELLULAR_SOCK_OPT_TCP_NODELAY,  sizeof(int32_t),              compareInt32,   changeMod2},
+#if !CELLULAR_CFG_MODULE_SARA_R4
+    {CELLULAR_SOCK_OPT_LEVEL_TCP,  CELLULAR_SOCK_OPT_TCP_KEEPIDLE, sizeof(int32_t),              compareInt32,   changeInt32Positive},
+#endif
+                                                      };
+
+/* ----------------------------------------------------------------
+ * STATIC FUNCTIONS: MISC
  * -------------------------------------------------------------- */
 
 // Print out an address structure.
@@ -821,6 +951,116 @@ static void setBool(void *pParam)
     if (gQueueHandleDataReceived != NULL) {
         CELLULAR_PORT_TEST_ASSERT(cellularPortQueueSend(gQueueHandleDataReceived, &anInt) == 0);
     }
+}
+
+// Check getting an option.
+static void checkGetOption(CellularSockDescriptor_t sockDescriptor,
+                           int32_t level,
+                           uint32_t option,
+                           void *pValue,
+                           size_t valueLength,
+                           bool (*pComparer) (const void *, const void *))
+{
+    int32_t errorCode;
+    void *pValueAgain;
+    size_t length = 0xFFFFFFFF;
+    size_t *pLength = &length;
+
+    // Malloc memory for testing that values are consistent
+    pValueAgain = pCellularPort_malloc(valueLength);
+    CELLULAR_PORT_TEST_ASSERT(pValueAgain != NULL);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: testing cellularSockGetOption() with level %d, option %0x%04x (%d):\n",
+                    level, option, option);
+    pCellularPort_memset(pValue, 0xFF, valueLength);
+    errorCode = cellularSockGetOption(sockDescriptor, 
+                                      level, option,
+                                      NULL,
+                                      pLength);
+    cellularPortLog("CELLULAR_SOCK_TEST: ...with NULL value pointer, error code %d, errno %d, length %d.\n",
+                    errorCode, cellularPort_errno_get(),
+                    *pLength);
+    CELLULAR_PORT_TEST_ASSERT(errorCode >= 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+    CELLULAR_PORT_TEST_ASSERT(*pLength == valueLength);
+    errorCode = cellularSockGetOption(sockDescriptor, 
+                                      level, option,
+                                      (void *) pValue,
+                                      pLength);
+    cellularPortLog("CELLULAR_SOCK_TEST: ...with non-NULL value pointer, error code %d, errno %d, length %d.\n",
+                    errorCode, cellularPort_errno_get(),
+                    *pLength);
+    CELLULAR_PORT_TEST_ASSERT(errorCode >= 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+    CELLULAR_PORT_TEST_ASSERT(*pLength == valueLength);
+    (*pLength)++;
+    pCellularPort_memset(pValueAgain, 0xFF, valueLength);
+    errorCode = cellularSockGetOption(sockDescriptor, 
+                                      level, option,
+                                      (void *) pValueAgain,
+                                      pLength);
+    cellularPortLog("CELLULAR_SOCK_TEST: with excess length, error code %d, errno %d, length %d.\n",
+                    errorCode, cellularPort_errno_get(),
+                    *pLength);
+    CELLULAR_PORT_TEST_ASSERT(errorCode >= 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+    CELLULAR_PORT_TEST_ASSERT(pComparer(pValue, pValueAgain));
+    CELLULAR_PORT_TEST_ASSERT(*pLength == valueLength);
+
+    // Free memory again
+    cellularPort_free(pValueAgain);
+}
+
+// Check setting an option.
+static void checkSetOption(CellularSockDescriptor_t sockDescriptor,
+                           int32_t level,
+                           uint32_t option,
+                           const void *pValue,
+                           size_t valueLength,
+                           bool (*pComparer) (const void *, const void *))
+{
+    int32_t errorCode;
+    char *pValueRead;
+    size_t length = 0xFFFFFFFF;
+    size_t *pLength = &length;
+
+    // Malloc memory for testing that value has been set
+    pValueRead = pCellularPort_malloc(valueLength);
+    CELLULAR_PORT_TEST_ASSERT(pValueRead != NULL);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: testing cellularSockSetOption() with level %d, option 0x%04x (%d):\n",
+                    level, option, option);
+    errorCode = cellularSockSetOption(sockDescriptor, 
+                                      level, option,
+                                      pValue,
+                                      valueLength);
+    cellularPortLog("CELLULAR_SOCK_TEST: ...returned error code %d, errno %d.\n",
+                    errorCode, cellularPort_errno_get());
+    CELLULAR_PORT_TEST_ASSERT(errorCode >= 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+
+    if (pComparer != NULL) {
+        pCellularPort_memset(pValueRead, 0xFF, valueLength);
+        errorCode = cellularSockGetOption(sockDescriptor, 
+                                          level, option,
+                                          pValueRead,
+                                          pLength);
+        cellularPortLog("CELLULAR_SOCK_TEST: ...reading it back returned error code %d, errno %d, length %d.\n",
+                        errorCode, cellularPort_errno_get(),
+                        *pLength);
+        CELLULAR_PORT_TEST_ASSERT(errorCode >= 0);
+        CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+        CELLULAR_PORT_TEST_ASSERT(*pLength == valueLength);
+        if (pComparer(pValue, pValueRead)) {
+            cellularPortLog("CELLULAR_SOCK_TEST: ...and the same value.\n");
+        } else {
+            cellularPortLog("CELLULAR_SOCK_TEST: ...but a different value.\n");
+            CELLULAR_PORT_TEST_ASSERT(false);
+        }
+    }
+
+    // Free memory again
+    cellularPort_free(pValueRead);
 }
 
 /* ----------------------------------------------------------------
@@ -1488,7 +1728,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
     stdDataTestDeinit(params.sockDescriptor);
 }
 
-/** Test max num sockets
+/** Test max num sockets.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
                             "maxNumSockets",
@@ -1595,6 +1835,114 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
     // tasks are actually deleted, required by some
     // operating systems (e.g. freeRTOS)
     cellularPortTaskBlock(100);
+}
+
+/** Test setting/getting socket options.
+* TODO: error cases.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
+                            "setGetOptions",
+                            "sock")
+{
+    CellularPortQueueHandle_t queueHandle;
+    CellularSockAddress_t remoteAddress;
+    CellularSockDescriptor_t sockDescriptor;
+    void *pValue;
+    void *pValueSaved;
+    size_t length = 0;
+    void *pLength;
+    CellularPort_timeval timeout;
+    char *pData[1];
+    int64_t startTime;
+    int64_t timeoutMs;
+
+    // Has to be a TCP socket since some socket options
+    // only apply to TCP sockets
+    stdDataTestInit(&queueHandle,
+                    CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
+                    CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT,
+                    &remoteAddress,
+                    CELLULAR_SOCK_TYPE_STREAM,
+                    CELLULAR_SOCK_PROTOCOL_TCP,
+                    &sockDescriptor);
+
+    // Determine the maximum size of storage we need for all supported options
+    for (size_t x = 0; x < sizeof(gSupportedOptions) / sizeof(gSupportedOptions[0]); x++) {
+        if (gSupportedOptions[x].length > length) {
+            length = gSupportedOptions[x].length;
+        }
+    }
+
+    // Malloc memory for our testing
+    pValue = pCellularPort_malloc(length);
+    CELLULAR_PORT_TEST_ASSERT(pValue != NULL);
+    pValueSaved = pCellularPort_malloc(length);
+    CELLULAR_PORT_TEST_ASSERT(pValueSaved != NULL);
+
+    // Now test all supported options
+    for (size_t x = 0; x < sizeof(gSupportedOptions) / sizeof(gSupportedOptions[0]); x++) {
+        // Check that we can get the option value
+        checkGetOption(sockDescriptor,
+                       gSupportedOptions[x].level,
+                       gSupportedOptions[x].option,
+                       pValue,
+                       gSupportedOptions[x].length,
+                       gSupportedOptions[x].pComparer);
+        // Check that we are able to set an option
+        // value that is different to the current
+        // value and then put it back to normal
+        // again.
+        pCellularPort_memcpy(pValueSaved, pValue, gSupportedOptions[x].length);
+        gSupportedOptions[x].pChanger(pValue);
+        checkSetOption(sockDescriptor,
+                       gSupportedOptions[x].level,
+                       gSupportedOptions[x].option,
+                       pValue,
+                       gSupportedOptions[x].length,
+                       gSupportedOptions[x].pComparer);
+        pCellularPort_memcpy(pValue, pValueSaved, gSupportedOptions[x].length);
+        checkSetOption(sockDescriptor,
+                       gSupportedOptions[x].level,
+                       gSupportedOptions[x].option,
+                       pValue,
+                       gSupportedOptions[x].length,
+                       gSupportedOptions[x].pComparer);
+    }
+
+    // Test that setting the socket receive timeout
+    // option has an effect, since that is handled
+    // locally in our driver code
+    cellularPortLog("CELLULAR_SOCK_TEST: check that receive timeout has an effect (please wait for %d second(s))...\n",
+                    CELLULAR_SOCK_RECEIVE_TIMEOUT_DEFAULT_MS / 1000);
+    length = sizeof(timeout);
+    pLength = &length;
+    CELLULAR_PORT_TEST_ASSERT(cellularSockGetOption(sockDescriptor,
+                                                    CELLULAR_SOCK_OPT_LEVEL_SOCK,
+                                                    CELLULAR_SOCK_OPT_RCVTIMEO,
+                                                    (void *) &timeout,
+                                                    pLength) == 0);
+    timeoutMs = timeout.tv_sec * 1000 + timeout.tv_usec / 1000;
+    CELLULAR_PORT_TEST_ASSERT(timeoutMs == CELLULAR_SOCK_RECEIVE_TIMEOUT_DEFAULT_MS);
+    startTime = cellularPortGetTickTimeMs();
+    CELLULAR_PORT_TEST_ASSERT(cellularSockReceiveFrom(sockDescriptor, NULL, pData, sizeof(pData)) < 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGetTickTimeMs() - startTime >= timeoutMs);
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+    CELLULAR_PORT_TEST_ASSERT(cellularSockSetOption(sockDescriptor,
+                                                    CELLULAR_SOCK_OPT_LEVEL_SOCK,
+                                                    CELLULAR_SOCK_OPT_RCVTIMEO,
+                                                    (void *) &timeout,
+                                                    sizeof(timeout)) == 0);
+    startTime = cellularPortGetTickTimeMs();
+    CELLULAR_PORT_TEST_ASSERT(cellularSockReceiveFrom(sockDescriptor, NULL, pData, sizeof(pData)) < 0);
+    // Won't be zero of course...
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGetTickTimeMs() - startTime < 1000);
+
+    // Free memory again
+    cellularPort_free(pValue);
+    cellularPort_free(pValueSaved);
+
+    stdDataTestDeinit(sockDescriptor);
 }
 
 // End of file

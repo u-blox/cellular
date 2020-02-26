@@ -65,6 +65,10 @@
 // for SARA-R4 as it's waiting for the ack of the ack of the ack.
 #define CELLULAR_SOCK_CLOSE_TIMEOUT_SECONDS 35
 
+// The value to use for socket-level options when talking to the
+// module (-1 as an int16_t)
+#define CELLULAR_SOCK_OPT_LEVEL_SOCK_INT16 65535
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -86,7 +90,7 @@ typedef enum {
      int32_t modemHandle;
      CellularSockState_t state;
      CellularSockAddress_t remoteAddress;
-     int32_t timeoutMs;
+     int64_t receiveTimeoutMs;
      bool nonBlocking;
      size_t pendingBytes;
      void (*pPendingDataCallback) (void *);
@@ -372,7 +376,7 @@ static CellularSockContainer_t *pSockContainerCreate(CellularSockDescriptor_t de
         pContainer->socket.protocol = protocol;
         pContainer->socket.modemHandle = -1;
         pContainer->socket.state = CELLULAR_SOCK_STATE_CREATED;
-        pContainer->socket.timeoutMs = CELLULAR_SOCK_TIMEOUT_DEFAULT_MS;
+        pContainer->socket.receiveTimeoutMs = CELLULAR_SOCK_RECEIVE_TIMEOUT_DEFAULT_MS;
         pContainer->socket.nonBlocking = false;
         pContainer->socket.pPendingDataCallback = NULL;
         pContainer->socket.pPendingDataCallbackParam = NULL;
@@ -680,6 +684,229 @@ static int32_t addressToString(const CellularSockAddress_t *pAddress,
 }
 
 /* ----------------------------------------------------------------
+ * STATIC FUNCTIONS: SOCKET OPTIONS
+ * -------------------------------------------------------------- */
+
+// Set a socket option that has an integer as a parameter.
+static int32_t setOptionInt(CellularSockDescriptor_t descriptor,
+                            int32_t modemHandle,
+                            int32_t level,
+                            uint32_t option,
+                            const void *pOptionValue,
+                            size_t optionValueLength,
+                            int32_t *pErrno)
+{
+    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
+
+    if ((pOptionValue != NULL) && 
+        (optionValueLength >= sizeof(int32_t))) {
+        if (level == CELLULAR_SOCK_OPT_LEVEL_SOCK) {
+            level = CELLULAR_SOCK_OPT_LEVEL_SOCK_INT16;
+        }
+        cellular_ctrl_at_lock();
+        cellular_ctrl_at_cmd_start("AT+USOSO=");
+        cellular_ctrl_at_write_int(modemHandle);
+        cellular_ctrl_at_write_int(level);
+        cellular_ctrl_at_write_int(option);
+        cellular_ctrl_at_write_int(*((int32_t *) pOptionValue));
+        cellular_ctrl_at_cmd_stop_read_resp();
+        if (cellular_ctrl_at_unlock_return_error() == 0) {
+            cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, socket option %d:0x%04x(%d) set to %d.\n",
+                            descriptor, modemHandle,
+                            level, option, option,
+                            *((int32_t *) pOptionValue));
+            errorCode = CELLULAR_SOCK_SUCCESS;
+        } else {
+            // Module doesn't support it so it's an
+            // invalid parameter
+            *pErrno = CELLULAR_SOCK_EINVAL;
+        }
+    } else {
+        *pErrno = CELLULAR_SOCK_EINVAL;
+    }
+
+    return (int32_t) errorCode;
+}
+
+// Get a socket option that has an integer as a parameter.
+static int32_t getOptionInt(CellularSockDescriptor_t descriptor,
+                            int32_t modemHandle,
+                            int32_t level,
+                            uint32_t option,
+                            void *pOptionValue,
+                            size_t *pOptionValueLength,
+                            int32_t *pErrno)
+{
+    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
+    int32_t x;
+
+    if (pOptionValueLength != NULL) {
+        if (pOptionValue != NULL) {
+            if (*pOptionValueLength >= sizeof(int32_t)) {
+                // Get the answer
+                if (level == CELLULAR_SOCK_OPT_LEVEL_SOCK) {
+                    level = CELLULAR_SOCK_OPT_LEVEL_SOCK_INT16;
+                }
+                cellular_ctrl_at_lock();
+                cellular_ctrl_at_cmd_start("AT+USOGO=");
+                cellular_ctrl_at_write_int(modemHandle);
+                cellular_ctrl_at_write_int(level);
+                cellular_ctrl_at_write_int(option);
+                cellular_ctrl_at_cmd_stop();
+                cellular_ctrl_at_resp_start("+USOGO:", false);
+                x = cellular_ctrl_at_read_int();
+                cellular_ctrl_at_resp_stop();
+                if ((cellular_ctrl_at_unlock_return_error() == 0) && (x >= 0)) {
+                    *((int32_t *) pOptionValue)  = x;
+                    cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, socket option %d:0x%04x(%d) is %d.\n",
+                                    descriptor, modemHandle,
+                                    level, option, option,
+                                    *((int32_t *) pOptionValue));
+                    *pOptionValueLength = sizeof(int32_t);
+                    errorCode = CELLULAR_SOCK_SUCCESS;
+                } else {
+                    // Module doesn't support it so it's an
+                    // invalid parameter
+                    *pErrno = CELLULAR_SOCK_EINVAL;
+                }
+            } else {
+                // Caller hasn't left enough room
+                *pErrno = CELLULAR_SOCK_EINVAL;
+            }
+        } else {
+            // Caller just wants to know the length required
+            *pOptionValueLength = sizeof(int32_t);
+            errorCode = CELLULAR_SOCK_SUCCESS;
+        }
+    } else {
+        // Invalid argument, there must be a value length pointer
+        *pErrno = CELLULAR_SOCK_EINVAL;
+    }
+
+    return (int32_t) errorCode;
+}
+
+// Set the linger socket option.
+static int32_t setOptionLinger(CellularSockDescriptor_t descriptor,
+                               int32_t modemHandle,
+                               const void *pOptionValue,
+                               size_t optionValueLength,
+                               int32_t *pErrno)
+{
+    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
+
+    if ((pOptionValue != NULL) && 
+        (optionValueLength >= sizeof(CellularSockLinger_t))) {
+        cellular_ctrl_at_lock();
+        cellular_ctrl_at_cmd_start("AT+USOSO=");
+        cellular_ctrl_at_write_int(modemHandle);
+        cellular_ctrl_at_write_int(CELLULAR_SOCK_OPT_LEVEL_SOCK_INT16);
+        cellular_ctrl_at_write_int(CELLULAR_SOCK_OPT_LINGER);
+        cellular_ctrl_at_write_int(((CellularSockLinger_t *) pOptionValue)->l_onoff);
+        if (((CellularSockLinger_t *) pOptionValue)->l_onoff == 1) {
+            cellular_ctrl_at_write_int(((CellularSockLinger_t *) pOptionValue)->l_linger);
+        }
+        cellular_ctrl_at_cmd_stop_read_resp();
+        if (cellular_ctrl_at_unlock_return_error() == 0) {
+            if (((CellularSockLinger_t *) pOptionValue)->l_onoff == 1) {
+                cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, linger set to %d and %d ms.\n",
+                                descriptor, modemHandle,
+                                ((CellularSockLinger_t *) pOptionValue)->l_onoff,
+                                ((CellularSockLinger_t *) pOptionValue)->l_linger);
+            } else {
+                cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, linger option set to %d.\n",
+                                descriptor, modemHandle,
+                                ((CellularSockLinger_t *) pOptionValue)->l_onoff);
+            }
+            errorCode = CELLULAR_SOCK_SUCCESS;
+        } else {
+            // Module doesn't like it so there must be an
+            // invalid parameter
+            *pErrno = CELLULAR_SOCK_EINVAL;
+        }
+    } else {
+        *pErrno = CELLULAR_SOCK_EINVAL;
+    }
+
+    return (int32_t) errorCode;
+}
+
+// Get the linger socket option.
+static int32_t getOptionLinger(CellularSockDescriptor_t descriptor,
+                               int32_t modemHandle,
+                               void *pOptionValue,
+                               size_t *pOptionValueLength,
+                               int32_t *pErrno)
+{
+    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
+    int32_t x;
+    int32_t y = -1;
+
+    if (pOptionValueLength != NULL) {
+        if (pOptionValue != NULL) {
+            if (*pOptionValueLength >= sizeof(CellularSockLinger_t)) {
+                // Get the answer
+                cellular_ctrl_at_lock();
+                cellular_ctrl_at_cmd_start("AT+USOGO=");
+                cellular_ctrl_at_write_int(modemHandle);
+                cellular_ctrl_at_write_int(CELLULAR_SOCK_OPT_LEVEL_SOCK_INT16);
+                cellular_ctrl_at_write_int(CELLULAR_SOCK_OPT_LINGER);
+                cellular_ctrl_at_cmd_stop();
+                cellular_ctrl_at_resp_start("+USOGO:", false);
+                x = cellular_ctrl_at_read_int();
+                // Second parameter is only relevant if
+                // the first is 1
+                if (x == 1) {
+                    y = cellular_ctrl_at_read_int();
+                }
+                cellular_ctrl_at_resp_stop();
+                if (cellular_ctrl_at_unlock_return_error() == 0) {
+                    if (x == 0) {
+                        ((CellularSockLinger_t *) pOptionValue)->l_onoff = x;
+                        *pOptionValueLength = sizeof(CellularSockLinger_t);
+                        errorCode = CELLULAR_SOCK_SUCCESS;
+                        cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, linger option is %d.\n",
+                                        descriptor, modemHandle,
+                                        ((CellularSockLinger_t *) pOptionValue)->l_onoff);
+                    } else if ((x == 1) && (y >= 0)) {
+                        // If x is 1, y must be present
+                        ((CellularSockLinger_t *) pOptionValue)->l_onoff = x;
+                        ((CellularSockLinger_t *) pOptionValue)->l_linger = y;
+                        *pOptionValueLength = sizeof(CellularSockLinger_t);
+                        errorCode = CELLULAR_SOCK_SUCCESS;
+                        cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, linger option is %d and %d ms.\n",
+                                        descriptor, modemHandle,
+                                        ((CellularSockLinger_t *) pOptionValue)->l_onoff,
+                                        ((CellularSockLinger_t *) pOptionValue)->l_linger);
+                    } else {
+                        // This is a device error but there doesn't
+                        // seem to be an errno for that, this seems
+                        // closest
+                        *pErrno = CELLULAR_SOCK_EIO;
+                    }
+                } else {
+                    // Module obviously doesn't support it so it's an
+                    // invalid parameter
+                    *pErrno = CELLULAR_SOCK_EINVAL;
+                }
+            } else {
+                // Caller hasn't left enough room
+                *pErrno = CELLULAR_SOCK_EINVAL;
+            }
+        } else {
+            // Caller just wants to know the length required
+            *pOptionValueLength = sizeof(CellularSockLinger_t);
+            errorCode = CELLULAR_SOCK_SUCCESS;
+        }
+    } else {
+        // Invalid argument, there must be a value length pointer
+        *pErrno = CELLULAR_SOCK_EINVAL;
+    }
+
+    return (int32_t) errorCode;
+}
+
+/* ----------------------------------------------------------------
  * STATIC FUNCTIONS: SENDING AND RECEIVING
  * -------------------------------------------------------------- */
 
@@ -904,7 +1131,7 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
             } else {
                 success = false;
             }
-        } else if (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.timeoutMs) {
+        } else if (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.receiveTimeoutMs) {
             // Yield to the AT parser task that is listening for URCs
             // that indicated incoming data
             cellularPortTaskBlock(10);
@@ -1001,7 +1228,7 @@ int32_t receive(CellularSockContainer_t *pContainer,
             } else {
                 success = false;
             }
-        } else if (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.timeoutMs) {
+        } else if (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.receiveTimeoutMs) {
             // Yield to the AT parser task that is listening for URCs
             // that indicated incoming data
             cellularPortTaskBlock(10);
@@ -1241,7 +1468,7 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor)
         // close the socket there
         if (pContainer != NULL) {
             cellular_ctrl_at_lock();
-            // TODO: set timeout correctly for this socket
+            // Closing can take a loong time sometimes
             cellular_ctrl_at_set_at_timeout(CELLULAR_SOCK_CLOSE_TIMEOUT_SECONDS * 1000,
                                             false);
             cellular_ctrl_at_cmd_start("AT+USOCL=");
@@ -1366,9 +1593,133 @@ int32_t cellularSockSetOption(CellularSockDescriptor_t descriptor,
                               const void *pOptionValue,
                               size_t optionValueLength)
 {
-    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_NOT_IMPLEMENTED;
+    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
+    int32_t errno = CELLULAR_SOCK_ENONE;
+    CellularSockContainer_t *pContainer = NULL;
 
-    // TODO
+    if (init()) {
+
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
+
+        // Find the container
+        pContainer = pContainerFindByDescriptor(descriptor);
+
+        if (pContainer != NULL) {
+            // Check parameters
+            if ((optionValueLength == 0) || 
+                ((optionValueLength > 0) && (pOptionValue != NULL))) {
+                switch (level) {
+                    case CELLULAR_SOCK_OPT_LEVEL_SOCK:
+                        switch (option) {
+                            // The supported options which
+                            // have an integer as a parameter
+                            case CELLULAR_SOCK_OPT_REUSEADDR:
+                            case CELLULAR_SOCK_OPT_KEEPALIVE:
+                            case CELLULAR_SOCK_OPT_BROADCAST:
+                            case CELLULAR_SOCK_OPT_REUSEPORT:
+                                errorCode = setOptionInt(descriptor,
+                                                         pContainer->socket.modemHandle,
+                                                         level,
+                                                         option,
+                                                         pOptionValue,
+                                                         optionValueLength,
+                                                         &errno);
+                            break;
+                            // The linger option which has
+                            // cellularSock_linger as its
+                            // parameter
+                            case CELLULAR_SOCK_OPT_LINGER:
+                                errorCode = setOptionLinger(descriptor,
+                                                            pContainer->socket.modemHandle,
+                                                            pOptionValue,
+                                                            optionValueLength,
+                                                            &errno);
+                            break;
+                            // Receive timeout, which we set locally
+                            case CELLULAR_SOCK_OPT_RCVTIMEO:
+                                if ((pOptionValue != NULL) && 
+                                    (optionValueLength == sizeof(CellularPort_timeval))) {
+                                        pContainer->socket.receiveTimeoutMs = 
+                                          (((CellularPort_timeval *) pOptionValue)->tv_usec / 1000) + 
+                                          (((CellularPort_timeval *) pOptionValue)->tv_sec * 1000);
+                                    errorCode = CELLULAR_SOCK_SUCCESS;
+                                } else {
+                                    errno = CELLULAR_SOCK_EINVAL;
+                                }
+                            break;
+                            default:
+                                // Invalid argument
+                                errno = CELLULAR_SOCK_EINVAL;
+                            break;
+                        }
+                    break;
+                    case CELLULAR_SOCK_OPT_LEVEL_IP:
+                        switch (option) {
+                            // The supported options, both of
+                            // which have an integer as a
+                            // parameter
+                            case CELLULAR_SOCK_OPT_IP_TOS:
+                            case CELLULAR_SOCK_OPT_IP_TTL:
+                                errorCode = setOptionInt(descriptor,
+                                                         pContainer->socket.modemHandle,
+                                                         level,
+                                                         option,
+                                                         pOptionValue,
+                                                         optionValueLength,
+                                                         &errno);
+                            break;
+                            default:
+                                // Invalid argument
+                                errno = CELLULAR_SOCK_EINVAL;
+                            break;
+                        }
+                    break;
+                    case CELLULAR_SOCK_OPT_LEVEL_TCP:
+                        switch (option) {
+                            // The supported options, both of
+                            // which have an integer as a
+                            // parameter
+                            case CELLULAR_SOCK_OPT_TCP_NODELAY:
+                            case CELLULAR_SOCK_OPT_TCP_KEEPIDLE:
+                                errorCode = setOptionInt(descriptor,
+                                                         pContainer->socket.modemHandle,
+                                                         level,
+                                                         option,
+                                                         pOptionValue,
+                                                         optionValueLength,
+                                                         &errno);
+                            break;
+                            default:
+                                // Invalid argument
+                                errno = CELLULAR_SOCK_EINVAL;
+                            break;
+                        }
+                    break;
+                    default:
+                        // Invalid argument
+                        errno = CELLULAR_SOCK_EINVAL;
+                    break;
+                }
+            } else {
+                // Invalid argument
+                errno = CELLULAR_SOCK_EINVAL;
+            }
+        } else {
+            // Indicate that we weren't passed a valid socket descriptor
+            errno = CELLULAR_SOCK_EBADF;
+        }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
+
+    } else {
+        // The only reason initialisation might fail
+        errno = CELLULAR_SOCK_ENOMEM;
+    }
+
+    if (errno != CELLULAR_SOCK_ENONE) {
+        // Write the errno
+        cellularPort_errno_set(errno);
+    }
 
     return (int32_t) errorCode;
 }
@@ -1378,11 +1729,149 @@ int32_t cellularSockGetOption(CellularSockDescriptor_t descriptor,
                               int32_t level,
                               uint32_t option,
                               void *pOptionValue,
-                              size_t optionValueLength)
+                              size_t *pOptionValueLength)
 {
-    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_NOT_IMPLEMENTED;
+    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
+    int32_t errno = CELLULAR_SOCK_ENONE;
+    CellularSockContainer_t *pContainer = NULL;
 
-    // TODO
+    if (init()) {
+
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
+
+        // Find the container
+        pContainer = pContainerFindByDescriptor(descriptor);
+
+        if (pContainer != NULL) {
+            // If there's an optionValue then there must be a length
+            if ((pOptionValue == NULL) || 
+                (pOptionValueLength != NULL)) {
+                switch (level) {
+                    case CELLULAR_SOCK_OPT_LEVEL_SOCK:
+                        switch (option) {
+                            // The supported options which
+                            // have an integer as a parameter
+                            case CELLULAR_SOCK_OPT_REUSEADDR:
+                            case CELLULAR_SOCK_OPT_KEEPALIVE:
+                            case CELLULAR_SOCK_OPT_BROADCAST:
+                            case CELLULAR_SOCK_OPT_REUSEPORT:
+                                errorCode = getOptionInt(descriptor,
+                                                         pContainer->socket.modemHandle,
+                                                         level,
+                                                         option,
+                                                         pOptionValue,
+                                                         pOptionValueLength,
+                                                         &errno);
+                            break;
+                            // The linger option which has
+                            // cellularSock_linger as its
+                            // parameter
+                            case CELLULAR_SOCK_OPT_LINGER:
+                                errorCode = getOptionLinger(descriptor,
+                                                            pContainer->socket.modemHandle,
+                                                            pOptionValue,
+                                                            pOptionValueLength,
+                                                            &errno);
+                            break;
+                            // Receive timeout, which we just get locally
+                            case CELLULAR_SOCK_OPT_RCVTIMEO:
+                                if (pOptionValueLength != NULL) {
+                                    if (pOptionValue != NULL) {
+                                        if (*pOptionValueLength >= sizeof(CellularPort_timeval)) {
+                                            // Return the answer
+                                            ((CellularPort_timeval *) pOptionValue)->tv_sec = 
+                                                pContainer->socket.receiveTimeoutMs / 1000;
+                                            ((CellularPort_timeval *) pOptionValue)->tv_usec = 
+                                              (pContainer->socket.receiveTimeoutMs % 1000) * 1000;
+                                            *pOptionValueLength = sizeof(CellularPort_timeval);
+                                            errorCode = CELLULAR_SOCK_SUCCESS;
+                                        } else {
+                                            // Caller hasn't left enough room
+                                            errno = CELLULAR_SOCK_EINVAL;
+                                        }
+                                    } else {
+                                        // Caller just wants to know the length required
+                                        *pOptionValueLength = sizeof(CellularPort_timeval);
+                                        errorCode = CELLULAR_SOCK_SUCCESS;
+                                    }
+                                } else {
+                                    // Invalid argument, there must be a value length
+                                    errno = CELLULAR_SOCK_EINVAL;
+                                }
+                            break;
+                            default:
+                                // Invalid argument
+                                errno = CELLULAR_SOCK_EINVAL;
+                            break;
+                        }
+                    break;
+                    case CELLULAR_SOCK_OPT_LEVEL_IP:
+                        switch (option) {
+                            // The supported options, both of
+                            // which have an integer as a
+                            // parameter
+                            case CELLULAR_SOCK_OPT_IP_TOS:
+                            case CELLULAR_SOCK_OPT_IP_TTL:
+                                errorCode = getOptionInt(descriptor,
+                                                         pContainer->socket.modemHandle,
+                                                         level,
+                                                         option,
+                                                         pOptionValue,
+                                                         pOptionValueLength,
+                                                         &errno);
+                            break;
+                            default:
+                                // Invalid argument
+                                errno = CELLULAR_SOCK_EINVAL;
+                            break;
+                        }
+                    break;
+                    case CELLULAR_SOCK_OPT_LEVEL_TCP:
+                        switch (option) {
+                            // The supported options, both of
+                            // which have an integer as a
+                            // parameter
+                            case CELLULAR_SOCK_OPT_TCP_NODELAY:
+                            case CELLULAR_SOCK_OPT_TCP_KEEPIDLE:
+                                errorCode = getOptionInt(descriptor,
+                                                         pContainer->socket.modemHandle,
+                                                         level,
+                                                         option,
+                                                         pOptionValue,
+                                                         pOptionValueLength,
+                                                         &errno);
+                            break;
+                            default:
+                                // Invalid argument
+                                errno = CELLULAR_SOCK_EINVAL;
+                            break;
+                        }
+                    break;
+                    default:
+                        // Invalid argument
+                        errno = CELLULAR_SOCK_EINVAL;
+                    break;
+                }
+            } else {
+                // Invalid argument
+                errno = CELLULAR_SOCK_EINVAL;
+            }
+        } else {
+            // Indicate that we weren't passed a valid socket descriptor
+            errno = CELLULAR_SOCK_EBADF;
+        }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
+
+    } else {
+        // The only reason initialisation might fail
+        errno = CELLULAR_SOCK_ENOMEM;
+    }
+
+    if (errno != CELLULAR_SOCK_ENONE) {
+        // Write the errno
+        cellularPort_errno_set(errno);
+    }
 
     return (int32_t) errorCode;
 }
@@ -1841,8 +2330,14 @@ int32_t cellularSockBind(CellularSockDescriptor_t descriptor,
                          const CellularSockAddress_t *pLocalAddress)
 {
     CellularSockErrorCode_t errorCode = CELLULAR_SOCK_NOT_IMPLEMENTED;
+    int32_t errno = CELLULAR_SOCK_ENOSYS;
 
     // TODO
+
+    if (errno != CELLULAR_SOCK_ENONE) {
+        // Write the errno
+        cellularPort_errno_set(errno);
+    }
 
     return (int32_t) errorCode;
 }
@@ -1852,8 +2347,14 @@ int32_t cellularSockListen(CellularSockDescriptor_t descriptor,
                            size_t backlog)
 {
     CellularSockErrorCode_t errorCode = CELLULAR_SOCK_NOT_IMPLEMENTED;
+    int32_t errno = CELLULAR_SOCK_ENOSYS;
 
     // TODO
+
+    if (errno != CELLULAR_SOCK_ENONE) {
+        // Write the errno
+        cellularPort_errno_set(errno);
+    }
 
     return (int32_t) errorCode;
 }
@@ -1863,8 +2364,14 @@ int32_t cellularSockAccept(CellularSockDescriptor_t descriptor,
                            CellularSockAddress_t *pRemoteAddress)
 {
     CellularSockErrorCode_t errorCode = CELLULAR_SOCK_NOT_IMPLEMENTED;
+    int32_t errno = CELLULAR_SOCK_ENOSYS;
 
     // TODO
+
+    if (errno != CELLULAR_SOCK_ENONE) {
+        // Write the errno
+        cellularPort_errno_set(errno);
+    }
 
     return (int32_t) errorCode;
 }
@@ -1877,8 +2384,14 @@ int32_t cellularSockSelect(int32_t maxDescriptor,
                            int32_t timeMs)
 {
     CellularSockErrorCode_t errorCode = CELLULAR_SOCK_NOT_IMPLEMENTED;
+    int32_t errno = CELLULAR_SOCK_ENOSYS;
 
     // TODO
+
+    if (errno != CELLULAR_SOCK_ENONE) {
+        // Write the errno
+        cellularPort_errno_set(errno);
+    }
 
     return (int32_t) errorCode;
 }

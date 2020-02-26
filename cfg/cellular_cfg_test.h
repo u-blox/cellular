@@ -113,7 +113,7 @@
 #endif
 
 #ifndef CELLULAR_CFG_TEST_UDP_RETRIES
-/** The number of retries to allow when sendingrunning
+/** The number of retries to allow when sending
  * data over UDP.
  */
 # define CELLULAR_CFG_TEST_UDP_RETRIES 5
