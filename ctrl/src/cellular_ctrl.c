@@ -240,7 +240,7 @@ static void CEREG_urc(void *pUnused)
 
     (void) pUnused;
 
-    // Read <stat>
+    // Read status
     status = cellular_ctrl_at_read_int();
     if (status >= 0) {
         setNetworkStatus(status);
@@ -395,13 +395,9 @@ static bool prepareConnect()
     // Make sure URC handler is registered
     cellular_ctrl_at_set_urc_handler("+CEREG:", CEREG_urc, NULL);
 
-    // Switch on the unsolicited result codes for registration
-    // on 2G and cat-M1/NB1
+    // Switch on the unsolicited result code for registration
+    // on NB1/Cat-M1.
     cellular_ctrl_at_lock();
-    cellular_ctrl_at_cmd_start("AT+CREG=1");
-    cellular_ctrl_at_cmd_stop_read_resp();
-    cellular_ctrl_at_cmd_start("AT+CGREG=1");
-    cellular_ctrl_at_cmd_stop_read_resp();
     cellular_ctrl_at_cmd_start("AT+CEREG=1");
     cellular_ctrl_at_cmd_stop_read_resp();
     if (cellular_ctrl_at_unlock_return_error() == 0) {
@@ -419,9 +415,11 @@ static bool prepareConnect()
         }
         if (cellular_ctrl_at_unlock_return_error() == 0) {
             success = true;
+        } else {
+            cellularPortLog("CELLULAR_CTRL: unable to set automatic network selection mode.\n");
         }
     } else {
-        cellularPortLog("CELLULAR_CTRL: unable to set URCs and automatic network selection mode.\n");
+        cellularPortLog("CELLULAR_CTRL: unable to set URCs.\n");
     }
 
     return success;

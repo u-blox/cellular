@@ -168,15 +168,15 @@
 
 /** Set file status command. The value matches LWIP.
  */
-#define CELLULAR_SOCK_FCTL_SET_STATUS 4
+#define CELLULAR_SOCK_FCNTL_SET_STATUS 4
 
 /** Get file status command. The value matches LWIP.
  */
-#define CELLULAR_SOCK_FCTL_GET_STATUS 3
+#define CELLULAR_SOCK_FCNTL_GET_STATUS 3
 
 /** The non-block bit in the file status integer. The value matches LWIP.
  */
-#define CELLULAR_SOCK_FCTL_STATUS_NONBLOCK 0x00000001
+#define CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK 0x00000001
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS: MISC
@@ -401,9 +401,9 @@ void cellularSockCleanUp();
  *                   upon command (e.g. the file descriptor flags)
  *                   else -1 on error.
  */
-int32_t cellularSockFctl(CellularSockDescriptor_t descriptor,
-                         int32_t command,
-                         int32_t value);
+int32_t cellularSockFcntl(CellularSockDescriptor_t descriptor,
+                          int32_t command,
+                          int32_t value);
 
 /** Set the options for the given socket.  This function obeys
  * the BSD socket conventions and hence, for instance, to set

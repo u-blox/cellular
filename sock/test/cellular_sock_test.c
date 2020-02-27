@@ -30,6 +30,7 @@
 #include "cellular_port_test.h"
 #include "cellular_ctrl.h"
 #include "cellular_sock.h"
+#include "cellular_sock_errno.h" // For CELLULAR_SOCK_EWOULDBLOCK
 #include "cellular_cfg_test.h"
 
 /* ----------------------------------------------------------------
@@ -51,6 +52,12 @@
 
 // The maximum TCP read/write size.
 #define CELLULAR_SOCK_TEST_MAX_TCP_READ_WRITE_SIZE CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES
+
+// Expected return time for non-blocking operation in ms.
+#define CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS 100
+
+// Margin on timers.
+#define CELLULAR_SOCK_TEST_TIME_MARGIN_MS 100
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -546,7 +553,7 @@ static void stdDataTestDeinit(CellularSockDescriptor_t sockDescriptor)
 {
     int32_t errorCode;
 
-    cellularPortLog("CELLULAR_SOCK_TEST: closing socket...\n");
+    cellularPortLog("CELLULAR_SOCK_TEST: closing socket (may take some time)...\n");
     errorCode = cellularSockClose(sockDescriptor);
     cellularPortLog("CELLULAR_SOCK_TEST: cellularSockClose() returned %d, errno %d.\n",
                     errorCode, cellularPort_errno_get());
@@ -922,7 +929,7 @@ static CellularSockDescriptor_t openSocketAndUseIt(const CellularSockAddress_t *
         errorCode = cellularSockConnect(sockDescriptor, pRemoteAddress);
         cellularPortLog("CELLULAR_SOCK_TEST: cellularSockConnect() returned %d, errno %d.\n",
                         errorCode, cellularPort_errno_get());
-        CELLULAR_PORT_TEST_ASSERT(errorCode >= 0);
+        CELLULAR_PORT_TEST_ASSERT(errorCode == 0);
         CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
 
         cellularPortLog("CELLULAR_SOCK_TEST: check that cellularSockGetRemoteAddress() works...\n");
@@ -1244,7 +1251,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoBasic(),
                                     &remoteAddress);
     cellularPortLog("CELLULAR_SOCK_TEST: cellularSockConnect() returned %d, errno %d.\n",
                     errorCode, cellularPort_errno_get());
-    CELLULAR_PORT_TEST_ASSERT(errorCode >= 0);
+    CELLULAR_PORT_TEST_ASSERT(errorCode == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
 
     cellularPortLog("CELLULAR_SOCK_TEST: check that cellularSockGetRemoteAddress() works...\n");
@@ -1506,7 +1513,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoBasic(),
                                     &remoteAddress);
     cellularPortLog("CELLULAR_SOCK_TEST: cellularSockConnect() returned %d, errno %d.\n",
                     errorCode, cellularPort_errno_get());
-    CELLULAR_PORT_TEST_ASSERT(errorCode >= 0);
+    CELLULAR_PORT_TEST_ASSERT(errorCode == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
 
     cellularPortLog("CELLULAR_SOCK_TEST: check that cellularSockGetRemoteAddress() works...\n");
@@ -1619,7 +1626,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
                                     &remoteAddress);
     cellularPortLog("CELLULAR_SOCK_TEST: cellularSockConnect() returned %d, errno %d.\n",
                     errorCode, cellularPort_errno_get());
-    CELLULAR_PORT_TEST_ASSERT(errorCode >= 0);
+    CELLULAR_PORT_TEST_ASSERT(errorCode == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
 
     // A queue on which we will send notifications of data arrival.
@@ -1796,7 +1803,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
 
     // Close one and should be able to open another
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: closing socket 0x02x.\n",
+    cellularPortLog("CELLULAR_SOCK_TEST: closing socket %d (may take some time).\n",
                     sockDescriptor[0]);
     errorCode = cellularSockClose(sockDescriptor[0]);
     cellularPortLog("CELLULAR_SOCK_TEST: cellularSockClose() returned %d, errno %d.\n",
@@ -1838,7 +1845,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
 }
 
 /** Test setting/getting socket options.
-* TODO: error cases.
+ * TODO: error cases.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
                             "setGetOptions",
@@ -1855,6 +1862,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
     char *pData[1];
     int64_t startTime;
     int64_t timeoutMs;
+    int64_t elapsedMs;
 
     // Has to be a TCP socket since some socket options
     // only apply to TCP sockets
@@ -1925,9 +1933,18 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
     CELLULAR_PORT_TEST_ASSERT(timeoutMs == CELLULAR_SOCK_RECEIVE_TIMEOUT_DEFAULT_MS);
     startTime = cellularPortGetTickTimeMs();
     CELLULAR_PORT_TEST_ASSERT(cellularSockReceiveFrom(sockDescriptor, NULL, pData, sizeof(pData)) < 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortGetTickTimeMs() - startTime >= timeoutMs);
+    elapsedMs = cellularPortGetTickTimeMs() - startTime;
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
+    cellularPort_errno_set(0);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
+                    ((float) elapsedMs) / 1000);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
     timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
+    timeout.tv_usec = 500000;
+    timeoutMs = timeout.tv_sec * 1000 + timeout.tv_usec / 1000;
+    cellularPortLog("CELLULAR_SOCK_TEST: setting timeout to %.3f second(s)...\n",
+                    ((float) timeoutMs) / 1000);
     CELLULAR_PORT_TEST_ASSERT(cellularSockSetOption(sockDescriptor,
                                                     CELLULAR_SOCK_OPT_LEVEL_SOCK,
                                                     CELLULAR_SOCK_OPT_RCVTIMEO,
@@ -1935,14 +1952,206 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
                                                     sizeof(timeout)) == 0);
     startTime = cellularPortGetTickTimeMs();
     CELLULAR_PORT_TEST_ASSERT(cellularSockReceiveFrom(sockDescriptor, NULL, pData, sizeof(pData)) < 0);
-    // Won't be zero of course...
-    CELLULAR_PORT_TEST_ASSERT(cellularPortGetTickTimeMs() - startTime < 1000);
+    elapsedMs = cellularPortGetTickTimeMs() - startTime;
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
+    cellularPort_errno_set(0);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
+                    (float) elapsedMs);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
 
     // Free memory again
     cellularPort_free(pValue);
     cellularPort_free(pValueSaved);
 
     stdDataTestDeinit(sockDescriptor);
+}
+
+/** Test setting/unsetting non-blocking.
+ * TODO: error cases.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
+                            "nonBlocking",
+                            "sock")
+{
+    CellularPortQueueHandle_t queueHandle;
+    CellularSockAddress_t remoteAddress;
+    CellularSockDescriptor_t sockDescriptor;
+    int32_t returnCode;
+    char *pData[1];
+    int64_t startTime;
+    int64_t elapsedMs;
+    CellularPort_timeval timeout;
+    int64_t timeoutMs;
+
+    // Open a TCP socket so that we can test both UDP and TCP
+    stdDataTestInit(&queueHandle,
+                    CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
+                    CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT,
+                    &remoteAddress,
+                    CELLULAR_SOCK_TYPE_STREAM,
+                    CELLULAR_SOCK_PROTOCOL_TCP,
+                    &sockDescriptor);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: connect socket to \"%s:%d\"...\n",
+                    CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
+                    CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT);
+    returnCode = cellularSockConnect(sockDescriptor,
+                                    &remoteAddress);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockConnect() returned %d, errno %d.\n",
+                    returnCode, cellularPort_errno_get());
+    CELLULAR_PORT_TEST_ASSERT(returnCode == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+
+    // Set a short time-out so that we're not hanging around
+    cellularPortLog("CELLULAR_SOCK_TEST: setting a short socket timeout to save time...\n");
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    timeoutMs = timeout.tv_sec * 1000 + timeout.tv_usec / 1000;
+    CELLULAR_PORT_TEST_ASSERT(cellularSockSetOption(sockDescriptor,
+                                                    CELLULAR_SOCK_OPT_LEVEL_SOCK,
+                                                    CELLULAR_SOCK_OPT_RCVTIMEO,
+                                                    (void *) &timeout,
+                                                    sizeof(timeout)) == 0);
+    startTime = cellularPortGetTickTimeMs();
+    CELLULAR_PORT_TEST_ASSERT(cellularSockReceiveFrom(sockDescriptor, NULL, pData, sizeof(pData)) < 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
+    cellularPort_errno_set(0);
+    elapsedMs = cellularPortGetTickTimeMs() - startTime;
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
+                    ((float) elapsedMs) / 1000);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
+    startTime = cellularPortGetTickTimeMs();
+    CELLULAR_PORT_TEST_ASSERT(cellularSockRead(sockDescriptor, pData, sizeof(pData)) < 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
+    cellularPort_errno_set(0);
+    elapsedMs = cellularPortGetTickTimeMs() - startTime;
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %.3f second(s)...\n",
+                    ((float) elapsedMs) / 1000);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: get non-blocking state...\n");
+    returnCode = cellularSockFcntl(sockDescriptor,
+                                  CELLULAR_SOCK_FCNTL_GET_STATUS, 0);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockFcntl() with CELLULAR_SOCK_FCNTL_GET_STATUS returned %d, errno %d.\n",
+                    returnCode, cellularPort_errno_get());
+    // Should be zero since we only support non-blocking and that's off by default
+    CELLULAR_PORT_TEST_ASSERT(returnCode == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: set non-blocking state...\n");
+    returnCode = cellularSockFcntl(sockDescriptor,
+                                  CELLULAR_SOCK_FCNTL_SET_STATUS,
+                                  CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockFcntl() with CELLULAR_SOCK_FCNTL_SET_STATUS and value CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK returned %d, errno %d.\n",
+                    returnCode, cellularPort_errno_get());
+    CELLULAR_PORT_TEST_ASSERT(returnCode == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: get new non-blocking state...\n");
+    returnCode = cellularSockFcntl(sockDescriptor,
+                                  CELLULAR_SOCK_FCNTL_GET_STATUS, 0);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockFcntl() with CELLULAR_SOCK_FCNTL_GET_STATUS returned %d, errno %d.\n",
+                    returnCode, cellularPort_errno_get());
+    CELLULAR_PORT_TEST_ASSERT(returnCode == CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: check that it has worked for receive...\n");
+    startTime = cellularPortGetTickTimeMs();
+    CELLULAR_PORT_TEST_ASSERT(cellularSockReceiveFrom(sockDescriptor, NULL, pData, sizeof(pData)) < 0);
+    elapsedMs = cellularPortGetTickTimeMs() - startTime;
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
+    cellularPort_errno_set(0);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
+                    ((float) elapsedMs) / 1000);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs < CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS);
+    startTime = cellularPortGetTickTimeMs();
+    CELLULAR_PORT_TEST_ASSERT(cellularSockRead(sockDescriptor, pData, sizeof(pData)) < 0);
+    elapsedMs = cellularPortGetTickTimeMs() - startTime;
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
+    cellularPort_errno_set(0);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %.3f second(s)...\n",
+                    ((float) elapsedMs) / 1000);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs < CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: unset non-blocking state...\n");
+    returnCode = cellularSockFcntl(sockDescriptor,
+                                  CELLULAR_SOCK_FCNTL_SET_STATUS,
+                                  ~CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockFcntl() with CELLULAR_SOCK_FCNTL_SET_STATUS and value ~CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK returned %d, errno %d.\n",
+                    returnCode, cellularPort_errno_get());
+    CELLULAR_PORT_TEST_ASSERT(returnCode == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: get new non-blocking state...\n");
+    returnCode = cellularSockFcntl(sockDescriptor,
+                                  CELLULAR_SOCK_FCNTL_GET_STATUS, 0);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockFcntl() with CELLULAR_SOCK_FCNTL_GET_STATUS returned %d, errno %d.\n",
+                    returnCode, cellularPort_errno_get());
+    CELLULAR_PORT_TEST_ASSERT(returnCode == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: check that we're blocking again...\n");
+    startTime = cellularPortGetTickTimeMs();
+    CELLULAR_PORT_TEST_ASSERT(cellularSockReceiveFrom(sockDescriptor, NULL, pData, sizeof(pData)) < 0);
+    elapsedMs = cellularPortGetTickTimeMs() - startTime;
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
+    cellularPort_errno_set(0);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
+                    ((float) elapsedMs) / 1000);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
+    startTime = cellularPortGetTickTimeMs();
+    CELLULAR_PORT_TEST_ASSERT(cellularSockRead(sockDescriptor, pData, sizeof(pData)) < 0);
+    elapsedMs = cellularPortGetTickTimeMs() - startTime;
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
+    cellularPort_errno_set(0);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %.3f second(s)...\n",
+                    ((float) elapsedMs) / 1000);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
+
+    // Finally, SARA-R4 can block for a long time on socket close so do that
+    // while having non-blocking set to test that it is quick.
+    cellularPortLog("CELLULAR_SOCK_TEST: set non-blocking state before closing...\n");
+    returnCode = cellularSockFcntl(sockDescriptor,
+                                  CELLULAR_SOCK_FCNTL_SET_STATUS,
+                                  CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockFcntl() with CELLULAR_SOCK_FCNTL_SET_STATUS and value CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK returned %d, errno %d.\n",
+                    returnCode, cellularPort_errno_get());
+    CELLULAR_PORT_TEST_ASSERT(returnCode == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: closing socket (may take some time)...\n");
+    startTime = cellularPortGetTickTimeMs();
+    returnCode = cellularSockClose(sockDescriptor);
+    elapsedMs = cellularPortGetTickTimeMs() - startTime;
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockClose() returned %d, errno %d.\n",
+                    returnCode, cellularPort_errno_get());
+    CELLULAR_PORT_TEST_ASSERT(returnCode == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockClose() took %.3f second(s)...\n",
+                    ((float) elapsedMs) / 1000);
+    CELLULAR_PORT_TEST_ASSERT(elapsedMs < CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS);
+
+    cellularPortLog("CELLULAR_SOCK_TEST: cleaning up...\n");
+    cellularSockCleanUp();
+
+    // Disconnect from the cellular network and tidy up
+    networkDisconnect();
+
+    cellularCtrlPowerOff(NULL);
+
+    cellularCtrlDeinit();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
+    cellularPortDeinit();
+
+    // Allow idle task to run so that any deleted
+    // tasks are actually deleted, required by some
+    // operating systems (e.g. freeRTOS)
+    cellularPortTaskBlock(100);
 }
 
 // End of file

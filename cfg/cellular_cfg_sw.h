@@ -28,8 +28,7 @@
  * -------------------------------------------------------------- */
 
 #ifndef CELLULAR_CFG_UART
-/** The ESP32 UART block to use.  UART 0 is usually
- * used for stdio and UART 1 for the cellular UART.
+/** The UART to use.
  */
 # define CELLULAR_CFG_UART                           1
 #endif

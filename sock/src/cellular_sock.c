@@ -75,12 +75,14 @@
 
 // Socket state
 typedef enum {
-    CELLULAR_SOCK_STATE_CREATED,
-    CELLULAR_SOCK_STATE_CONNECTED,
-    CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ,
-    CELLULAR_SOCK_STATE_SHUTDOWN_FOR_WRITE,
-    CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ_WRITE,
-    CELLULAR_SOCK_STATE_CLOSED
+    CELLULAR_SOCK_STATE_CREATED,   //<! Freshly created, unsullied.
+    CELLULAR_SOCK_STATE_CONNECTED, //<! TCP connected or UDP has an address.
+    CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ,  //<! Block all reads.
+    CELLULAR_SOCK_STATE_SHUTDOWN_FOR_WRITE, //<! Block all writes.
+    CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ_WRITE, //<! Block all reads and writes.
+    CELLULAR_SOCK_STATE_CLOSING, //<! Block all reads and writes.
+    CELLULAR_SOCK_STATE_CLOSED   //<! Actually closed, cannot be found,
+                                 //< container may be re-used
 } CellularSockState_t;
 
 // A socket.
@@ -711,7 +713,7 @@ static int32_t setOptionInt(CellularSockDescriptor_t descriptor,
         cellular_ctrl_at_write_int(*((int32_t *) pOptionValue));
         cellular_ctrl_at_cmd_stop_read_resp();
         if (cellular_ctrl_at_unlock_return_error() == 0) {
-            cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, socket option %d:0x%04x(%d) set to %d.\n",
+            cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, socket option %d:0x%04x (%d) set to %d.\n",
                             descriptor, modemHandle,
                             level, option, option,
                             *((int32_t *) pOptionValue));
@@ -758,7 +760,7 @@ static int32_t getOptionInt(CellularSockDescriptor_t descriptor,
                 cellular_ctrl_at_resp_stop();
                 if ((cellular_ctrl_at_unlock_return_error() == 0) && (x >= 0)) {
                     *((int32_t *) pOptionValue)  = x;
-                    cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, socket option %d:0x%04x(%d) is %d.\n",
+                    cellularPortLog("CELLULAR_SOCK: socket with descriptor %d, modem handle %d, socket option %d:0x%04x (%d) is %d.\n",
                                     descriptor, modemHandle,
                                     level, option, option,
                                     *((int32_t *) pOptionValue));
@@ -1131,18 +1133,16 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
             } else {
                 success = false;
             }
-        } else if (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.receiveTimeoutMs) {
+        } else if (!pContainer->socket.nonBlocking &&
+                   (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.receiveTimeoutMs)) {
             // Yield to the AT parser task that is listening for URCs
             // that indicated incoming data
             cellularPortTaskBlock(10);
         } else {
             // Timeout with nothing received
+            // Indicate that we would have blocked here
             success = false;
-            // If we've been set non-blocking,
-            // indicate that we would have blocked here
-            if (pContainer->socket.nonBlocking) {
-                errno = CELLULAR_SOCK_EWOULDBLOCK;
-            }
+            errno = CELLULAR_SOCK_EWOULDBLOCK;
         }
     }
 
@@ -1228,21 +1228,20 @@ int32_t receive(CellularSockContainer_t *pContainer,
             } else {
                 success = false;
             }
-        } else if (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.receiveTimeoutMs) {
+        } else if (!pContainer->socket.nonBlocking &&
+                   cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.receiveTimeoutMs) {
             // Yield to the AT parser task that is listening for URCs
             // that indicated incoming data
             cellularPortTaskBlock(10);
         } else {
             if (receivedSize == 0) {
                 // Timeout with nothing received
+                // Indicate that we would have blocked here
                 success = false;
-                // If we've been set non-blocking,
-                // indicate that we would have blocked here
-                if (pContainer->socket.nonBlocking) {
-                    errno = CELLULAR_SOCK_EWOULDBLOCK;
-                }
+                errno = CELLULAR_SOCK_EWOULDBLOCK;
             }
-            // Timed out, leave with what we have
+            // Timed out, after maybe having received something,
+            // leave with what we have
             break;
         }
     }
@@ -1456,6 +1455,7 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor)
     CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
     int32_t errno = CELLULAR_SOCK_ENONE;
     CellularSockContainer_t *pContainer = NULL;
+    CellularSockState_t finalState = CELLULAR_SOCK_STATE_CLOSED;
 
     if (init()) {
 
@@ -1473,6 +1473,18 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor)
                                             false);
             cellular_ctrl_at_cmd_start("AT+USOCL=");
             cellular_ctrl_at_write_int(pContainer->socket.modemHandle);
+#if CELLULAR_CFG_MODULE_SARA_R4
+            // If non-blocking, with SARA-R4, which has a long
+            // close time due to being strict about waiting
+            // for the ack for the ack for the ack for
+            // a connected socket, we can ask for an
+            // asynchronous indication
+            if (pContainer->socket.nonBlocking &&
+               (pContainer->socket.state == CELLULAR_SOCK_STATE_CONNECTED)) {
+                cellular_ctrl_at_write_int(1);
+                finalState = CELLULAR_SOCK_STATE_CLOSING;
+            }
+#endif
             cellular_ctrl_at_cmd_stop_read_resp();
             cellular_ctrl_at_restore_at_timeout();
             if (cellular_ctrl_at_unlock_return_error() == 0) {
@@ -1480,11 +1492,11 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor)
                                 descriptor,
                                 pContainer->socket.modemHandle);
                 errorCode = CELLULAR_SOCK_SUCCESS;
-                // Now mark the socket as closed.
+                // Now mark the socket as closed (or closing).
                 // Socket is only freed by a call to
                 // cellularSockCleanUp() in order to ensure
                 // thread-safeness
-                pContainer->socket.state = CELLULAR_SOCK_STATE_CLOSED;
+                pContainer->socket.state = finalState;
             } else {
                 // Use a distinctly different errno for this
                 errno = CELLULAR_SOCK_EIO;
@@ -1573,17 +1585,60 @@ void cellularSockCleanUp()
  * -------------------------------------------------------------- */
 
 // Configure the given socket's file parameters.
-int32_t cellularSockFctl(CellularSockDescriptor_t descriptor,
-                         int32_t command,
-                         int32_t value)
+int32_t cellularSockFcntl(CellularSockDescriptor_t descriptor,
+                          int32_t command,
+                          int32_t value)
 {
     // Since the return value depends upon the command, 
-    // the only reliable error value for FCTL is -1.
-    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
+    // the only reliable error value for FCNTL is -1.
+    CellularSockErrorCode_t errorCodeOrReturnValue = CELLULAR_SOCK_BSD_ERROR;
+    int32_t errno = CELLULAR_SOCK_ENONE;
+    CellularSockContainer_t *pContainer = NULL;
 
-    // TODO
+    if (init()) {
 
-    return (int32_t) errorCode;
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
+
+        // Find the container
+        pContainer = pContainerFindByDescriptor(descriptor);
+
+        if (pContainer != NULL) {
+            switch (command) {
+                case CELLULAR_SOCK_FCNTL_SET_STATUS:
+                    pContainer->socket.nonBlocking = 
+                      ((value | CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK) == 1);
+                    errorCodeOrReturnValue = CELLULAR_SOCK_SUCCESS;
+                break;
+                case CELLULAR_SOCK_FCNTL_GET_STATUS:
+                    // From here on errorCodeOrReturnValue is a return value
+                    errorCodeOrReturnValue = 0;
+                    if (pContainer->socket.nonBlocking) {
+                        errorCodeOrReturnValue = CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK;
+                    }
+                break;
+                default:
+                    // Invalid argument
+                    errno = CELLULAR_SOCK_EINVAL;
+                break;
+            }
+        } else {
+            // Indicate that we weren't passed a valid socket descriptor
+            errno = CELLULAR_SOCK_EBADF;
+        }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
+
+    } else {
+        // The only reason initialisation might fail
+        errno = CELLULAR_SOCK_ENOMEM;
+    }
+
+    if (errno != CELLULAR_SOCK_ENONE) {
+        // Write the errno
+        cellularPort_errno_set(errno);
+    }
+
+    return (int32_t) errorCodeOrReturnValue;
 }
 
 // Set the options for the given socket.
@@ -1910,13 +1965,19 @@ int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
                         (pContainer->socket.state == CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ_WRITE)) {
                         // Socket is shut down
                         errno = CELLULAR_SOCK_ESHUTDOWN;
+                    } else if (pContainer->socket.state == CELLULAR_SOCK_STATE_CLOSING) {
+                        // I know connection isn't strictly relevant
+                        // to UDP transmission but I can't see anything
+                        // more appropriate to return
+                        errno = CELLULAR_SOCK_ENOTCONN;
                     } else {
                         // Destination address required?
                         errno = CELLULAR_SOCK_EDESTADDRREQ;
                     }
                 }
             }
-            if (pRemoteAddress != NULL) {
+            if ((pRemoteAddress != NULL) &&
+                (errno == CELLULAR_SOCK_ENONE)) {
                 if ((pData == NULL) && (dataSizeBytes > 0)) {
                     // Invalid argument
                     errno = CELLULAR_SOCK_EINVAL;
@@ -1927,8 +1988,6 @@ int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
                             (pContainer->socket.protocol == CELLULAR_SOCK_PROTOCOL_TCP)) {
                             errorCodeOrSize = sendTo(pContainer, pRemoteAddress,
                                                      pData, dataSizeBytes);
-
-                            // the AT parser in, do not rely on it here.
                         } else {
                             // Should never get here, throw 'em a googley so that the
                             // error is distinct
@@ -1987,13 +2046,20 @@ int32_t cellularSockReceiveFrom(CellularSockDescriptor_t descriptor,
                     // It's OK to receive UDP packets on a TCP socket
                     if ((pContainer->socket.protocol == CELLULAR_SOCK_PROTOCOL_UDP) ||
                         (pContainer->socket.protocol == CELLULAR_SOCK_PROTOCOL_TCP)) {
-                        if ((pContainer->socket.state != CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ) &&
-                            (pContainer->socket.state != CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ_WRITE)) {
-                            errorCodeOrSize = receiveFrom(pContainer, pRemoteAddress,
-                                                          pData, dataSizeBytes);
+                        if (pContainer->socket.state != CELLULAR_SOCK_STATE_CLOSING) {
+                            if ((pContainer->socket.state != CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ) &&
+                                (pContainer->socket.state != CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ_WRITE)) {
+                                errorCodeOrSize = receiveFrom(pContainer, pRemoteAddress,
+                                                              pData, dataSizeBytes);
+                            } else {
+                                // Socket is shut down
+                                errno = CELLULAR_SOCK_ESHUTDOWN;
+                            }
                         } else {
-                            // Socket is shut down
-                            errno = CELLULAR_SOCK_ESHUTDOWN;
+                            // I know connection isn't strictly relevant
+                            // to UDP transmission but I can't see anything
+                            // more appropriate to return
+                            errno = CELLULAR_SOCK_ENOTCONN;
                         }
                     } else {
                         // Should never get here, throw 'em a googley so that the
@@ -2067,6 +2133,9 @@ int32_t cellularSockWrite(CellularSockDescriptor_t descriptor,
                             (pContainer->socket.state == CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ_WRITE)) {
                             // Socket is shut down
                             errno = CELLULAR_SOCK_ESHUTDOWN;
+                        } else if (pContainer->socket.state == CELLULAR_SOCK_STATE_CLOSING) {
+                            // Not connected mate
+                            errno = CELLULAR_SOCK_ENOTCONN;
                         } else {
                             // No route to host?
                             errno = CELLULAR_SOCK_EHOSTUNREACH;
@@ -2139,6 +2208,9 @@ int32_t cellularSockRead(CellularSockDescriptor_t descriptor,
                         (pContainer->socket.state == CELLULAR_SOCK_STATE_SHUTDOWN_FOR_READ_WRITE)) {
                         // Socket is shut down
                         errno = CELLULAR_SOCK_ESHUTDOWN;
+                    } else if (pContainer->socket.state == CELLULAR_SOCK_STATE_CLOSING) {
+                        // Not connected mate
+                        errno = CELLULAR_SOCK_ENOTCONN;
                     } else {
                         // No route to host?
                         errno = CELLULAR_SOCK_EHOSTUNREACH;
