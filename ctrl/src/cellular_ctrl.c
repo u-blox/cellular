@@ -1150,10 +1150,10 @@ int32_t cellularCtrlGetRatRank(CellularCtrlRat_t rat)
             cellular_ctrl_at_unlock();
             if (errorCodeOrRank >= 0) {
                 cellularPortLog("CELLULAR_CTRL: rank of RAT %d (in module terms %d) is %d.\n",
-                                gLocalRatToCellularRat[rat], rat, errorCodeOrRank);
+                                rat, gCellularRatToLocalRat[rat], errorCodeOrRank);
             } else {
                 cellularPortLog("CELLULAR_CTRL: RAT %d (in module terms %d) is not ranked.\n",
-                                gLocalRatToCellularRat[rat], rat);
+                                rat, gCellularRatToLocalRat[rat]);
             }
         }
     }
