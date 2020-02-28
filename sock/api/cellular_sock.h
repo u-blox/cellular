@@ -380,9 +380,13 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor);
  * may be refering to it.  If you ever have more than
  * CELLULAR_SOCK_NUM_STATIC_SOCKETS open at the same time then
  * you must call this clean-up function when you are sure that
- * there is no socket activity, either from us or the remote host,
- * in order to free memory malloc()ed for those additional
- * sockets.
+ * there is no socket activity, either locally or from the remote
+ * host, in order to free memory malloc()ed for those additional
+ * sockets.  A socket that is closed locally but waiting for the
+ * far end to close WILL be clean-up by this function and so no
+ * callback registered by cellularSockRegisterCallbackClosed()
+ * will be triggered when the remote server finally closes the
+ * connection.
  */
 void cellularSockCleanUp();
 

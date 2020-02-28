@@ -663,6 +663,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
     CellularCtrlRat_t setRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
     CellularCtrlRat_t allRats[CELLULAR_CTRL_MAX_NUM_RATS];
     CellularCtrlRat_t rat;
+    CellularCtrlRat_t ratTmp;
     size_t count;
     int32_t rank;
     int32_t found;
@@ -764,81 +765,86 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
     cellularPortLog("CELLULAR_CTRL_TEST: randomly removing RATs at ranks.\n");
     w = 0;
     while (w < 10) {
-        rank = cellularPort_rand() % (sizeof (setRats) / sizeof (setRats[0]));
-        // Find a RAT that isn't the one that is already set at this rank
-        // ('cos that would be a pointless test)
-        do {
-            rat = allRats[cellularPort_rand() % (sizeof (allRats) / sizeof (allRats[0]))];
+        // Find a rat to change that leaves us with a non-zero number of RATs
+        numRats = 0;
+        while (numRats == 0) {
+            rank = cellularPort_rand() % (sizeof (setRats) / sizeof (setRats[0]));
+            // Find a RAT that isn't the one that is already set at this rank
+            // ('cos that would be a pointless test)
+            do {
+                rat = allRats[cellularPort_rand() % (sizeof (allRats) / sizeof (allRats[0]))];
+            }
+            while (rat == setRats[rank]);
+            
+            // Count the number of RATs left
+            for (size_t y = 0; y < sizeof(setRats) / sizeof(setRats[0]); y++) {
+                ratTmp = setRats[y];
+                if (y == rank) {
+                    ratTmp = rat;
+                }
+                if (ratTmp != CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) {
+                    numRats++;
+                }
+            }
         }
-        while (rat == setRats[rank]);
         setRats[rank] = rat;
 
-        // Count the number of RATs left
-        numRats = 0;
+        w++;
+        cellularPortLog("CELLULAR_CTRL_TEST: changing RAT at rank %d to %d.\n", rank, setRats[rank]);
+        // Do the setting
+        CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRatRank(setRats[rank], rank) == 0);
+        CELLULAR_PORT_TEST_ASSERT(cellularCtrlReboot() == 0);
+        // Remove duplicates from the set RAT list
         for (size_t y = 0; y < sizeof(setRats) / sizeof(setRats[0]); y++) {
-            if (setRats[y] != CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) {
-                numRats++;
+            for (size_t z = y + 1; z < sizeof(setRats) / sizeof(setRats[0]); z++) {
+                if ((setRats[y] > CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) && (setRats[y] == setRats[z])) {
+                    setRats[z] = CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED;
+                }
             }
         }
-        // If there are any left on this occasion...
-        if (numRats > 0) {
-            w++;
-            cellularPortLog("CELLULAR_CTRL_TEST: changing RAT at rank %d to %d.\n", rank, setRats[rank]);
-            // Do the setting
-            CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRatRank(setRats[rank], rank) == 0);
-            CELLULAR_PORT_TEST_ASSERT(cellularCtrlReboot() == 0);
-            // Remove duplicates from the set RAT list
-            for (size_t y = 0; y < sizeof(setRats) / sizeof(setRats[0]); y++) {
-                for (size_t z = y + 1; z < sizeof(setRats) / sizeof(setRats[0]); z++) {
-                    if ((setRats[y] > CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) && (setRats[y] == setRats[z])) {
-                        setRats[z] = CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED;
+        // Sort empty values to the end as the driver does
+        count = 0;
+        for (size_t y = 0; y < sizeof(setRats) / sizeof(setRats[0]); y++) {
+            if (setRats[y] != CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) {
+                setRats[count] = setRats[y];
+                count++;
+            }
+        }
+        for (; count < sizeof(setRats) / sizeof(setRats[0]); count++) {
+            setRats[count] = CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED;
+        }
+        cellularPortLog("CELLULAR_CTRL_TEST: new expected RAT list is:\n");
+        for (size_t y = 0; y < sizeof (setRats) / sizeof (setRats[0]); y++) {
+            cellularPortLog("  rank %d: %d.\n", y, setRats[y]);
+        }
+        // Check that the RATs are as expected
+        cellularPortLog("CELLULAR_CTRL_TEST: checking that the module agrees...\n");
+        for (size_t y = 0; y < sizeof (setRats) / sizeof (setRats[0]); y++) {
+            rat = cellularCtrlGetRat(y);
+            cellularPortLog("  RAT at rank %d is expected to be %d and is %d.\n",
+                            y, setRats[y], rat);
+            CELLULAR_PORT_TEST_ASSERT(rat == setRats[y]);
+        }
+        for (size_t y = 0 ; y < sizeof (allRats) / sizeof (allRats[0]); y++) {
+            if (allRats[y] != CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) {
+                found = -1;
+                for (size_t z = 0; (found < 0) &&
+                                   (z < sizeof (setRats) / sizeof (setRats[0])); z++) {
+                    if (setRats[z] == allRats[y]) {
+                        found = z;
                     }
                 }
-            }
-            // Sort empty values to the end as the driver does
-            count = 0;
-            for (size_t y = 0; y < sizeof(setRats) / sizeof(setRats[0]); y++) {
-                if (setRats[y] != CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) {
-                    setRats[count] = setRats[y];
-                    count++;
-                }
-            }
-            for (; count < sizeof(setRats) / sizeof(setRats[0]); count++) {
-                setRats[count] = CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED;
-            }
-            cellularPortLog("CELLULAR_CTRL_TEST: new expected RAT list is:\n");
-            for (size_t y = 0; y < sizeof (setRats) / sizeof (setRats[0]); y++) {
-                cellularPortLog("  rank %d: %d.\n", y, setRats[y]);
-            }
-            // Check that the RATs are as expected
-            cellularPortLog("CELLULAR_CTRL_TEST: checking that the module agrees...\n");
-            for (size_t y = 0; y < sizeof (setRats) / sizeof (setRats[0]); y++) {
-                rat = cellularCtrlGetRat(y);
-                cellularPortLog("  RAT at rank %d is expected to be %d and is %d.\n",
-                                y, setRats[y], rat);
-                CELLULAR_PORT_TEST_ASSERT(rat == setRats[y]);
-            }
-            for (size_t y = 0 ; y < sizeof (allRats) / sizeof (allRats[0]); y++) {
-                if (allRats[y] != CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED) {
-                    found = -1;
-                    for (size_t z = 0; (found < 0) &&
-                                       (z < sizeof (setRats) / sizeof (setRats[0])); z++) {
-                        if (setRats[z] == allRats[y]) {
-                            found = z;
-                        }
+                rank = cellularCtrlGetRatRank(allRats[y]);
+                if (found < 0) {
+                    if (rank >= 0) {
+                        cellularPortLog("  RAT %d is expected to be not ranked but is ranked at %d.\n",
+                                        allRats[y], rank);
+                        CELLULAR_PORT_TEST_ASSERT(false);
                     }
-                    rank = cellularCtrlGetRatRank(allRats[y]);
-                    if (found < 0) {
-                        if (rank >= 0) {
-                            cellularPortLog("  RAT %d is expected to be not ranked but is ranked at %d.\n",
-                                            allRats[y], rank);
-                            CELLULAR_PORT_TEST_ASSERT(false);
-                        }
-                    } else {
-                        cellularPortLog("  rank of RAT %d is expected to be %d and is %d.\n",
-                                        allRats[y], found, rank);
-                        CELLULAR_PORT_TEST_ASSERT(found == rank);
-                    }
+                } else {
+                    cellularPortLog("  rank of RAT %d is expected to be %d and is %d.\n",
+                                    allRats[y], found, rank);
+                    CELLULAR_PORT_TEST_ASSERT(found == rank);
                 }
             }
         }
