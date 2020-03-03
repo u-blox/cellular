@@ -41,7 +41,7 @@
 
 #ifndef CELLULAR_CFG_RTS_THRESHOLD
 /** The buffer threshold at which RTS is de-asserted, indicating the
- * cellular module should stop sending data to us.  Must bew defined
+ * cellular module should stop sending data to us.  Must be defined
  * if CELLULAR_CFG_WHRE_PIN_RTS is not -1.
  */
 # define CELLULAR_CFG_RTS_THRESHOLD                  128

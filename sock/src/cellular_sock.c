@@ -21,6 +21,7 @@
  */
 
 #include "cellular_port_clib.h"
+#include "cellular_cfg_module.h"
 #include "cellular_cfg_hw.h"
 #include "cellular_cfg_sw.h"
 #include "cellular_port.h"
@@ -1664,6 +1665,55 @@ int32_t cellularSockFcntl(CellularSockDescriptor_t descriptor,
     }
 
     return (int32_t) errorCodeOrReturnValue;
+}
+
+// Configure the given socket's device parameters.
+int32_t cellularSockIoctl(CellularSockDescriptor_t descriptor,
+                          int32_t command,
+                          void *pValue)
+{
+    CellularSockErrorCode_t errorCode = CELLULAR_SOCK_BSD_ERROR;
+    int32_t errno = CELLULAR_SOCK_ENONE;
+    CellularSockContainer_t *pContainer = NULL;
+
+    if (init()) {
+
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
+
+        // Find the container
+        pContainer = pContainerFindByDescriptor(descriptor);
+
+        if (pContainer != NULL) {
+            switch (command) {
+                case CELLULAR_SOCK_IOCTL_SET_NONBLOCK:
+                    if (pValue != NULL) {
+                        pContainer->socket.nonBlocking = (*(int32_t *) pValue != 0);
+                        errorCode = CELLULAR_SOCK_SUCCESS;
+                    }
+                break;
+                default:
+                    // Invalid argument
+                    errno = CELLULAR_SOCK_EINVAL;
+                break;
+            }
+        } else {
+            // Indicate that we weren't passed a valid socket descriptor
+            errno = CELLULAR_SOCK_EBADF;
+        }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
+
+    } else {
+        // The only reason initialisation might fail
+        errno = CELLULAR_SOCK_ENOMEM;
+    }
+
+    if (errno != CELLULAR_SOCK_ENONE) {
+        // Write the errno
+        cellularPort_errno_set(errno);
+    }
+
+    return (int32_t) errorCode;
 }
 
 // Set the options for the given socket.

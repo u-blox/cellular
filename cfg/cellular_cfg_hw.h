@@ -29,10 +29,6 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
-/** Set this to 1 if we are working to a SARA-R4 cellular module.
- */
-#define CELLULAR_CFG_MODULE_SARA_R4            1
-
 /** The ESP32 GPIO output that enables power to the cellular module on
  * the WHRE demo board.
  * -1 is used where there is no such connection.

@@ -179,6 +179,14 @@
 #define CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK 0x00000001
 
 /* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS: IOCTL COMMANDS
+ * -------------------------------------------------------------- */
+
+/** The non-block command. The value matches LWIP.
+ */
+#define CELLULAR_SOCK_IOCTL_SET_NONBLOCK 0x8004667E
+
+/* ----------------------------------------------------------------
  * COMPILE-TIME MACROS: MISC
  * -------------------------------------------------------------- */
 
@@ -408,6 +416,22 @@ void cellularSockCleanUp();
 int32_t cellularSockFcntl(CellularSockDescriptor_t descriptor,
                           int32_t command,
                           int32_t value);
+
+/** Configure the given socket's device parameters.
+ *
+ * @param descriptor the descriptor of the socket.
+ * @param command    the command to be sent.  Only setting
+ *                   FIONBIO (non-blocking) is supported.
+ * @param pValue     a pointer argument relevant to command,
+ *                   e.g. a pointer to the Boolean value of
+ *                   FIONBIO (1 for non-blocking, 0 for blocking).
+ * @return           on success a value that is dependent
+ *                   upon command (in the case of FIONBIO 0)
+ *                   else -1 on error.
+ */
+int32_t cellularSockIoctl(CellularSockDescriptor_t descriptor,
+                          int32_t command,
+                          void *pValue);
 
 /** Set the options for the given socket.  This function obeys
  * the BSD socket conventions and hence, for instance, to set

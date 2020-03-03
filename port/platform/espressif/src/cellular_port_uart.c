@@ -115,7 +115,8 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                                                            CELLULAR_PORT_UART_RX_BUFFER_SIZE,
                                                            CELLULAR_PORT_UART_TX_BUFFER_SIZE,
                                                            CELLULAR_PORT_UART_EVENT_QUEUE_SIZE,
-                                                           pUartQueue, 0);
+                                                           pUartQueue,
+                                                           0);
                             if (espError == ESP_OK) {
                                 errorCode = CELLULAR_PORT_SUCCESS;
                             }
