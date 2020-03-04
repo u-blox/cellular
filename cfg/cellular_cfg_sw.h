@@ -27,26 +27,6 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
-#ifndef CELLULAR_CFG_UART
-/** The UART to use.
- */
-# define CELLULAR_CFG_UART                           1
-#endif
-
-#ifndef CELLULAR_CFG_BAUD_RATE
-/** The baud rate to use on the UART interface to the cellular module.
- */
-# define CELLULAR_CFG_BAUD_RATE                      115200
-#endif
-
-#ifndef CELLULAR_CFG_RTS_THRESHOLD
-/** The buffer threshold at which RTS is de-asserted, indicating the
- * cellular module should stop sending data to us.  Must be defined
- * if CELLULAR_CFG_WHRE_PIN_RTS is not -1.
- */
-# define CELLULAR_CFG_RTS_THRESHOLD                  128
-#endif
-
 #ifndef CELLULAR_CFG_ENABLE_LOGGING
 /** Enable or disable logging from the cellular module.
  */

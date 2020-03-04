@@ -20,10 +20,11 @@
  * cellular_port* to maintain portability.
  */
 
-#include "cellular_port_clib.h"
-#include "cellular_cfg_module.h"
-#include "cellular_cfg_hw.h"
+#include "cellular_cfg_hw.h" // Must come first, as it dictates the module
+                             // type and any board-specific overrides
 #include "cellular_cfg_sw.h"
+#include "cellular_cfg_module.h"
+#include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_debug.h"
 #include "cellular_port_os.h"
@@ -1497,7 +1498,7 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor)
                                             false);
             cellular_ctrl_at_cmd_start("AT+USOCL=");
             cellular_ctrl_at_write_int(pContainer->socket.modemHandle);
-#if CELLULAR_CFG_MODULE_SARA_R4
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
             // If non-blocking, with SARA-R4, which has a long
             // close time due to being strict about waiting
             // for the ack for the ack for the ack for

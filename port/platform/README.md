@@ -1,0 +1,1 @@
+These directories provide the implementation of the porting layer on various platforms.  The `common` directory contains `.c` files that are common to more than one platform (e.g. files for `amazon-freertos` which may be used by `espressif` and also by other platforms that run `amazon-freertos`).

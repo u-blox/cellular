@@ -19,17 +19,26 @@
 
 /* No #includes allowed here */
 
-/* This header file contains configuration information concerning
- * the cellular module.
+/* This header file contains configuration information for all the
+ * possible cellular module types.
  */
 
 /* ----------------------------------------------------------------
- * COMPILE-TIME MACROS
+ * COMPILE-TIME MACROS FOR SARA-R5
  * -------------------------------------------------------------- */
 
-/** Set this to 1 if we are working to a SARA-R4 cellular module.
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS FOR SARA-R4
+ * -------------------------------------------------------------- */
+
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+# ifndef CELLULAR_CFG_BAUD_RATE
+/** The baud rate to use on the UART interface to the SARA-R4
+ * cellular module.
  */
-#define CELLULAR_CFG_MODULE_SARA_R4            1
+#  define CELLULAR_CFG_BAUD_RATE                      115200
+# endif
+#endif
 
 #endif // _CELLULAR_CFG_MODULE_H_
 

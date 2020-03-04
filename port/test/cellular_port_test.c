@@ -20,16 +20,13 @@
  * cellular_port* to maintain portability.
  */
 
-#include "cellular_port_clib.h"
-#include "cellular_cfg_module.h"
-#include "cellular_cfg_hw.h"
 #include "cellular_cfg_sw.h"
+#include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_debug.h"
 #include "cellular_port_os.h"
 #include "cellular_port_uart.h"
 #include "cellular_port_test.h"
-#include "cellular_ctrl.h"
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS

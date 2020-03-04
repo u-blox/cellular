@@ -15,8 +15,6 @@
  */
 
 #include "cellular_port_clib.h"
-#include "cellular_cfg_hw.h"
-#include "cellular_cfg_sw.h"
 #include "cellular_port.h"
 #include "cellular_port_os.h"
 #include "cellular_port_uart.h"
@@ -115,7 +113,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                                                            CELLULAR_PORT_UART_RX_BUFFER_SIZE,
                                                            CELLULAR_PORT_UART_TX_BUFFER_SIZE,
                                                            CELLULAR_PORT_UART_EVENT_QUEUE_SIZE,
-                                                           pUartQueue,
+                                                           (QueueHandle_t *) pUartQueue,
                                                            0);
                             if (espError == ESP_OK) {
                                 errorCode = CELLULAR_PORT_SUCCESS;

@@ -24,6 +24,7 @@
  * must be brought in through cellular_port* to maintain portability.
  */
 
+// Note: no dependency here on HW or module type
 #include "cellular_port_clib.h"
 #include "cellular_sock_errno.h"
 #include "cellular_sock.h"

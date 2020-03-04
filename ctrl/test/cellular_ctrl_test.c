@@ -20,10 +20,11 @@
  * cellular_port* to maintain portability.
  */
 
-#include "cellular_port_clib.h"
-#include "cellular_cfg_module.h"
-#include "cellular_cfg_hw.h"
+#include "cellular_cfg_hw.h" // Must come first, as it dictates the module
+                             // type and any board-specific overrides
 #include "cellular_cfg_sw.h"
+#include "cellular_cfg_module.h"
+#include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_debug.h"
 #include "cellular_port_os.h"
@@ -96,17 +97,17 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
         cellularPortLog("CELLULAR_CTRL_TEST: running power-on and alive tests without VInt.\n");
     }
 
-    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
-                                                   CELLULAR_CFG_WHRE_PIN_RXD,
-                                                   CELLULAR_CFG_WHRE_PIN_CTS,
-                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
 
     cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls before initialisation...\n");
-#if (CELLULAR_CFG_WHRE_PIN_ENABLE_POWER) == -1
+#if (CELLULAR_CFG_PIN_ENABLE_POWER) == -1
     // Should always return true if there isn't a power enable pin
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlIsPowered());
 #endif
@@ -117,8 +118,8 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
     // Should still return false
     CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsAlive());
 
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_CP_ON,
                                                pinVint,
                                                false,
                                                CELLULAR_CFG_UART,
@@ -136,7 +137,7 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
            cellularPortLog(" with cellularCtrlPowerOff(NULL).\n");
         }
         CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsAlive());
-#if (CELLULAR_CFG_WHRE_PIN_ENABLE_POWER) != -1
+#if (CELLULAR_CFG_PIN_ENABLE_POWER) != -1
         CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsPowered());
 #endif
         // TODO Note: only use a NULL pin as we don't support anything
@@ -161,7 +162,7 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
     for (size_t x = 0; x < 2; x++) {
         cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls with cellularCtrlHardPowerOff().\n");
         CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsAlive());
-#if (CELLULAR_CFG_WHRE_PIN_ENABLE_POWER) != -1
+#if (CELLULAR_CFG_PIN_ENABLE_POWER) != -1
         CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsPowered());
 #endif
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
@@ -171,14 +172,14 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
 
     cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls after hard power off.\n");
     CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsAlive());
-#if (CELLULAR_CFG_WHRE_PIN_ENABLE_POWER) != -1
+#if (CELLULAR_CFG_PIN_ENABLE_POWER) != -1
     CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsPowered());
 #endif
 
     cellularCtrlDeinit();
 
     cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls after deinitialisation.\n");
-#if (CELLULAR_CFG_WHRE_PIN_ENABLE_POWER) == -1
+#if (CELLULAR_CFG_PIN_ENABLE_POWER) == -1
     // Should always return true if there isn't a power enable pin
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlIsPowered());
 #endif
@@ -218,17 +219,17 @@ static void connectDisconnect(CellularCtrlRat_t rat)
     }
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
-                                                   CELLULAR_CFG_WHRE_PIN_RXD,
-                                                   CELLULAR_CFG_WHRE_PIN_CTS,
-                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
-                                               CELLULAR_CFG_WHRE_PIN_VINT,
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
                                                queueHandle) == 0);
@@ -405,17 +406,17 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
     CellularPortQueueHandle_t queueHandle;
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
-                                                   CELLULAR_CFG_WHRE_PIN_RXD,
-                                                   CELLULAR_CFG_WHRE_PIN_CTS,
-                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
-                                               CELLULAR_CFG_WHRE_PIN_VINT,
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
                                                queueHandle) == 0);
@@ -437,8 +438,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestPowerAlive(),
 {
     // Should work with and without a VInt pin connected
     cellularCtrlTestPowerAliveVInt(-1);
-#if (CELLULAR_CFG_WHRE_PIN_VINT) != -1
-    cellularCtrlTestPowerAliveVInt(CELLULAR_CFG_WHRE_PIN_VINT);
+#if (CELLULAR_CFG_PIN_VINT) != -1
+    cellularCtrlTestPowerAliveVInt(CELLULAR_CFG_PIN_VINT);
 #endif
 }
 
@@ -452,17 +453,17 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
     int32_t y;
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
-                                                   CELLULAR_CFG_WHRE_PIN_RXD,
-                                                   CELLULAR_CFG_WHRE_PIN_CTS,
-                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
-                                               CELLULAR_CFG_WHRE_PIN_VINT,
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
                                                queueHandle) == 0);
@@ -501,17 +502,17 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
     uint64_t originalMaskNB1;
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
-                                                   CELLULAR_CFG_WHRE_PIN_RXD,
-                                                   CELLULAR_CFG_WHRE_PIN_CTS,
-                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
-                                               CELLULAR_CFG_WHRE_PIN_VINT,
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
                                                queueHandle) == 0);
@@ -585,17 +586,17 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
     bool screwy = false;
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
-                                                   CELLULAR_CFG_WHRE_PIN_RXD,
-                                                   CELLULAR_CFG_WHRE_PIN_CTS,
-                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
-                                               CELLULAR_CFG_WHRE_PIN_VINT,
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
                                                queueHandle) == 0);
@@ -684,17 +685,17 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
     }
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
-                                                   CELLULAR_CFG_WHRE_PIN_RXD,
-                                                   CELLULAR_CFG_WHRE_PIN_CTS,
-                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
-                                               CELLULAR_CFG_WHRE_PIN_VINT,
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
                                                queueHandle) == 0);
@@ -912,17 +913,17 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
     }
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
-                                                   CELLULAR_CFG_WHRE_PIN_RXD,
-                                                   CELLULAR_CFG_WHRE_PIN_CTS,
-                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
-                                               CELLULAR_CFG_WHRE_PIN_VINT,
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
                                                queueHandle) == 0);
@@ -1034,17 +1035,17 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
     }
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
-                                                   CELLULAR_CFG_WHRE_PIN_RXD,
-                                                   CELLULAR_CFG_WHRE_PIN_CTS,
-                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
-                                               CELLULAR_CFG_WHRE_PIN_VINT,
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
                                                queueHandle) == 0);
@@ -1156,17 +1157,17 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadImeiEtc(),
     int32_t y;
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_WHRE_PIN_TXD,
-                                                   CELLULAR_CFG_WHRE_PIN_RXD,
-                                                   CELLULAR_CFG_WHRE_PIN_CTS,
-                                                   CELLULAR_CFG_WHRE_PIN_RTS,
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_WHRE_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_WHRE_PIN_CP_ON,
-                                               CELLULAR_CFG_WHRE_PIN_VINT,
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
                                                queueHandle) == 0);

@@ -461,7 +461,8 @@ CellularCtrlNetworkStatus_t cellularCtrlGetNetworkStatus();
 
 /** Return the RAT that is currently in use.
  *
- * @return the current RAT or -1 on failure.
+ * @return the current RAT or -1 on failure (which means
+ *         that the module is not registered on any RAT).
  */
 int32_t cellularCtrlGetActiveRat();
 
