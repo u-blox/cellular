@@ -16,7 +16,7 @@
 
 /**
  * @file iot_wifi.c
- * @brief Cellular (NOT Wifi!!) Interface.
+ * @brief Cellular (NOT Wifi!!) interface.
  */
 
 #include "FreeRTOS.h"
@@ -26,10 +26,14 @@
 #include "iot_wifi.h"
 #include "cellular_cfg_hw.h"
 #include "cellular_cfg_module.h"
+#include "cellular_cfg_sw.h"
+#include "cellular_port_clib.h"
+#include "cellular_port_debug.h"
 #include "cellular_port.h"
 #include "cellular_port_os.h"
 #include "cellular_port_uart.h"
 #include "cellular_ctrl.h"
+#include "cellular_sock.h" // For cellularSockGetHostByName()
 
 /* WiFi configuration includes. */
 #include "aws_wifi_config.h"
@@ -46,7 +50,7 @@ static bool gInitialised = false;
 static int64_t gStopTimeMS;
 
 // UART queue.
-static CellularPortQueueHandle_t *gpQueueHandle = NULL;
+static CellularPortQueueHandle_t gQueueHandle = NULL;
 
 /*-----------------------------------------------------------*/
 
@@ -69,8 +73,13 @@ BaseType_t WIFI_IsConnected( void )
 {
     BaseType_t xRetVal = pdFALSE;
 
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_IsConnected() called.\n");
+
     if (cellularCtrlGetActiveRat() >= 0) {
         xRetVal = pdTRUE;
+        cellularPortLog("CELLULAR_IOT_WIFI: ...and we are.\n");
+    } else {
+        cellularPortLog("CELLULAR_IOT_WIFI: ...and we are NOT.\n");
     }
 
     return xRetVal;
@@ -79,6 +88,8 @@ BaseType_t WIFI_IsConnected( void )
 // Turn cellular off.
 WIFIReturnCode_t WIFI_Off( void )
 {
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_Off() called.\n");
+
     cellularCtrlPowerOff(NULL);
 
     // In order to ensure thread-safe operation
@@ -94,29 +105,48 @@ WIFIReturnCode_t WIFI_Off( void )
 // for cellular.
 WIFIReturnCode_t WIFI_On( void )
 {
+    int32_t errorCode;
     WIFIReturnCode_t retVal = eWiFiFailure;
 
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_On() called.\n");
+
     if (!gInitialised) {
-        if ((cellularPortInit() == 0) && 
-            (cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
-                                  CELLULAR_CFG_PIN_RXD,
-                                  CELLULAR_CFG_PIN_CTS,
-                                  CELLULAR_CFG_PIN_RTS,
-                                  CELLULAR_CFG_BAUD_RATE,
-                                  CELLULAR_CFG_RTS_THRESHOLD,
-                                  CELLULAR_CFG_UART,
-                                  gpQueueHandle) == 0) &&
-            (cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                              CELLULAR_CFG_PIN_CP_ON,
-                              CELLULAR_CFG_PIN_VINT,
-                              false,
-                              CELLULAR_CFG_UART,
-                              *gpQueueHandle) == 0)) {
-            gInitialised = true;
+        errorCode = cellularPortInit();
+        if (errorCode == 0) {
+            errorCode = cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                             CELLULAR_CFG_PIN_RXD,
+                                             CELLULAR_CFG_PIN_CTS,
+                                             CELLULAR_CFG_PIN_RTS,
+                                             CELLULAR_CFG_BAUD_RATE,
+                                             CELLULAR_CFG_RTS_THRESHOLD,
+                                             CELLULAR_CFG_UART,
+                                             &gQueueHandle);
+            if (errorCode == 0) {
+                errorCode = cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                             CELLULAR_CFG_PIN_CP_ON,
+                                             CELLULAR_CFG_PIN_VINT,
+                                             false,
+                                             CELLULAR_CFG_UART,
+                                             gQueueHandle);
+                if (errorCode == 0) {
+                    gInitialised = true;
+                    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_On() initialised.\n");
+                } else {
+                    cellularPortLog("CELLULAR_IOT_WIFI: cellularCtrlInit() failed (%d).\n",
+                                    errorCode);
+                }
+            } else {
+                cellularPortLog("CELLULAR_IOT_WIFI: cellularPortUartInit() failed (%d).\n",
+                                errorCode);
+            }
+        } else {
+            cellularPortLog("CELLULAR_IOT_WIFI: cellularPortInit() failed (%d).\n",
+                            errorCode);
         }
     }
 
     if (gInitialised && (cellularCtrlPowerOn(NULL) == 0)) {
+        cellularPortLog("CELLULAR_IOT_WIFI: WIFI_On() cellular powered on.\n");
         retVal = eWiFiSuccess;
     }
 
@@ -133,11 +163,15 @@ WIFIReturnCode_t WIFI_ConnectAP( const WIFINetworkParams_t * const pxNetworkPara
     WIFIReturnCode_t retVal = eWiFiFailure;
     const char *pApn = NULL;
 
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_ConnectAP() called.\n");
+
     if ((pxNetworkParams != NULL) && (pxNetworkParams->ucSSIDLength > 0)) {
         pApn = pxNetworkParams->pcSSID;
+        cellularPortLog("CELLULAR_IOT_WIFI: connecting to APN \"%s\".\n", pApn);
     }
 
     gStopTimeMS = cellularPortGetTickTimeMs() + (CELLULAR_CFG_CONNECT_TIMEOUT_SECONDS * 1000);
+
     if (cellularCtrlConnect(keepGoingCallback, pApn, NULL, NULL) == 0) {
         retVal = eWiFiSuccess;
     }
@@ -152,6 +186,8 @@ WIFIReturnCode_t WIFI_Disconnect( void )
 {
     WIFIReturnCode_t xRetVal = eWiFiFailure;
 
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_Disconnect() called.\n");
+
     if (cellularCtrlDisconnect() == 0) {
         xRetVal = eWiFiSuccess;
     }
@@ -165,6 +201,8 @@ WIFIReturnCode_t WIFI_Disconnect( void )
 WIFIReturnCode_t WIFI_Reset( void )
 {
     WIFIReturnCode_t xRetVal = eWiFiFailure;
+
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_Reset() called.\n");
 
     if (cellularCtrlReboot() == 0) {
         xRetVal = eWiFiSuccess;
@@ -184,7 +222,9 @@ WIFIReturnCode_t WIFI_Scan( WIFIScanResult_t * pxBuffer,
     char bssid[wificonfigMAX_BSSID_LEN + 1];
     int32_t mcc;
     int32_t mnc;
- 
+
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_Scan() called.\n");
+
     if ((pxBuffer != NULL) && (ucNumNetworks > 0)) {
         // Zero the buffer
         memset(pxBuffer, 0, sizeof(WIFIScanResult_t) * ucNumNetworks);
@@ -192,17 +232,23 @@ WIFIReturnCode_t WIFI_Scan( WIFIScanResult_t * pxBuffer,
         // Get the operator string
         if (cellularCtrlGetOperatorStr(pxBuffer->cSSID,
                                        sizeof(pxBuffer->cSSID)) > 0) {
+            cellularPortLog("CELLULAR_IOT_WIFI: returning \"%s\" as SSID.\n",
+                            pxBuffer->cSSID);
             // The BSSID field is 6 digits, so we can stuff the MCC/MNC in there
-           if (cellularCtrlGetMccMnc(&mcc, &mnc) == 0) {
-               // Do this in two stages as snprintf() adds a NULL
-               // terminator which we don't have room for in ucBSSID
-               snprintf(bssid, sizeof(bssid), "%03d%03d", mcc, mnc);
-               memcpy(pxBuffer->ucBSSID, bssid, sizeof(pxBuffer->ucBSSID));
-           }
+            if (cellularCtrlGetMccMnc(&mcc, &mnc) == 0) {
+                // Do this in two stages as snprintf() adds a NULL
+                // terminator which we don't have room for in ucBSSID
+                snprintf(bssid, sizeof(bssid), "%03d%03d", mcc, mnc);
+                memcpy(pxBuffer->ucBSSID, bssid, sizeof(pxBuffer->ucBSSID));
+                cellularPortLog("CELLULAR_IOT_WIFI: returning \"%.6s\" (MCC/MNC) as BSSID.\n",
+                                pxBuffer->ucBSSID);
+            }
             // Fill in the RSSI field with the RSRP, 
             // which might just fit most of the time
             if (cellularCtrlRefreshRadioParameters() == 0) {
                 pxBuffer->cRSSI = (int8_t) cellularCtrlGetRsrpDbm();
+                cellularPortLog("CELLULAR_IOT_WIFI: returning %d (RSRP, which might just fit into an int8_t) as RSSI.\n",
+                                pxBuffer->cRSSI);
             }
             // Can't fit anything else in: the EARFCN is larger than
             // an int8_t and xSecurity is meaningless
@@ -222,8 +268,13 @@ WIFIReturnCode_t WIFI_SetMode( WIFIDeviceMode_t xDeviceMode )
 {
     WIFIReturnCode_t xRetVal = eWiFiFailure;
 
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_SetMode() called with mode %d.\n",
+                    xDeviceMode);
+
     if (xDeviceMode == eWiFiModeAP) {
         xRetVal = eWiFiSuccess;
+    } else {
+        cellularPortLog("CELLULAR_IOT_WIFI: ...which is not supported.\n");
     }
 
     return xRetVal;
@@ -236,6 +287,9 @@ WIFIReturnCode_t WIFI_SetMode( WIFIDeviceMode_t xDeviceMode )
 WIFIReturnCode_t WIFI_GetMode( WIFIDeviceMode_t * pxDeviceMode )
 {
     WIFIReturnCode_t xRetVal = eWiFiFailure;
+
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_GetMode() called, returning %d.\n",
+                    eWiFiModeAP);
 
     if (pxDeviceMode != NULL)
     {
@@ -255,6 +309,8 @@ WIFIReturnCode_t WIFI_NetworkAdd( const WIFINetworkProfile_t * const pxNetworkPr
     (void) pxNetworkProfile;
     (void) pusIndex;
 
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_NetworkAdd() called (not supported).\n");
+
     return eWiFiNotSupported;
 }
 
@@ -267,6 +323,8 @@ WIFIReturnCode_t WIFI_NetworkGet( WIFINetworkProfile_t * pxNetworkProfile,
     (void) pxNetworkProfile;
     (void) usIndex;
 
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_NetworkGet() called (not supported).\n");
+
     return eWiFiNotSupported;
 }
 
@@ -276,6 +334,8 @@ WIFIReturnCode_t WIFI_NetworkGet( WIFINetworkProfile_t * pxNetworkProfile,
 WIFIReturnCode_t WIFI_NetworkDelete( uint16_t usIndex )
 {
     (void) usIndex;
+
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_NetworkDelete() called (not supported).\n");
 
     return eWiFiNotSupported;
 }
@@ -291,19 +351,34 @@ WIFIReturnCode_t WIFI_Ping( uint8_t * pucIPAddr,
     (void) usCount;
     (void) ulIntervalMS;
 
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_Ping() called (not supported).\n");
+
     return eWiFiNotSupported;
 }
 
 /*-----------------------------------------------------------*/
 
-// Get the local IP address.
+// Get the local IP address as an array of four uint8_t.
 WIFIReturnCode_t WIFI_GetIP( uint8_t * pucIPAddr )
 {
     WIFIReturnCode_t xRetVal = eWiFiFailure;
+    char buffer[CELLULAR_CTRL_IP_ADDRESS_SIZE];
+    int32_t i[4];
+
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_GetIP() called.\n");
 
     if (pucIPAddr != NULL) {
-        if (cellularCtrlGetIpAddressStr((char *) pucIPAddr) == 0) {
-            xRetVal = eWiFiSuccess;
+        if (cellularCtrlGetIpAddressStr(buffer) == 0) {
+            if (cellularPort_sscanf(buffer, "%d.%d.%d.%d",
+                                    &(i[0]), &(i[1]),
+                                    &(i[2]), &(i[3])) == sizeof(i) / sizeof(i[0])) {
+                for (size_t x = 0; x < sizeof(i) / sizeof(i[0]); x++) {
+                    *(pucIPAddr + x) = (uint8_t) i[x];
+                }
+                cellularPortLog("CELLULAR_IOT_WIFI: WIFI_GetIP() returning %d.%d.%d.%d.\n",
+                                i[0], i[1], i[2], i[3]);
+                xRetVal = eWiFiSuccess;
+            }
         }
     }
 
@@ -318,11 +393,15 @@ WIFIReturnCode_t WIFI_GetMAC( uint8_t * pucMac )
     WIFIReturnCode_t xRetVal = eWiFiFailure;
     char buffer[CELLULAR_CTRL_IMEI_SIZE];
 
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_GetMAC() called.\n");
+
     if (pucMac != NULL) {
         if (cellularCtrlGetImei(buffer) == 0) {
             memcpy(pucMac,
                    buffer + CELLULAR_CTRL_IMEI_SIZE - wificonfigMAX_BSSID_LEN,
                    wificonfigMAX_BSSID_LEN);
+            cellularPortLog("CELLULAR_IOT_WIFI: WIFI_GetMAC() returning last 6 digits of IMEI (\"%.6s\").\n",
+                            pucMac);
             xRetVal = eWiFiSuccess;
         }
     }
@@ -332,14 +411,38 @@ WIFIReturnCode_t WIFI_GetMAC( uint8_t * pucMac )
 
 /*-----------------------------------------------------------*/
 
-// Stub for compatibility only, always returns eWiFiNotSupported.
+// Perform a DNS lookup, returning an IP address as four uint8_t.
 WIFIReturnCode_t WIFI_GetHostIP( char * pcHost,
                                  uint8_t * pucIPAddr )
 {
-    (void) pcHost;
-    (void) pucIPAddr;
+    WIFIReturnCode_t xRetVal = eWiFiFailure;
+    CellularSockIpAddress_t hostIpAddress;
 
-    return eWiFiNotSupported;
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_GetHostIP() called.\n");
+
+    if ((pcHost != NULL) && (pucIPAddr != NULL)) {
+        cellularPortLog("CELLULAR_IOT_WIFI: WIFI_GetHostIP() looking for \"%s\"...\n",
+                        pcHost);
+        if (cellularSockGetHostByName(pcHost,
+                                      &hostIpAddress) == 0) {
+            if (hostIpAddress.type == CELLULAR_SOCK_ADDRESS_TYPE_V4) {
+                *(pucIPAddr + 0) = (uint8_t) (hostIpAddress.address.ipv4 >> 0);
+                *(pucIPAddr + 1) = (uint8_t) (hostIpAddress.address.ipv4 >> 8);
+                *(pucIPAddr + 2) = (uint8_t) (hostIpAddress.address.ipv4 >> 16);
+                *(pucIPAddr + 3) = (uint8_t) (hostIpAddress.address.ipv4 >> 24);
+                xRetVal = eWiFiSuccess;
+                cellularPortLog("CELLULAR_IOT_WIFI: found %d.%d.%d.%d.\n",
+                                *(pucIPAddr + 0), *(pucIPAddr + 1),
+                                *(pucIPAddr + 2), *(pucIPAddr + 3));
+            } else {
+                cellularPortLog("CELLULAR_IOT_WIFI: but found an IPv6 address which there is no room to return.\n");
+            }
+        } else {
+            cellularPortLog("CELLULAR_IOT_WIFI: but couldn't find it.\n");
+        }
+    }
+
+    return xRetVal;
 }
 
 /*-----------------------------------------------------------*/
@@ -347,6 +450,8 @@ WIFIReturnCode_t WIFI_GetHostIP( char * pcHost,
 // Stub for compatibility only, always returns success.
 WIFIReturnCode_t WIFI_StartAP( void )
 {
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_StartAP() called.\n");
+
     return eWiFiSuccess;
 }
 /*-----------------------------------------------------------*/
@@ -354,6 +459,8 @@ WIFIReturnCode_t WIFI_StartAP( void )
 // Stub for compatibility only, always returns success.
 WIFIReturnCode_t WIFI_StopAP( void )
 {
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_StopAP() called.\n");
+
     return eWiFiSuccess;
 }
 
@@ -363,6 +470,8 @@ WIFIReturnCode_t WIFI_StopAP( void )
 WIFIReturnCode_t WIFI_ConfigureAP( const WIFINetworkParams_t * const pxNetworkParams )
 {
     (void) pxNetworkParams;
+
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_ConfigureAP() called.\n");
 
     return eWiFiSuccess;
 }
@@ -375,6 +484,8 @@ WIFIReturnCode_t WIFI_SetPMMode( WIFIPMMode_t xPMModeType,
 {
     (void) xPMModeType;
     (void) pvOptionValue;
+
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_SetPMMode() called.\n");
 
     return eWiFiSuccess;
 }
@@ -390,6 +501,9 @@ WIFIReturnCode_t WIFI_GetPMMode( WIFIPMMode_t * pxPMModeType,
 
     (void) pvOptionValue;
 
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_GetPMMode() called, returning %d.\n",
+                    eWiFiPMAlwaysOn);
+
     if (pxPMModeType != NULL) {
         *pxPMModeType = eWiFiPMAlwaysOn;
         xRetVal = eWiFiSuccess;
@@ -404,6 +518,8 @@ WIFIReturnCode_t WIFI_GetPMMode( WIFIPMMode_t * pxPMModeType,
 WIFIReturnCode_t WIFI_RegisterNetworkStateChangeEventCallback( IotNetworkStateChangeEventCallback_t xCallback  )
 {
     (void) xCallback;
+
+    cellularPortLog("CELLULAR_IOT_WIFI: WIFI_RegisterNetworkStateChangeEventCallback() called.\n");
 
     return eWiFiSuccess;
 }

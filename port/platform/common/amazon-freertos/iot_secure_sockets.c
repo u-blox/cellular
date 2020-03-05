@@ -23,7 +23,6 @@
  * http://www.FreeRTOS.org
  */
 
-
 /**
  * @file iot_secure_sockets.c
  * @brief Cellular and Secure Socket interface implementation.
@@ -36,10 +35,11 @@
 /* Socket and Cellular interface includes. */
 #include "iot_secure_sockets.h"
 
-
 #include "sockets.h"
 #include "netdb.h"
 
+#include "cellular_cfg_sw.h"     // To switch on debug
+#include "cellular_port_debug.h" // For cellularPortLog()
 #include "cellular_sock_lwip_itf.h"
 #include "cellular_sock.h"
 
@@ -284,6 +284,8 @@ Socket_t SOCKETS_Socket( int32_t lDomain,
 {
     ss_ctx_t * ctx;
 
+    cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: SOCKETS_Socket() called.\n");
+
     configASSERT( lDomain == SOCKETS_AF_INET );
     configASSERT( lType == SOCKETS_SOCK_STREAM );
     configASSERT( lProtocol == SOCKETS_IPPROTO_TCP );
@@ -326,6 +328,9 @@ int32_t SOCKETS_Connect( Socket_t xSocket,
                          Socklen_t xAddressLength )
 {
     ss_ctx_t * ctx;
+
+    cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: SOCKETS_Connect() called on socket 0x%08x.\n",
+                    xSocket);
 
     if( SOCKETS_INVALID_SOCKET == xSocket )
     {
@@ -427,6 +432,9 @@ int32_t SOCKETS_Recv( Socket_t xSocket,
 {
     ss_ctx_t * ctx = ( ss_ctx_t * ) xSocket;
 
+    cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: SOCKETS_Recv() called on socket 0x%08x, up to %d byte(s).\n",
+                    xSocket, xBufferLength);
+
     if( SOCKETS_INVALID_SOCKET == xSocket )
     {
         return SOCKETS_SOCKET_ERROR;
@@ -469,6 +477,9 @@ int32_t SOCKETS_Send( Socket_t xSocket,
 {
     ss_ctx_t * ctx;
 
+    cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: SOCKETS_Send() called on socket 0x%08x, %d byte(s).\n",
+                    xSocket, xDataLength);
+
     if( SOCKETS_INVALID_SOCKET == xSocket )
     {
         return SOCKETS_SOCKET_ERROR;
@@ -506,6 +517,9 @@ int32_t SOCKETS_Shutdown( Socket_t xSocket,
     ss_ctx_t * ctx;
     int ret;
 
+    cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: SOCKETS_Shutdown() called on socket 0x%08x, shutdown type %d.\n",
+                    xSocket, ulHow);
+
     if( SOCKETS_INVALID_SOCKET == xSocket )
     {
         return SOCKETS_EINVAL;
@@ -534,8 +548,10 @@ int32_t SOCKETS_Shutdown( Socket_t xSocket,
 int32_t SOCKETS_Close( Socket_t xSocket )
 {
     ss_ctx_t * ctx;
-
     uint32_t ulProtocol;
+
+    cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: SOCKETS_Close() called on socket 0x%08x.\n",
+                    xSocket);
 
     if( SOCKETS_INVALID_SOCKET == xSocket )
     {
@@ -612,6 +628,15 @@ int32_t SOCKETS_SetSockOpt( Socket_t xSocket,
     char ** ppcAlpnIn = ( char ** ) pvOptionValue;
     size_t xLength = 0;
     uint32_t ulProtocol;
+
+    cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: SOCKETS_SetSockOpt() called on socket 0x%08x with command %d:%d.\n",
+                    xSocket, lLevel, lOptionName);
+    if ((pvOptionValue != NULL) && (xOptionLength > 0)) {
+        cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: ...and value (length %d) %d.\n",
+                        xOptionLength, pvOptionValue);
+    } else {
+        cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: ...and no value.\n");
+    }
 
     if( SOCKETS_INVALID_SOCKET == xSocket )
     {
@@ -813,6 +838,9 @@ uint32_t SOCKETS_GetHostByName( const char * pcHostName )
 {
     uint32_t addr = 0;
 
+    cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: SOCKETS_GetHostByName() called on \"%s\".\n",
+                    pcHostName);
+
     if( strlen( pcHostName ) <= ( size_t ) securesocketsMAX_DNS_NAME_LENGTH )
     {
         WIFI_GetHostIP( ( char * ) pcHostName, ( uint8_t * ) &addr );
@@ -831,6 +859,8 @@ uint32_t SOCKETS_GetHostByName( const char * pcHostName )
 BaseType_t SOCKETS_Init( void )
 {
     BaseType_t xResult = pdPASS;
+
+    cellularPortLog("CELLULAR_IOT_SECURE_SOCKETS: SOCKETS_Init() called.\n");
 
     return xResult;
 }

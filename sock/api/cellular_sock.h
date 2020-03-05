@@ -29,7 +29,7 @@
 
 /** The level for socket options. The value matches LWIP.
  */
-#define CELLULAR_SOCK_OPT_LEVEL_SOCK   -1
+#define CELLULAR_SOCK_OPT_LEVEL_SOCK   0x0fff
 
 /** Socket option: turn on debugging info recording.
  * The value matches LWIP.

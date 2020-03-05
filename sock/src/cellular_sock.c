@@ -1728,6 +1728,9 @@ int32_t cellularSockSetOption(CellularSockDescriptor_t descriptor,
     int32_t errno = CELLULAR_SOCK_ENONE;
     CellularSockContainer_t *pContainer = NULL;
 
+    cellularPortLog("CELLULAR_SOCK: cellularSockSetOption() called on socket %d with command %d:0x%04x.\n",
+                    descriptor, level, option);
+
     if (init()) {
 
         CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);

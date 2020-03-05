@@ -172,14 +172,14 @@ target_include_directories(
         "${cellular_dir}/sock/src"
         "${cellular_dir}/port/clib"
         "${cellular_dir}/port/platform/espressif/src"
-        "${cellular_dir}/port/platform/espressif/src/amazon-freertos"
+        "${cellular_dir}/port/platform/common/amazon-freertos"
 )
 endif()
 
 target_sources(
     AFR::wifi::mcu_port
     # This file replaces the original Espressif iot_wifi.c to provide cellular support instead
-    INTERFACE "${cellular_dir}/port/platform/espressif/src/amazon-freertos/iot_wifi.c"
+    INTERFACE "${cellular_dir}/port/platform/common/amazon-freertos/iot_wifi.c"
 )
 
 # BLE
