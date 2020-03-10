@@ -4,7 +4,9 @@ This directory contains the build infrastructure for the Espressif ESP32 platfor
 # Usage
 Follow the instructions to set up Amazon FreeRTOS and build/run it on the ESP32 platform.  Ensure that you can successfully run the standard Wifi-based demonstration of the default "Hello MQTT" demo.
 
-Clone this repo to the same level in your directory as Amazon FreeRTOS, i.e.:
+https://docs.aws.amazon.com/freertos/latest/userguide/getting_started_espressif.html
+
+Clone this repo to the same level in your directory tree as Amazon FreeRTOS, i.e.:
 
 ```
 ..

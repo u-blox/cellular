@@ -5,12 +5,10 @@ This directory contains the build infrastructure for the native Espressif ESP32 
 TODO
 
 # Testing
-If you are using ESP-IDF v3 or earlier, `cd` to the `esp-idf/tools/unit-test-app` directory since all unit tests must be built in that directory.
-
 To build the unit tests execute the following:
 
 ```
-idf.py flash monitor -p COMx -D EXTRA_COMPONENT_DIRS="../../../cellular/port/platform/espressif/sdk/esp-idf" TEST_COMPONENTS="esp-idf"
+idf.py -p COmx -D TEST_COMPONENTS="cellular_tests" flash monitor
 ```
 
 ...where `COMx` is replaced by the COM port to which your ESP32 board is attached. The command adds this directory to ESP-IDF as an ESP-IDF component and requests that the tests for this component are built, downloaded to the board and run.

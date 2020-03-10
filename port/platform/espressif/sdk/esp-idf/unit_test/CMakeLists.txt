@@ -1,10 +1,20 @@
-# For this platform we can simply bring in the generic test
-# source code and map it to the unity framework used by
-# Espressif through the macros in cellular_port_test.h
-set(COMPONENT_SRCS "../../../../../../ctrl/test/cellular_ctrl_test.c"
-                   "../../../../../../sock/test/cellular_sock_test.c"
-                   "../../../../../test/cellular_port_test.c")
-set(COMPONENT_ADD_INCLUDEDIRS ".")
-set(COMPONENT_REQUIRES "unity" "esp-idf")
+# This is the project CMakeLists.txt file for the test subproject
+cmake_minimum_required(VERSION 3.5)
 
-register_component()
+# Include the main stuff in the directories
+# above and the tests component from below;
+# main gets in automagically
+set(EXTRA_COMPONENT_DIRS ".."
+                         "cellular_tests")
+
+# Empty the component list, main will add just what it needs
+set(COMPONENTS "")
+
+# Set the components to include the tests for.
+# This is intended to be overriden in the CMake cache
+# by invoking idf.py with a line of the following form:
+# idf.py -D TEST_COMPONENTS="cellular_test" all
+set(TEST_COMPONENTS "replace-me"  CACHE STRING "Component to test")
+
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(cellular-test)
