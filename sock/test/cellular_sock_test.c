@@ -56,7 +56,7 @@
 #define CELLULAR_SOCK_TEST_MAX_TCP_READ_WRITE_SIZE CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES
 
 // Expected return time for non-blocking operation in ms.
-#define CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS 100
+#define CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS 250
 
 // Margin on timers.
 #define CELLULAR_SOCK_TEST_TIME_MARGIN_MS 100
@@ -282,7 +282,7 @@ bool compareLinger(const void *p1, const void *p2)
 {
     bool result = false;
 
-    result = (((const CellularSockLinger_t *) p1)->l_onoff == ((const CellularSockLinger_t *) p1)->l_onoff);
+    result = (((const CellularSockLinger_t *) p1)->l_onoff == ((const CellularSockLinger_t *) p2)->l_onoff);
     if (((const CellularSockLinger_t *) p1)->l_onoff || ((const CellularSockLinger_t *) p2)->l_onoff) {
         result = (((const CellularSockLinger_t *) p1)->l_linger == ((const CellularSockLinger_t *) p2)->l_linger);
     }
@@ -1944,7 +1944,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoNonPingPong(),
     bool allPacketsReceived;
     bool success;
     int32_t tries = 0;
-    size_t sizeBytes = 0;
+    int32_t sizeBytes = 0;
     size_t offset;
     int32_t x;
     char *pDataReceived;
