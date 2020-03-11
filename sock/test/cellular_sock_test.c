@@ -508,10 +508,10 @@ static void stdDataTestInit(CellularPortQueueHandle_t *pQueueHandle,
     int32_t errorCode;
 
     // Call this here in case a previous test failed:
-    // we're about to cellularCtrlInit() which will
+    // we're about to call cellularCtrlInit() which will
     // remove all the URC handlers so if sockets didn't
     // get to clean up previously they will stop working.
-    cellularSockCleanUp();
+    cellularSockDeinit();
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
@@ -1432,10 +1432,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
     int32_t errorCode;
 
     // Call this here in case a previous test failed:
-    // we're about to cellularCtrlInit() which will
+    // we're about to call cellularCtrlInit() which will
     // remove all the URC handlers so if sockets didn't
     // get to clean up previously they will stop working.
-    cellularSockCleanUp();
+    cellularSockDeinit();
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,

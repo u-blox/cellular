@@ -398,6 +398,15 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor);
  */
 void cellularSockCleanUp();
 
+/** Sockets has no initialisation function, it initialises
+ * itself as required on any call.  If the application requires
+ * sockets to be shut down in an organised way, with all sockets
+ * closed locally, it can be done by calling this function.
+ * It is different from cellularSockCleanUp() in that
+ * all sockets, whatever their state, are closed locally.
+ */
+void cellularSockDeinit();
+
 /* ----------------------------------------------------------------
  * FUNCTIONS: CONFIGURE
  * -------------------------------------------------------------- */

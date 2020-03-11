@@ -1610,6 +1610,54 @@ void cellularSockCleanUp()
     }
 }
 
+// Deinitialise sockets.
+void cellularSockDeinit()
+{
+    CellularSockContainer_t *pContainer = gpContainerListHead;
+    CellularSockContainer_t *pTmp;
+
+    if (gInitialised) {
+
+        CELLULAR_PORT_MUTEX_LOCK(gMutexContainer);
+
+        // Move through the list removing sockets
+        while (pContainer != NULL) {
+            if (!(pContainer->isStatic)) {
+                // If this socket is not static, uncouple it
+                // If there is a previous container, move its pNext
+                if (pContainer->pPrevious != NULL) {
+                    pContainer->pPrevious->pNext = pContainer->pNext;
+                } else {
+                    // If there is no previous container, must be
+                    // at the start of the list so move the head
+                    // pointer on instead
+                    gpContainerListHead = pContainer->pNext;
+                }
+                // If there is a next container, move its pPrevious
+                if (pContainer->pNext != NULL) {
+                    pContainer->pNext->pPrevious = pContainer->pPrevious;
+                }
+
+                // Remember the next pointer
+                pTmp = pContainer->pNext;
+                // Free the memory
+                cellularPort_free(pContainer);
+                // Move to the next entry
+                pContainer = pTmp;
+            } else {
+                pContainer->socket.state = CELLULAR_SOCK_STATE_CLOSED;
+                // Move on
+                pContainer = pContainer->pNext;
+            }
+        }
+
+        // We can now deinit()
+        deinitButNotMutex();
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutexContainer);
+    }
+}
+
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS: CONFIGURE
  * -------------------------------------------------------------- */
