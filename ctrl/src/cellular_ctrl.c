@@ -492,6 +492,20 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
         status = cellular_ctrl_at_read_int();
         if (status >= 0) {
             setNetworkStatus(status);
+        } else {
+            // Dodge for SARA-R4: it's not supposed to
+            // but SARA-R4 can spit-out a "+CEREG: y" URC
+            // while we're waiting for the "+CEREG: x,y"
+            // response from the AT+CEREG command.
+            // If that happens status will be -1 'cos
+            // there's only a single integer in the URC.
+            // So now wait for the actual response
+            cellular_ctrl_at_resp_start("+CEREG:", false);
+            cellular_ctrl_at_read_int();
+            status = cellular_ctrl_at_read_int();
+            if (status >= 0) {
+                setNetworkStatus(status);
+            }
         }
         cellular_ctrl_at_resp_stop();
         cellular_ctrl_at_restore_at_timeout();

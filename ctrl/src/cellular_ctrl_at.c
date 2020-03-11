@@ -757,8 +757,8 @@ static size_t write(const void *data, size_t len)
 #ifdef DEBUG_PRINT_FULL_AT_STRING
         debug_print((const char *) data + write_len, ret);
 #else
-        if (_debug_on && (write_len < DEBUG_MAXLEN)) {
-            if (write_len + ret < DEBUG_MAXLEN) {
+        if (_debug_on && (write_len < CELLULAR_CTRL_AT_DEBUG_MAXLEN)) {
+            if (write_len + ret < CELLULAR_CTRL_AT_DEBUG_MAXLEN) {
                 debug_print((const char *) data + write_len, ret);
             } else {
                 debug_print("...", sizeof("..."));

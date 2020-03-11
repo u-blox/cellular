@@ -171,8 +171,11 @@ static void UUSORD_UUSORF_urc(void *pUnused)
         // Find the container
         pContainer = pContainerFindByModemHandle(modemHandle);
         if (pContainer != NULL) {
-            // Set pending bytes
-            pContainer->socket.pendingBytes = dataSizeBytes;
+            // Add to pending bytes (can't just overwrite the 
+            // value as the receive function may not have
+            // had chance to subtract what it has just read
+            // before this URC runs)
+            pContainer->socket.pendingBytes += dataSizeBytes;
             CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
             if (pContainer->socket.pPendingDataCallback != NULL) {
                 cellular_ctrl_at_urc_callback(pContainer->socket.pPendingDataCallback,
