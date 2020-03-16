@@ -168,7 +168,7 @@ rem Build platform 2: unit tests under latest v4 Espressif SDK on ESP32 W-ROVER 
 :build_platform_2
     set espidf_repo_root=espressif
     echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf^, specify /b to avoid build collisions...
-    set CELLULAR_FLAGS=-DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
+    set CELLULAR_FLAGS=-DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
     echo %~n0: flags set for W-ROVER board to indicate no VINT or Enable Power pins are connected.
     goto build_platform_1_2
 
@@ -216,20 +216,25 @@ rem Build platform 1 or 2: unit tests under v4 Espressif SDK on ESP32 chipset wi
     popd
     echo %~n0: building tests and then downloading them over %com_port%...
     pushd cellular\port\platform\espressif\sdk\esp-idf\unit_test
+    echo %~n0: building in directory %~dp0\%directory%\build\esp-idf-%espidf_repo_root% to keep paths short
     if not "%clean_build%"=="" (
         echo %~n0: build is a clean build.
         @echo on
-        idf.py -p %com_port% -D TEST_COMPONENTS="cellular_tests" fullclean flash
+        idf.py -p %com_port% -B %~dp0\%directory%\build\esp-idf-%espidf_repo_root% -D TEST_COMPONENTS="cellular_tests" fullclean size flash
         @echo off
     ) else (
         @echo on
-        idf.py -p %com_port% -D TEST_COMPONENTS="cellular_tests" flash
+        idf.py -p %com_port% -B %~dp0\%directory%\build\esp-idf-%espidf_repo_root% -D TEST_COMPONENTS="cellular_tests" size flash
         @echo off
     )
     popd
     rem Back to %directory% to run the tests with the Python script there
     popd
-    python %~dp0run_unit_tests_and_detect_outcome.py %com_port% %directory%\unit_tests.log
+    if "%errorlevel%"=="0" (
+        python %~dp0run_unit_tests_and_detect_outcome.py %com_port% %directory%\unit_tests.log %directory%\unit_tests.xml
+    ) else (
+        echo %~n0: ERROR build or download failed.
+    )
     goto build_end
 
 rem Build platform 2: Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board

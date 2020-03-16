@@ -5,9 +5,12 @@ import argparse
 import serial
 import re
 import codecs
+from time import time, ctime
+from math import ceil
 
 # Prefix to put at the start ofall prints
 prompt = "RunEspIdfTests: "
+class_name = "cellular_tests"
 
 # Flag indicating test completion
 finished = False
@@ -17,56 +20,96 @@ reboots = 0
 tests_run = 0
 tests_failed = 0
 tests_ignored = 0
+overall_start_time = 0
+last_start_time = 0
+report_file_handle = None
 
-def rebootCallback(match):
+def reboot_callback(match):
     '''Handler for reboots occuring unexpectedly'''
     global reboots
     print prompt + "progress update - target has rebooted!"
     reboots += 1
     finished = true
 
-def runCallback(match):
+def run_callback(match):
     '''Handler for a test beginning to run'''
     global tests_run
-    print prompt + "progress update - test " + match.group(1) + "() has started."
+    global last_start_time
+    last_start_time = time()
+    print "{}progress update - test {}() started on {}.".\
+          format(prompt, match.group(1), ctime(last_start_time))
+
     tests_run += 1
 
-def passCallback(match):
-    '''Handler for a test passing'''
-    print prompt + "progress update - test " + match.group(1) + "() has passed."
+def write_report_one_test(name, duration, status):
+    if report_file_handle:
+        report_file_handle.write("        <case>\n")
+        report_file_handle.write("            <className>{}</className>\n".format(class_name))
+        report_file_handle.write("            <name>{}</name>\n".format(name))
+        report_file_handle.write("            <status>{}</status>\n".format(status))
+        report_file_handle.write("            <skipped>false</skipped>\n")
+        report_file_handle.write("            <duration>{}</duration>\n".format(duration))
+        report_file_handle.write("        </case>\n")
+        report_file_handle.flush()
 
-def failCallback(match):
+def pass_callback(match):
+    '''Handler for a test passing'''
+    global last_start_time
+    end_time = time()
+    duration = int(ceil(end_time - last_start_time))
+    print "{}progress update - test {}() passed at {} after running for {:.0f} second(s).".\
+          format(prompt, match.group(1), ctime(end_time), ceil(end_time - last_start_time))
+    write_report_one_test(match.group(1), int(ceil(end_time - last_start_time)), "PASSED")
+
+def fail_callback(match):
     '''Handler for a test failing'''
     global tests_failed
-    print prompt + "progress update - test " +  match.group(1) + "() has FAILED."
+    global last_start_time
     tests_failed += 1
+    end_time = time()
+    print "{}progress update - test {}() FAILED at {} after running for {:.0f} second(s).".\
+          format(prompt, match.group(1), ctime(end_time), ceil(end_time - last_start_time))
+    write_report_one_test(match.group(1), int(ceil(end_time - last_start_time)), "FAILED")
 
-def finishCallback(match):
+def finish_callback(match):
     '''Handler for a test run finishing'''
     global tests_run
     global tests_failed
     global tests_ignored
     global finished
-    print prompt + "test run completed, " + match.group(1) + " test(s) run, " + \
-          match.group(2) + " test(s) failed, " + match.group(3) + " tests(s) ignored."
+    global overall_start_time
+    end_time = time()
+    duration_hours = int((end_time - overall_start_time) / 3600)
+    duration_minutes = int(((end_time - overall_start_time) - (duration_hours * 3600)) / 60)
+    duration_seconds = int((end_time - overall_start_time) - (duration_hours * 3600) - (duration_minutes * 60))
     tests_run = int(match.group(1))
     tests_failed = int(match.group(2))
     tests_ignored = int(match.group(3))
+    print "{}test run completed on {}, {}  test(s) run, {} test(s) failed, {} test(s) ignored, test run took {}:{}:{}.". \
+          format(prompt, ctime(end_time),tests_run, tests_failed, tests_ignored, \
+                 duration_hours, duration_minutes, duration_seconds)
+
+    if report_file_handle:
+        report_file_handle.write("    <failCount>{}</failCount>\n".format(tests_failed))
+        report_file_handle.write("    <skipCount>{}</skipCount>\n".format(tests_ignored))
+        report_file_handle.write("    <passCount>{}</passCount>\n".format(tests_run - tests_failed - tests_ignored))
+        report_file_handle.write("    <duration>{}</duration>\n".format(int(end_time - overall_start_time)))
+
     finished = True
 
 # List of regex strings to look for in each line returned by
 # the unit test output and a function to call when the regex
 # is matched.  The regex result is passed to the callback.
 # Regex tested at https://regex101.com/ selecting Python as the flavour
-interesting = [[r"abort()", rebootCallback],
+interesting = [[r"abort()", reboot_callback],
                # Match, for example "Running getSetMnoProfile..." capturing the "getSetMnoProfile" part
-               [r"(?:^Running) +([^\.]+(?=\.))...$", runCallback],
+               [r"(?:^Running) +([^\.]+(?=\.))...$", run_callback],
                # Match, for example "C:/temp/file.c:890:connectedThings:PASS" capturing the "connectThings" part
-               [r"(?:^.*?(?:\.c:))(?:[0-9]*:)(.*?):PASS$", passCallback],
+               [r"(?:^.*?(?:\.c:))(?:[0-9]*:)(.*?):PASS$", pass_callback],
                # Match, for example "C:/temp/file.c:900:tcpEchoAsync:FAIL:Function sock.  Expression Evaluated To FALSE" capturing the "connectThings" part
-               [r"(?:^.*?(?:\.c:))(?:[0-9]*:)(.*?):FAIL:", failCallback],
+               [r"(?:^.*?(?:\.c:))(?:[0-9]*:)(.*?):FAIL:", fail_callback],
                # Match, for example "22 Tests 1 Failures 0 Ignored" capturing the numbers
-               [r"(^[0-9]+) Test(?:s*) ([0-9]+) Failure(?:s*) ([0-9]+) Ignored", finishCallback]]
+               [r"(^[0-9]+) Test(?:s*) ([0-9]+) Failure(?:s*) ([0-9]+) Ignored", finish_callback]]
 
 # Read lines from port, returns the line as
 # a string when terminator or '\n' is encountered.
@@ -112,8 +155,9 @@ def open_port(port_name):
     return port_handle
 
 # Run all the tests.
-def run_all_tests(port_handle, file_handle):
+def run_all_tests(port_handle, log_file_handle):
     '''RunEspIdfTests: run all of the tests'''
+    global overall_start_time
     success = False
     try:
         # First, flush any rubbish out of the COM port
@@ -121,10 +165,12 @@ def run_all_tests(port_handle, file_handle):
         port_handle.read(128)
         line = ""
         # Read the opening splurge from the target
-        while line.find("Press ENTER to see the list of tests.") < 0:
+        # if there is any
+        while line != None and \
+              line.find("Press ENTER to see the list of tests.") < 0:
             line = pwar_readline(port_handle, '\r')
-            if file_handle != None and line != None:
-                file_handle.write(line + "\n")
+            if log_file_handle != None and line != None:
+                log_file_handle.write(line + "\n")
         # For debug purposes, send a newline to the unit
         # test app to get it to list the tests
         print prompt + "listing tests."
@@ -132,11 +178,12 @@ def run_all_tests(port_handle, file_handle):
         line = ""
         while line != None:
             line = pwar_readline(port_handle, '\r')
-            if file_handle != None and line != None:
-                file_handle.write(line + "\n")
+            if log_file_handle != None and line != None:
+                log_file_handle.write(line + "\n")
         # Now send a * in to run all of the tests
         port_handle.write("*\r\n".encode("ascii"))
-        print prompt + "running all tests."
+        overall_start_time = time()
+        print prompt + "run of all tests started on " + ctime(overall_start_time) + "."
         success = True
     except serial.SerialException as ex:
         print prompt + str(type(ex).__name__) + " while accessing " \
@@ -145,14 +192,14 @@ def run_all_tests(port_handle, file_handle):
 
 # Watch the output from the tests being run
 # looking for interesting things
-def watch_tests(port_handle, file_handle):
+def watch_tests(port_handle, log_file_handle):
     '''RunEspIdfTests: watch test output'''
     print prompt + "watching test output until test run completes."
     while not finished:
         line = pwar_readline(port_handle, '\r')
         if line != None:
-            if file_handle != None:
-                file_handle.write(line + "\n")
+            if log_file_handle != None:
+                log_file_handle.write(line + "\n")
             for entry in interesting:
                 match = re.match(entry[0], line)
                 if match:
@@ -173,8 +220,11 @@ if __name__ == "__main__":
                         "the COM port on which the unit test build" \
                         "is communicating, e.g. COM1; the baud rate" \
                         "is fixed at 115,200.")
-    parser.add_argument("file_name", metavar='f', help= \
+    parser.add_argument("log_file_name", metavar='l', help= \
                         "the file name to write test output to;" \
+                        "any existing file will be overwritten.")
+    parser.add_argument("report_file_name", metavar='r', help= \
+                        "the file name to write an XML-format report to;" \
                         "any existing file will be overwritten.")
     args = parser.parse_args()
 
@@ -186,15 +236,29 @@ if __name__ == "__main__":
     # Do the work
     port_handle = open_port(args.port_name)
     if port_handle != None:
-        if args.file_name:
-            file_handle = open(args.file_name, "w")
-            if not file_handle:
+        if args.log_file_name:
+            log_file_handle = open(args.log_file_name, "w")
+            if not log_file_handle:
                 success = False
-                print prompt + "unable to open file " + args.file_name + " for writing."
+                print prompt + "unable to open file " + args.log_file_name + " for writing."
+        if args.report_file_name:
+            report_file_handle = open(args.report_file_name, "w")
+            if not report_file_handle:
+                success = False
+                print prompt + "unable to open file " + args.report_file_name + " for writing."
         if success:
-            if run_all_tests(port_handle, file_handle):
-                watch_tests(port_handle, file_handle)
-        if file_handle:
-            file_handle.close()
+            if report_file_handle:
+                report_file_handle.write("<testResult _class='hudson.tasks.junit.TestResult'>\n")
+                report_file_handle.write("    <suite>\n")
+                report_file_handle.write("        <name>esp-idf</name>\n")
+            if run_all_tests(port_handle, log_file_handle):
+                watch_tests(port_handle, log_file_handle)
+            if report_file_handle:
+                report_file_handle.write("    </suite>\n")
+                report_file_handle.write("</testResult>\n")
+        if report_file_handle:
+            report_file_handle.close()
+        if log_file_handle:
+            log_file_handle.close()
         port_handle.close()
     print prompt + "end."
