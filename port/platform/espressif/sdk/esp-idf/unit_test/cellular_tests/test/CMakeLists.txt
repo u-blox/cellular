@@ -13,3 +13,9 @@ set(COMPONENT_ADD_INCLUDEDIRS "."
 set(COMPONENT_REQUIRES "esp32" "esptool_py" "unity")
 
 register_component()
+
+if (DEFINED ENV{CELLULAR_FLAGS})
+    separate_arguments(CELLULAR_FLAGS NATIVE_COMMAND "$ENV{CELLULAR_FLAGS}")
+    target_compile_options(${COMPONENT_TARGET} PUBLIC ${CELLULAR_FLAGS})
+    message("cellular_tests: added ${CELLULAR_FLAGS} due to environment variable CELLULAR_FLAGS.")
+endif()

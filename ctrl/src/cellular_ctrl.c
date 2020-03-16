@@ -871,14 +871,50 @@ void cellularCtrlPowerOff(bool (*pKeepGoingCallback) (void))
 }
 
 // Remove power to the cellular module.
-void cellularCtrlHardPowerOff()
+void cellularCtrlHardPowerOff(bool trulyHard, bool (*pKeepGoingCallback) (void))
 {
+    bool moduleIsOff = false;
+
     if (gInitialised) {
-        if (gPinEnablePower >= 0) {
+        // If we have control of power and the user
+        // wants a truly hard power off then just do it.
+        if (trulyHard && (gPinEnablePower > 0)) {
             cellularPortGpioSet(gPinEnablePower, 0);
+        } else {
+            // SARA-R412M is powered of by holding the CP_ON pin low
+            // for more than 1.5 seconds
+            cellularPortGpioSet(gPinCpOn, 0);
+            cellularPortTaskBlock(2000);
+            cellularPortGpioSet(gPinCpOn, 1);
+            if (gPinVInt >= 0) {
+                // If we have a VInt pin then wait until that
+                // goes low
+                for (size_t x = 0; (cellularPortGpioGet(gPinVInt) != 0) &&
+                                   (x < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 4) &&
+                                   ((pKeepGoingCallback == NULL) ||
+                                    pKeepGoingCallback()); x++) {
+                    cellularPortTaskBlock(250);
+                }
+            } else {
+                // Wait for the module to stop responding at the AT interface
+                // by poking it with "AT"
+                cellular_ctrl_at_clear_error();
+                cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
+                for (size_t x = 0; !moduleIsOff && (x < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 4) &&
+                                   ((pKeepGoingCallback == NULL) ||
+                                    pKeepGoingCallback()); x++) {
+                    cellular_ctrl_at_cmd_start("AT");
+                    cellular_ctrl_at_cmd_stop_read_resp();
+                    moduleIsOff = (cellular_ctrl_at_get_last_error() != 0);
+                    cellularPortTaskBlock(250);
+                }
+                cellular_ctrl_at_restore_at_timeout();
+            }
+            // Now switch off power if possible
+            if (gPinEnablePower > 0) {
+                cellularPortGpioSet(gPinEnablePower, 0);
+            }
         }
-        cellularPortGpioSet(gPinCpOn, 1);
-        cellularPortTaskBlock(100);
         gAtNumConsecutiveTimeouts = 0;
     }
 }

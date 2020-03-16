@@ -28,7 +28,7 @@ def rebootCallback(match):
 def runCallback(match):
     '''Handler for a test beginning to run'''
     global tests_run
-    print prompt + "progress update - test " + match.group(1) + "() has started to run."
+    print prompt + "progress update - test " + match.group(1) + "() has started."
     tests_run += 1
 
 def passCallback(match):
@@ -52,7 +52,7 @@ def finishCallback(match):
     tests_run = int(match.group(1))
     tests_failed = int(match.group(2))
     tests_ignored = int(match.group(3))
-    finished = true
+    finished = True
 
 # List of regex strings to look for in each line returned by
 # the unit test output and a function to call when the regex
@@ -196,5 +196,5 @@ if __name__ == "__main__":
                 watch_tests(port_handle, file_handle)
         if file_handle:
             file_handle.close()
-        close(port_handle)
+        port_handle.close()
     print prompt + "end."

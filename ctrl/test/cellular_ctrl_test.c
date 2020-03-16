@@ -167,7 +167,7 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
 #endif
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlIsAlive());
-        cellularCtrlHardPowerOff();
+        cellularCtrlHardPowerOff(true, NULL);
     }
 
     cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls after hard power off.\n");
@@ -400,7 +400,7 @@ static void connectDisconnect(CellularCtrlRat_t rat)
 /** Basic test: initialise and then deinitialise everything.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
-                            "initialisation",
+                            "ctrl_initialisation",
                             "ctrl")
 {
     CellularPortQueueHandle_t queueHandle;

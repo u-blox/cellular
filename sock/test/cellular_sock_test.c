@@ -1087,7 +1087,7 @@ static void checkSetOption(CellularSockDescriptor_t sockDescriptor,
 /** Basic test: initialise and then deinitialise everything.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestInitialisation(),
-                            "initialisation",
+                            "sock_initialisation",
                             "sock")
 {
     CellularPortQueueHandle_t queueHandle;

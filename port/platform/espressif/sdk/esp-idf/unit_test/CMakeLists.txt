@@ -1,7 +1,7 @@
 # This is the project CMakeLists.txt file for the test subproject
 cmake_minimum_required(VERSION 3.5)
 
-# Include the main stuff in the directories
+# Include the body of stuff in the directory
 # above and the tests component from below;
 # main gets in automagically
 set(EXTRA_COMPONENT_DIRS ".."

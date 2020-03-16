@@ -280,10 +280,40 @@ int32_t cellularCtrlPowerOn(const char *pPin);
  */
 void cellularCtrlPowerOff(bool (*pKeepGoingCallback) (void));
 
-/** Remove power to the cellular module without waiting for any shutdown-
- * procedure - use only in emergencies.
+/** Remove power to the cellular module using HW lines.
+ *
+ * @param trulyHard          if this is set to true and a
+ *                           non-negative value for pinEnablePower
+ *                           was supplied to cellularCtrlInit()
+ *                           then just pull the power to the
+ *                           cellular module.  ONLY USE IN
+ *                           EMERGENCIES, IF THE CELLULAR MODULE
+ *                           HAS BECOME COMPLETELY UNRESPONSIVE.
+ *                           If a negative value for pinEnablePower
+ *                           was supplied this value is treated
+ *                           as false.
+ * @param pKeepGoingCallback even with HW lines powering the
+ *                           cellular module off it is possible
+ *                           for power off to take some time.
+ *                           If this callback function is
+ *                           non-NULL then it will be called
+ *                           during the power-off process and
+ *                           may be used to feed a watchdog
+ *                           timer.  The callback function
+ *                           should return true to allow the
+ *                           power-off process to be completed
+ *                           normally.  If the callback function
+ *                           returns false then the power-off process
+ *                           will be forced to completion immediately
+ *                           and this function will return.
+ *                           It is advisable for the callback
+ *                           function to always return true,
+ *                           allowing the cellular module to
+ *                           power off cleanly.
+ *                           Ignored if trulyHard is true.
  */
-void cellularCtrlHardPowerOff();
+void cellularCtrlHardPowerOff(bool trulyHard,
+                              bool (*pKeepGoingCallback) (void));
 
 /** Get the number of consecutive AT command timeouts. An excessive
  * number of these may mean that the cellular module has crashed.

@@ -138,7 +138,7 @@ static int32_t sendToQueue(CellularPortQueueHandle_t gQueueHandle,
 /** Basic test: initialise and then deinitialise the porting layer.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestInitialisation(),
-                            "initialisation",
+                            "port_initialisation",
                             "port")
 {
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
