@@ -340,6 +340,8 @@ static CellularCtrlErrorCode_t moduleConfigure()
     cellular_ctrl_at_cmd_stop_read_resp();
     cellular_ctrl_at_cmd_start("AT+UCGED=5"); // Switch on channel and environment reporting for EUTRAN
     cellular_ctrl_at_cmd_stop_read_resp();
+    cellular_ctrl_at_cmd_start("AT+CPSMS=0"); // TODO switch off power saving until it is integrated into this API
+    cellular_ctrl_at_cmd_stop_read_resp();
     cellular_ctrl_at_cmd_start("AT+CFUN=4"); // Stay in airplane mode until commanded to connect,
     cellular_ctrl_at_cmd_stop_read_resp();
     if (cellular_ctrl_at_unlock_return_error() == 0) {

@@ -64,8 +64,8 @@
 #define CELLULAR_SOCK_TCP_RETRY_LIMIT 10
 
 // The timeout value for a socket close operation: quite large,
-// for SARA-R4 as it's waiting for the ack of the ack of the ack.
-#define CELLULAR_SOCK_CLOSE_TIMEOUT_SECONDS 35
+// as the module could be waiting for the ack of the ack of the ack.
+#define CELLULAR_SOCK_CLOSE_TIMEOUT_SECONDS 60
 
 // The value to use for socket-level options when talking to the
 // module (-1 as an int16_t)
@@ -1502,13 +1502,12 @@ int32_t cellularSockClose(CellularSockDescriptor_t descriptor)
             cellular_ctrl_at_cmd_start("AT+USOCL=");
             cellular_ctrl_at_write_int(pContainer->socket.modemHandle);
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
-            // If non-blocking, with SARA-R4, which has a long
-            // close time due to being strict about waiting
-            // for the ack for the ack for the ack for
-            // a connected socket, we can ask for an
-            // asynchronous indication
-            if (pContainer->socket.nonBlocking &&
-               (pContainer->socket.state == CELLULAR_SOCK_STATE_CONNECTED)) {
+            // SARA-R4, can take a long time to close a TCP
+            // socket due to being strict about waiting
+            // for the ack for the ack for the ack, so
+            // ask for an asynchronous indication
+            if ((pContainer->socket.protocol == CELLULAR_SOCK_PROTOCOL_TCP) &&
+                (pContainer->socket.state == CELLULAR_SOCK_STATE_CONNECTED)) {
                 cellular_ctrl_at_write_int(1);
                 finalState = CELLULAR_SOCK_STATE_CLOSING;
             }

@@ -231,13 +231,13 @@ rem Build platform 1 or 2: unit tests under v4 Espressif SDK on ESP32 chipset wi
     rem Back to %directory% to run the tests with the Python script there
     popd
     if "%errorlevel%"=="0" (
-        python %~dp0run_unit_tests_and_detect_outcome.py %com_port% %directory%\unit_tests.log %directory%\unit_tests.xml
+        python %~dp0esp-idf\run_unit_tests_and_detect_outcome.py %com_port% %directory%\unit_tests.log %directory%\unit_tests.xml
     ) else (
         echo %~n0: ERROR build or download failed.
     )
     goto build_end
 
-rem Build platform 2: Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
+rem Build platform 3: Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
 :build_platform_3
     if not "%fetch%"=="" (
         if exist amazon-freertos (
@@ -272,7 +272,7 @@ rem Build platform 2: Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WH
     popd
     goto build_end
 
-rem Build platform 3: Espressif SDK v4 on ESP32 with a SARA-R4 module on a WHRE board talking to AWS
+rem Build platform 4: Espressif SDK v4 on ESP32 with a SARA-R4 module on a WHRE board talking to AWS
 :build_platform_4
     echo %~n0: ERROR: not yet implemented.
     popd

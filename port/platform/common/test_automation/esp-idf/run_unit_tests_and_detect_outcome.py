@@ -57,7 +57,7 @@ def pass_callback(match):
     global last_start_time
     end_time = time()
     duration = int(ceil(end_time - last_start_time))
-    print "{}progress update - test {}() passed at {} after running for {:.0f} second(s).".\
+    print "{}progress update - test {}() passed on {} after running for {:.0f} second(s).".\
           format(prompt, match.group(1), ctime(end_time), ceil(end_time - last_start_time))
     write_report_one_test(match.group(1), int(ceil(end_time - last_start_time)), "PASSED")
 
@@ -85,7 +85,7 @@ def finish_callback(match):
     tests_run = int(match.group(1))
     tests_failed = int(match.group(2))
     tests_ignored = int(match.group(3))
-    print "{}test run completed on {}, {}  test(s) run, {} test(s) failed, {} test(s) ignored, test run took {}:{}:{}.". \
+    print "{}test run completed on {}, {}  test(s) run, {} test(s) failed, {} test(s) ignored, test run took {}:{:02d}:{:02d}.". \
           format(prompt, ctime(end_time),tests_run, tests_failed, tests_ignored, \
                  duration_hours, duration_minutes, duration_seconds)
 

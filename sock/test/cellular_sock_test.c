@@ -1663,7 +1663,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
     cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
-                    (float) elapsedMs);
+                    ((float) elapsedMs) / 1000);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
 
@@ -1899,29 +1899,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
                     ((float) elapsedMs) / 1000);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
-
-    // Finally, SARA-R4 can block for a long time on socket close so do that
-    // while having non-blocking set to test that it is quick.
-    cellularPortLog("CELLULAR_SOCK_TEST: set non-blocking state before closing...\n");
-    returnCode = cellularSockFcntl(sockDescriptor,
-                                  CELLULAR_SOCK_FCNTL_SET_STATUS,
-                                  CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockFcntl() with CELLULAR_SOCK_FCNTL_SET_STATUS and value CELLULAR_SOCK_FCNTL_STATUS_NONBLOCK returned %d, errno %d.\n",
-                    returnCode, cellularPort_errno_get());
-    CELLULAR_PORT_TEST_ASSERT(returnCode == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
-
-    cellularPortLog("CELLULAR_SOCK_TEST: closing socket (may take some time)...\n");
-    startTime = cellularPortGetTickTimeMs();
-    returnCode = cellularSockClose(sockDescriptor);
-    elapsedMs = cellularPortGetTickTimeMs() - startTime;
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockClose() returned %d, errno %d.\n",
-                    returnCode, cellularPort_errno_get());
-    CELLULAR_PORT_TEST_ASSERT(returnCode == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == 0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockClose() took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
-    CELLULAR_PORT_TEST_ASSERT(elapsedMs < CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS);
 
     cellularPortLog("CELLULAR_SOCK_TEST: cleaning up...\n");
     cellularSockCleanUp();

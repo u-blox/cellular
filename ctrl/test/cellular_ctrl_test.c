@@ -430,22 +430,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
     cellularPortTaskBlock(100);
 }
 
-/** Test power on/off and aliveness.
- */
-CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestPowerAlive(),
-                            "powerAndAliveness",
-                            "ctrl")
-{
-    // Should work with and without a VInt pin connected
-    cellularCtrlTestPowerAliveVInt(-1);
-#if (CELLULAR_CFG_PIN_VINT) != -1
-    cellularCtrlTestPowerAliveVInt(CELLULAR_CFG_PIN_VINT);
-#endif
-}
-
 /** Get bandmasks.
  */
-CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
+CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestGetBandMask(),
                             "getBandMask",
                             "ctrl")
 {
@@ -492,7 +479,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
 
 /** Set bandmasks.
  */
-CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
+CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
                             "setBandMask",
                             "ctrl")
 {
@@ -572,6 +559,26 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
     // tasks are actually deleted, required by some
     // operating systems (e.g. freeRTOS)
     cellularPortTaskBlock(100);
+}
+
+/** Test power on/off and aliveness.
+ * Note: it may seem more logical to put this test early on, however
+ * in that case if the previous test run failed, the
+ * modem may be left on and this would cause these tests to
+ * fail as a consequence (since they check that the module
+ * is off at the start).  The bandmask tests, on the other hand,
+ * are pretty solid so putting this test here produces fewer annoying
+ * consequential failures.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestPowerAlive(),
+                            "powerAndAliveness",
+                            "ctrl")
+{
+    // Should work with and without a VInt pin connected
+    cellularCtrlTestPowerAliveVInt(-1);
+#if (CELLULAR_CFG_PIN_VINT) != -1
+    cellularCtrlTestPowerAliveVInt(CELLULAR_CFG_PIN_VINT);
+#endif
 }
 
 /** Test set/get RAT.
