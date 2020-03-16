@@ -6,22 +6,29 @@ setlocal
 
 rem local variables
 set fetch=
-set createdir=
-set cleandir=
-set cleanbuild=
+set create_dir=
+set clean_dir=
+set clean_build=
 set platform_number=
 set platform_string=
 set directory=
 set config_directory=%~dp0config
 set com_port=
+set espidf_repo_root=
+set CELLULAR_FLAGS=
+
+rem need to set this to avoid odd problems with code page cp65001
+rem and Python
+set PYTHONIOENCODING=utf-8
 
 rem Platform descriptions.  If you add a new one, search for "platform_1" in this batch file to 
 rem find all the other places you need to append it.
 rem Note: special characters need to be DOUBLE escaped (i.e. ^^) in these platform descriptions,
-rem see https://www.robvanderwoude.com/escapechars.php for a list of special characters.
-set platform_1=unit tests under latest Espressif SDK on the ESP32 chipset ^^(e.g. NINA-W1^^)^^, with a SARA-R4 module on a WHRE board
-set platform_2=Amazon-FreeRTOS SDK^^, latest version^^, on the ESP32 chipset ^^(e.g. NINA-W1^^)^^, with a SARA-R4 module on a WHRE board
-set platform_3=latest Espressif SDK on the ESP32 chipset ^^(e.g. NINA-W1^^)^^, with a SARA-R4 module on a WHRE board talking to AWS
+rem see https://www.robvanderwoude.com/escapechars.php for a list of characters that need escaping.
+set platform_1=unit tests under v4 Espressif SDK from u-blox clone of repo on NINA-W1 with a SARA-R4 module on a WHRE board
+set platform_2=unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R4 module
+set platform_3=Amazon-FreeRTOS SDK^^, latest version^^, on the ESP32 chipset ^^(e.g. NINA-W1^^)^^, with a SARA-R4 module on a WHRE board
+set platform_4=v4 Espressif SDK on NINA-W1^^, with a SARA-R4 module on a WHRE board talking to AWS
 
 rem Process command line parameters
 set pos=0
@@ -33,11 +40,11 @@ set pos=0
         if "%arg%"=="/f" (
             set fetch=YES
         ) else if "%arg%"=="/d" (
-            set createdir=YES
+            set create_dir=YES
         ) else if "%arg%"=="/c" (
-            set cleandir=YES
+            set clean_dir=YES
         ) else if "%arg%"=="/b" (
-            set cleanbuild=YES
+            set clean_build=YES
         ) else if "%pos%"=="0" (
             set platform_number=%arg%
             set /A pos=pos+1
@@ -65,7 +72,7 @@ if not "%platform_number%"=="" (
 if not "%directory%"=="" (
     echo %~n0: directory is "%directory%".
     if exist "%directory%" (
-        if not "%cleandir%"=="" (
+        if not "%clean_dir%"=="" (
             echo %~n0: cleaning directory...
             del /s /q /f "%directory%\*" 1>nul
             for /f "delims=" %%f in ('dir /ad /b "%directory%"') do rd /s /q "%directory%\%%f" 1>nul
@@ -76,7 +83,7 @@ if not "%directory%"=="" (
     goto usage
 )
 if not exist "%directory%" (
-    if not "%createdir%"=="" (
+    if not "%create_dir%"=="" (
         echo %~n0: directory "%directory%" does not exist, creating it...
         md "%directory%"
         if not exist "%directory%" (
@@ -105,6 +112,9 @@ if "%platform_number%"=="1" (
 ) else if "%platform_number%"=="3" (
     set platform_string=%platform_3%
     goto build_start
+) else if "%platform_number%"=="4" (
+    set platform_string=%platform_4%
+    goto build_start
 ) else (
     echo %~n0: ERROR don't understand platform %platform_number%.
     goto usage
@@ -113,7 +123,7 @@ if "%platform_number%"=="1" (
 rem Build start
 :build_start
     echo.
-    echo %~n0: ######## start of build/test for platform %platform_number%: %platform_string% ########
+    echo ######## start of build/test for platform %platform_number%: %platform_string% ########
     echo.
     echo %~n0: changing directory to "%directory%"...
     pushd "%directory%"
@@ -136,18 +146,34 @@ rem Build start
         goto build_platform_2
     ) else if "%platform_number%"=="3" (
         goto build_platform_3
+    ) else if "%platform_number%"=="4" (
+        goto build_platform_4
     )
 
 rem Build end
 :build_end
-    popd
     echo.
-    echo %~n0: ######## end of build/test for platform %platform_number%: %platform_string% ########
+    echo ######## end of build/test for platform %platform_number%: %platform_string% ########
     echo.
     goto end
 
-rem Build platform 1: unit tests on ESP32 with a SARA-R4 module on a WHRE board
+rem Build platform 1: unit tests under v4 Espressif SDK from u-blox clone of repo on NINA-W1 with a SARA-R4 module on a WHRE board
 :build_platform_1
+    set espidf_repo_root=u-blox
+    set CELLULAR_FLAGS=
+    echo %~n0: will pull v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf ^(using u-blox branch for fix for flash chip version used in NINA-W1^)^, specify /b to avoid build collisions...
+    goto build_platform_1_2
+
+rem Build platform 2: unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R4 module
+:build_platform_2
+    set espidf_repo_root=espressif
+    echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf^, specify /b to avoid build collisions...
+    set CELLULAR_FLAGS=-DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
+    echo %~n0: flags set for W-ROVER board to indicate no VINT or Enable Power pins are connected.
+    goto build_platform_1_2
+
+rem Build platform 1 or 2: unit tests under v4 Espressif SDK on ESP32 chipset with SARA-R4
+:build_platform_1_2
     if not "%fetch%"=="" (
         if exist esp-idf (
             pushd esp-idf
@@ -155,15 +181,15 @@ rem Build platform 1: unit tests on ESP32 with a SARA-R4 module on a WHRE board
             call git pull
             popd
         ) else (
-            echo %~n0: cloning ESP-IDF from https://github.com/u-blox/esp-idf ^(using u-blox branch for fix for flash chip version used in NINA-W1^)...
-            call git clone https://github.com/u-blox/esp-idf.git
+            echo %~n0: cloning ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf into esp-idf-%espidf_repo_root%...
+            call git clone https://github.com/%espidf_repo_root%/esp-idf esp-idf-%espidf_repo_root%
         )
     )
     echo %~n0: setting up paths assuming Python 2.7 is in "C:\Python27"...
     set path=C:\Python27;C:\Python27\Scripts;%path%
-    echo %~n0: ### Print version information start ###
+    echo %~n0: print version information start
     python --version
-    echo %~n0: ### Print version information end ###
+    echo %~n0: print version information end
     echo %~n0: setting environment variables assuming the latest ESP-IDF tools will be installed in C:\Program Files\Espressif\ESP-IDF Tools latest...
     @echo on
     set IDF_TOOLS_PATH=C:\Program Files\Espressif\ESP-IDF Tools latest
@@ -181,8 +207,8 @@ rem Build platform 1: unit tests on ESP32 with a SARA-R4 module on a WHRE board
         echo %~n0: ERROR administrator privileges are required to run the ESP-IDF installation batch file, please run as administrator.
         goto build_end
     )
-    echo %~n0: calling ESP-IDF install.bat from ESP-IDF directory...
-    pushd esp-idf
+    echo %~n0: calling ESP-IDF install.bat from ESP-IDF directory esp-idf-%espidf_repo_root%...
+    pushd esp-idf-%espidf_repo_root%
     echo %~n0: %CD%
     call install.bat
     echo %~n0: calling ESP-IDF export.bat from ESP-IDF directory...
@@ -190,21 +216,24 @@ rem Build platform 1: unit tests on ESP32 with a SARA-R4 module on a WHRE board
     popd
     echo %~n0: building tests and then downloading them over %com_port%...
     pushd cellular\port\platform\espressif\sdk\esp-idf\unit_test
-    if not "%cleanbuild%"=="" (
+    if not "%clean_build%"=="" (
         echo %~n0: build is a clean build.
         @echo on
-        idf.py -c -p %com_port% -D TEST_COMPONENTS="cellular_tests" flash monitor
+        idf.py -p %com_port% -D TEST_COMPONENTS="cellular_tests" fullclean flash
         @echo off
     ) else (
         @echo on
-        idf.py -p %com_port% -D TEST_COMPONENTS="cellular_tests" flash monitor
+        idf.py -p %com_port% -D TEST_COMPONENTS="cellular_tests" flash
         @echo off
     )
     popd
+    rem Back to %directory% to run the tests with the Python script there
+    popd
+    python %~dp0run_unit_tests_and_detect_outcome.py %com_port% %directory%\unit_tests.log
     goto build_end
 
 rem Build platform 2: Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
-:build_platform_2
+:build_platform_3
     if not "%fetch%"=="" (
         if exist amazon-freertos (
             pushd amazon-freertos
@@ -221,12 +250,12 @@ rem Build platform 2: Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WH
     echo %~n0: note: you must have already installed all of these tools (WITHOUT adding them to the path, to do this you may need to
     echo       temporarily add them to the path with the line below) and run both "easy_install awscli" and "easy_install boto3".
     set path=C:\Program Files\Espressif\ESP-IDF Tools for v3.3\mconf-idf;C:\Program Files\Espressif\ESP-IDF Tools for v3.3\tools\bin;C:\Program Files\CMake\bin;C:\Python27;C:\Python27\Scripts;%path%
-    echo %~n0: ### Print version information start ###
+    echo %~n0: print version information start
     xtensa-esp32-elf-gcc --version
     cmake --version
     python --version
-    echo %~n0: ### Print version information end ###
-    echo %~n0: Setting environment variables...
+    echo %~n0: print version information end
+    echo %~n0: setting environment variables...
     @echo on
     set THING_NAME=rob_test
     set IDF_PATH=
@@ -235,11 +264,13 @@ rem Build platform 2: Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WH
     @echo on
     copy "%config_directory%\amazon-freertos\configure.json" amazon-freertos\tools\aws_config_quick_start
     @echo off
+    popd
     goto build_end
 
 rem Build platform 3: Espressif SDK v4 on ESP32 with a SARA-R4 module on a WHRE board talking to AWS
-:build_platform_3
+:build_platform_4
     echo %~n0: ERROR: not yet implemented.
+    popd
     goto build_end
 
 rem Usage string
@@ -258,6 +289,7 @@ rem Usage string
     echo   1: %platform_1%
     echo   2: %platform_2%
     echo   3: %platform_3%
+    echo   4: %platform_4%
     rem Add more here when new SDKs/platforms are integrated
     echo - directory is the directory in which to fetch code and do building/testing.
     echo - comport is the port where the device under test is connected (e.g. COM1).
