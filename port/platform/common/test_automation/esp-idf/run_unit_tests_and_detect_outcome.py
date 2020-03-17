@@ -85,15 +85,15 @@ def finish_callback(match):
     tests_run = int(match.group(1))
     tests_failed = int(match.group(2))
     tests_ignored = int(match.group(3))
-    print "{}test run completed on {}, {}  test(s) run, {} test(s) failed, {} test(s) ignored, test run took {}:{:02d}:{:02d}.". \
+    print "{}test run completed on {}, {} test(s) run, {} test(s) failed, {} test(s) ignored, test run took {}:{:02d}:{:02d}.". \
           format(prompt, ctime(end_time),tests_run, tests_failed, tests_ignored, \
                  duration_hours, duration_minutes, duration_seconds)
 
     if report_file_handle:
-        report_file_handle.write("    <failCount>{}</failCount>\n".format(tests_failed))
-        report_file_handle.write("    <skipCount>{}</skipCount>\n".format(tests_ignored))
-        report_file_handle.write("    <passCount>{}</passCount>\n".format(tests_run - tests_failed - tests_ignored))
-        report_file_handle.write("    <duration>{}</duration>\n".format(int(end_time - overall_start_time)))
+        report_file_handle.write("        <failCount>{}</failCount>\n".format(tests_failed))
+        report_file_handle.write("        <skipCount>{}</skipCount>\n".format(tests_ignored))
+        report_file_handle.write("        <passCount>{}</passCount>\n".format(tests_run - tests_failed - tests_ignored))
+        report_file_handle.write("        <duration>{}</duration>\n".format(int(end_time - overall_start_time)))
 
     finished = True
 

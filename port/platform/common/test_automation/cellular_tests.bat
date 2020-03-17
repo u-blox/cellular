@@ -11,11 +11,12 @@ set clean_dir=
 set clean_build=
 set platform_number=
 set platform_string=
-set directory=
+set code_directory=
 set config_directory=%~dp0config
 set com_port=
 set espidf_repo_root=
 set CELLULAR_FLAGS=
+set return_value=1
 
 rem need to set this to avoid odd problems with code page cp65001
 rem and Python
@@ -49,11 +50,14 @@ set pos=0
             set platform_number=%arg%
             set /A pos=pos+1
         ) else if "%pos%"=="1" (
-            set directory=%arg%
+            set code_directory=%arg%
             set /A pos=pos+1
         ) else if "%pos%"=="2" (
+            set build_directory=%arg%
+            set /A pos=pos+1
+        ) else if "%pos%"=="3" (
             set com_port=%arg%
-            set /A pos=pos+2
+            set /A pos=pos+1
         ) else (
             echo %~n0: ERROR can't understand parameter "%arg%".
             goto usage
@@ -69,29 +73,55 @@ if not "%platform_number%"=="" (
     echo %~n0: ERROR must specify a platform.
     goto usage
 )
-if not "%directory%"=="" (
-    echo %~n0: directory is "%directory%".
-    if exist "%directory%" (
+if not "%code_directory%"=="" (
+    echo %~n0: code directory is "%code_directory%".
+    if exist "%code_directory%" (
         if not "%clean_dir%"=="" (
-            echo %~n0: cleaning directory...
-            del /s /q /f "%directory%\*" 1>nul
-            for /f "delims=" %%f in ('dir /ad /b "%directory%"') do rd /s /q "%directory%\%%f" 1>nul
+            echo %~n0: cleaning code directory...
+            del /s /q /f "%code_directory%\*" 1>nul
+            for /f "delims=" %%f in ('dir /ad /b "%code_directory%"') do rd /s /q "%code_directory%\%%f" 1>nul
         )
     )
 ) else (
-    echo %~n0: ERROR must specify a directory.
+    echo %~n0: ERROR must specify a code directory.
     goto usage
 )
-if not exist "%directory%" (
+if not exist "%code_directory%" (
     if not "%create_dir%"=="" (
-        echo %~n0: directory "%directory%" does not exist, creating it...
-        md "%directory%"
-        if not exist "%directory%" (
-            echo %~n0: ERROR unable to create directory "%directory%" ^(you must use backslash \, not /^).
+        echo %~n0: code_directory "%code_directory%" does not exist, creating it...
+        md "%code_directory%"
+        if not exist "%code_directory%" (
+            echo %~n0: ERROR unable to create code directory "%code_directory%" ^(you must use backslash \, not /^).
             goto usage
         )
     ) else (
-        echo %~n0: ERROR directory "%directory%" does not exist and command-line switch /c was not specified.
+        echo %~n0: ERROR code directory "%code_directory%" does not exist and command-line switch /c was not specified.
+        goto usage
+    )
+)
+if not "%build_directory%"=="" (
+    echo %~n0: build_directory is "%build_directory%".
+    if exist "%build_directory%" (
+        if not "%clean_build%"=="" (
+            echo %~n0: cleaning build directory...
+            del /s /q /f "%build_directory%\*" 1>nul
+            for /f "delims=" %%f in ('dir /ad /b "%build_directory%"') do rd /s /q "%build_directory%\%%f" 1>nul
+        )
+    )
+) else (
+    echo %~n0: ERROR must specify a build directory.
+    goto usage
+)
+if not exist "%build_directory%" (
+    if not "%create_dir%"=="" (
+        echo %~n0: build_directory "%build_directory%" does not exist, creating it...
+        md "%build_directory%"
+        if not exist "%build_directory%" (
+            echo %~n0: ERROR unable to create build directory "%build_directory%" ^(you must use backslash \, not /^).
+            goto usage
+        )
+    ) else (
+        echo %~n0: ERROR build directory "%build_directory%" does not exist and command-line switch /c was not specified.
         goto usage
     )
 )
@@ -125,8 +155,8 @@ rem Build start
     echo.
     echo ######## start of build/test for platform %platform_number%: %platform_string% ########
     echo.
-    echo %~n0: changing directory to "%directory%"...
-    pushd "%directory%"
+    echo %~n0: changing code_directory to "%code_directory%"...
+    pushd "%code_directory%"
     if not "%fetch%"=="" (
         if exist cellular (
             pushd cellular
@@ -207,31 +237,23 @@ rem Build platform 1 or 2: unit tests under v4 Espressif SDK on ESP32 chipset wi
         echo %~n0: ERROR administrator privileges are required to run the ESP-IDF installation batch file, please run as administrator.
         goto build_end
     )
-    echo %~n0: calling ESP-IDF install.bat from ESP-IDF directory esp-idf-%espidf_repo_root%...
+    echo %~n0: calling ESP-IDF install.bat from ESP-IDF code_directory esp-idf-%espidf_repo_root%...
     pushd esp-idf-%espidf_repo_root%
     echo %~n0: %CD%
     call install.bat
-    echo %~n0: calling ESP-IDF export.bat from ESP-IDF directory...
+    echo %~n0: calling ESP-IDF export.bat from ESP-IDF code_directory...
     call export.bat
     popd
     echo %~n0: building tests and then downloading them over %com_port%...
-    pushd cellular\port\platform\espressif\sdk\esp-idf\unit_test
-    echo %~n0: building in directory %~dp0\%directory%\build\esp-idf-%espidf_repo_root% to keep paths short
-    if not "%clean_build%"=="" (
-        echo %~n0: build is a clean build.
-        @echo on
-        idf.py -p %com_port% -B %~dp0\%directory%\build\esp-idf-%espidf_repo_root% -D TEST_COMPONENTS="cellular_tests" fullclean size flash
-        @echo off
-    ) else (
-        @echo on
-        idf.py -p %com_port% -B %~dp0\%directory%\build\esp-idf-%espidf_repo_root% -D TEST_COMPONENTS="cellular_tests" size flash
-        @echo off
-    )
-    popd
-    rem Back to %directory% to run the tests with the Python script there
+    echo %~n0: building in %build_directory%\esp-idf-%espidf_repo_root% to keep paths short
+    @echo on
+    idf.py -p %com_port% -C cellular\port\platform\espressif\sdk\esp-idf\unit_test -B %build_directory%\esp-idf-%espidf_repo_root% -D TEST_COMPONENTS="cellular_tests" size flash
+    @echo off
+    rem Back to where this batch file was called from to run the tests with the Python script there
     popd
     if "%errorlevel%"=="0" (
-        python %~dp0esp-idf\run_unit_tests_and_detect_outcome.py %com_port% %directory%\unit_tests.log %directory%\unit_tests.xml
+        python %~dp0esp-idf\run_unit_tests_and_detect_outcome.py %com_port% %build_directory%\test_results.log %build_directory%\test_results.xml
+        set return_value=0
     ) else (
         echo %~n0: ERROR build or download failed.
     )
@@ -250,7 +272,7 @@ rem Build platform 3: Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WH
             call git clone https://github.com/aws/amazon-freertos.git
         )
     )
-    echo %~n0: setting up paths assuming the V3.3 Espressif tools are in directory "C:\Program Files\Espressif\ESP-IDF Tools for v3.3",
+    echo %~n0: setting up paths assuming the V3.3 Espressif tools are in code_directory "C:\Program Files\Espressif\ESP-IDF Tools for v3.3",
     echo       CMake version 3.13 or later is in "C:\Program Files\CMake" and Python 2.7 is in "C:\Python27"...
     echo %~n0: note: you must have already installed all of these tools (WITHOUT adding them to the path, to do this you may need to
     echo       temporarily add them to the path with the line below) and run both "easy_install awscli" and "easy_install boto3".
@@ -281,14 +303,14 @@ rem Build platform 4: Espressif SDK v4 on ESP32 with a SARA-R4 module on a WHRE 
 rem Usage string
 :usage
     echo.
-    echo Usage: %~n0 [/f /d /c /b] platform directory comport
+    echo Usage: %~n0 [/f /d /c /b] platform code_directory build_directory comport
     echo.
     echo where:
     echo.
     echo - /f indicates that a code fetch should be performed^; if this is NOT specified then all the necessary code is
-    echo   assumed to have already been fetched to directory,
-    echo - /d indicates that directory should be created if it does not exist,
-    echo - /c indicates that directory should be cleaned first,
+    echo   assumed to have already been fetched to code_directory,
+    echo - /d indicates that code and build directories should be created if they do not exist,
+    echo - /c indicates that the code directory should be cleaned first,
     echo - /b indicates that the build directory should be cleaned first,
     echo - platform is a number representing the platform you'd like to test/build for selected from the following:
     echo   1: %platform_1%
@@ -296,7 +318,8 @@ rem Usage string
     echo   3: %platform_3%
     echo   4: %platform_4%
     rem Add more here when new SDKs/platforms are integrated
-    echo - directory is the directory in which to fetch code and do building/testing.
+    echo - code_directory is the directory into which to fetch code.
+    echo - build_directory is the directory in which to do building/testing.
     echo - comport is the port where the device under test is connected (e.g. COM1).
     echo.
     echo Note that the installation of various tools may require administrator privileges and so it is usually
@@ -307,4 +330,4 @@ rem Done
 :end
     echo.
     echo %~n0: end.
-    exit /b
+    exit /b %return_value%
