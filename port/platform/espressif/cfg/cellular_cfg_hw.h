@@ -27,10 +27,6 @@
  * COMPILE-TIME MACROS FOR THE "WHRE" BOARD: MISC
  * -------------------------------------------------------------- */
 
-/** The WHRE board uses a SARA-R4 module.
- */
-#define CELLULAR_CFG_MODULE_SARA_R4
-
 #ifndef CELLULAR_CFG_UART
 /** The UART HW block to use inside the ESP32 chip.
  */

@@ -10,7 +10,6 @@ from math import ceil
 
 # Prefix to put at the start ofall prints
 prompt = "RunEspIdfTests: "
-class_name = "cellular_tests"
 
 # Flag indicating test completion
 finished = False
@@ -22,7 +21,7 @@ tests_failed = 0
 tests_ignored = 0
 overall_start_time = 0
 last_start_time = 0
-report_file_handle = None
+test_outcomes = [] # Name, duration in seconds and status string
 
 def reboot_callback(match):
     '''Handler for reboots occuring unexpectedly'''
@@ -41,16 +40,9 @@ def run_callback(match):
 
     tests_run += 1
 
-def write_report_one_test(name, duration, status):
-    if report_file_handle:
-        report_file_handle.write("        <case>\n")
-        report_file_handle.write("            <className>{}</className>\n".format(class_name))
-        report_file_handle.write("            <name>{}</name>\n".format(name))
-        report_file_handle.write("            <status>{}</status>\n".format(status))
-        report_file_handle.write("            <skipped>false</skipped>\n")
-        report_file_handle.write("            <duration>{}</duration>\n".format(duration))
-        report_file_handle.write("        </case>\n")
-        report_file_handle.flush()
+def record_test_outcome(name, duration, status):
+    outcome = [name, duration, status]
+    test_outcomes.append(outcome)
 
 def pass_callback(match):
     '''Handler for a test passing'''
@@ -59,7 +51,7 @@ def pass_callback(match):
     duration = int(ceil(end_time - last_start_time))
     print "{}progress update - test {}() passed on {} after running for {:.0f} second(s).".\
           format(prompt, match.group(1), ctime(end_time), ceil(end_time - last_start_time))
-    write_report_one_test(match.group(1), int(ceil(end_time - last_start_time)), "PASSED")
+    record_test_outcome(match.group(1), int(ceil(end_time - last_start_time)), "PASS")
 
 def fail_callback(match):
     '''Handler for a test failing'''
@@ -69,7 +61,7 @@ def fail_callback(match):
     end_time = time()
     print "{}progress update - test {}() FAILED at {} after running for {:.0f} second(s).".\
           format(prompt, match.group(1), ctime(end_time), ceil(end_time - last_start_time))
-    write_report_one_test(match.group(1), int(ceil(end_time - last_start_time)), "FAILED")
+    record_test_outcome(match.group(1), int(ceil(end_time - last_start_time)), "FAIL")
 
 def finish_callback(match):
     '''Handler for a test run finishing'''
@@ -88,12 +80,6 @@ def finish_callback(match):
     print "{}test run completed on {}, {} test(s) run, {} test(s) failed, {} test(s) ignored, test run took {}:{:02d}:{:02d}.". \
           format(prompt, ctime(end_time),tests_run, tests_failed, tests_ignored, \
                  duration_hours, duration_minutes, duration_seconds)
-
-    if report_file_handle:
-        report_file_handle.write("        <failCount>{}</failCount>\n".format(tests_failed))
-        report_file_handle.write("        <skipCount>{}</skipCount>\n".format(tests_ignored))
-        report_file_handle.write("        <passCount>{}</passCount>\n".format(tests_run - tests_failed - tests_ignored))
-        report_file_handle.write("        <duration>{}</duration>\n".format(int(end_time - overall_start_time)))
 
     finished = True
 
@@ -247,17 +233,18 @@ if __name__ == "__main__":
                 success = False
                 print prompt + "unable to open file " + args.report_file_name + " for writing."
         if success:
-            if report_file_handle:
-                report_file_handle.write("<testResult _class='hudson.tasks.junit.TestResult'>\n")
-                report_file_handle.write("    <suite>\n")
-                report_file_handle.write("        <name>esp-idf</name>\n")
+            # Run the tests
             if run_all_tests(port_handle, log_file_handle):
                 watch_tests(port_handle, log_file_handle)
+            # Write the report
             if report_file_handle:
-                report_file_handle.write("    </suite>\n")
-                report_file_handle.write("</testResult>\n")
-        if report_file_handle:
-            report_file_handle.close()
+                report_file_handle.write("<testsuite name=\"{}\" tests=\"{}\" failures=\"{}\">\n".\
+                                         format("esp-idf", tests_run, tests_failed))
+                for outcome in test_outcomes:
+                    report_file_handle.write("    <testcase classname=\"{}\" name=\"{}\" time=\"{}\" status=\"{}\"></testcase>\n".\
+                                             format("cellular_tests", outcome[0], outcome[1], outcome[2]))
+                report_file_handle.write("</testsuite>\n")
+                report_file_handle.close()
         if log_file_handle:
             log_file_handle.close()
         port_handle.close()

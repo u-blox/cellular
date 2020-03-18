@@ -2,13 +2,13 @@
 echo This batch file sets up the environment variables for building/testing the cellular driver https://github.com/u-blox/cellular.
 echo.
 
-setlocal
+setlocal EnableDelayedExpansion
 
-rem local variables
+rem Local variables
 set fetch=
 set create_dir=
-set clean_dir=
-set clean_build=
+set clean_code_dir=
+set clean_build_dir=
 set platform_number=
 set platform_string=
 set code_directory=
@@ -18,73 +18,79 @@ set espidf_repo_root=
 set CELLULAR_FLAGS=
 set return_value=1
 
-rem need to set this to avoid odd problems with code page cp65001
+rem Need to set this to avoid odd problems with code page cp65001
 rem and Python
 set PYTHONIOENCODING=utf-8
 
-rem Platform descriptions.  If you add a new one, search for "platform_1" in this batch file to 
-rem find all the other places you need to append it.
-rem Note: special characters need to be DOUBLE escaped (i.e. ^^) in these platform descriptions,
+rem Platform descriptions.  If you add a new one, don't forget to increment num_platforms.
+rem Note: special characters need to be escaped (i.e. ^) in these platform descriptions,
 rem see https://www.robvanderwoude.com/escapechars.php for a list of characters that need escaping.
 set platform_1=unit tests under v4 Espressif SDK from u-blox clone of repo on NINA-W1 with a SARA-R4 module on a WHRE board
 set platform_2=unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R4 module
-set platform_3=Amazon-FreeRTOS SDK^^, latest version^^, on the ESP32 chipset ^^(e.g. NINA-W1^^)^^, with a SARA-R4 module on a WHRE board
-set platform_4=v4 Espressif SDK on NINA-W1^^, with a SARA-R4 module on a WHRE board talking to AWS
+set platform_3=unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R5 module
+set platform_4=Amazon-FreeRTOS SDK^, latest version^, on the ESP32 chipset ^(e.g. NINA-W1^)^, with a SARA-R4 module on a WHRE board
+set platform_5=v4 Espressif SDK on NINA-W1^, with a SARA-R4 module on a WHRE board talking to AWS
+set num_platforms=5
 
 rem Process command line parameters
 set pos=0
-:parameters
-    rem get arg removing quotes from paths (so that we can concatenate paths here)
-    set arg=%~1
-    rem pos represents the number of a positional argument
-    if not "%arg%"=="" (
-        if "%arg%"=="/f" (
-            set fetch=YES
-        ) else if "%arg%"=="/d" (
-            set create_dir=YES
-        ) else if "%arg%"=="/c" (
-            set clean_dir=YES
-        ) else if "%arg%"=="/b" (
-            set clean_build=YES
-        ) else if "%pos%"=="0" (
-            set platform_number=%arg%
-            set /A pos=pos+1
-        ) else if "%pos%"=="1" (
-            set code_directory=%arg%
-            set /A pos=pos+1
-        ) else if "%pos%"=="2" (
-            set build_directory=%arg%
-            set /A pos=pos+1
-        ) else if "%pos%"=="3" (
-            set com_port=%arg%
-            set /A pos=pos+1
-        ) else (
-            echo %~n0: ERROR can't understand parameter "%arg%".
-            goto usage
-        )
-        shift /1
-        goto parameters
+rem Retrieve arg removing quotes from paths (so that we can concatenate paths here)
+set arg=%~1
+rem pos represents the number of a positional argument
+if not "%arg%"=="" (
+    if "%arg%"=="/f" (
+        set fetch=YES
+    ) else if "%arg%"=="/d" (
+        set create_dir=YES
+    ) else if "%arg%"=="/c" (
+        set clean_code_dir=YES
+    ) else if "%arg%"=="/b" (
+        set clean_build_dir=YES
+    ) else if "%pos%"=="0" (
+        set platform_number=%arg%
+        set /A pos=pos+1
+    ) else if "%pos%"=="1" (
+        set code_directory=%arg%
+        set /A pos=pos+1
+    ) else if "%pos%"=="2" (
+        set build_directory=%arg%
+        set /A pos=pos+1
+    ) else if "%pos%"=="3" (
+        set com_port=%arg%
+        set /A pos=pos+1
+    ) else (
+        echo %~n0: ERROR can't understand parameter "%arg%".
+        goto usage
     )
+    shift /1
+    goto parameters
+)
 
-rem Check/report parameters
-if not "%platform_number%"=="" (
-    echo %~n0: platform is %platform_number%.
-) else (
+rem Check platform number and set platform string
+if "%platform_number%"=="" (
     echo %~n0: ERROR must specify a platform.
     goto usage
 )
-if not "%code_directory%"=="" (
-    echo %~n0: code directory is "%code_directory%".
-    if exist "%code_directory%" (
-        if not "%clean_dir%"=="" (
-            echo %~n0: cleaning code directory...
-            del /s /q /f "%code_directory%\*" 1>nul
-            for /f "delims=" %%f in ('dir /ad /b "%code_directory%"') do rd /s /q "%code_directory%\%%f" 1>nul
-        )
-    )
+echo %~n0: platform is %platform_number%.
+if %platform_number% LEQ %num_platforms% (
+    set platform_string=!platform_%platform_number%!
 ) else (
+    echo %~n0: ERROR don't understand platform %platform_number%.
+    goto usage
+)
+
+rem Check code directory, create/clean it if requested
+if "%code_directory%"=="" (
     echo %~n0: ERROR must specify a code directory.
     goto usage
+)
+echo %~n0: code directory is "%code_directory%".
+if exist "%code_directory%" (
+    if not "%clean_code_dir%"=="" (
+        echo %~n0: cleaning code directory...
+        del /s /q /f "%code_directory%\*" 1>nul
+        for /f "delims=" %%f in ('dir /ad /b "%code_directory%"') do rd /s /q "%code_directory%\%%f" 1>nul
+    )
 )
 if not exist "%code_directory%" (
     if not "%create_dir%"=="" (
@@ -99,18 +105,19 @@ if not exist "%code_directory%" (
         goto usage
     )
 )
-if not "%build_directory%"=="" (
-    echo %~n0: build_directory is "%build_directory%".
-    if exist "%build_directory%" (
-        if not "%clean_build%"=="" (
-            echo %~n0: cleaning build directory...
-            del /s /q /f "%build_directory%\*" 1>nul
-            for /f "delims=" %%f in ('dir /ad /b "%build_directory%"') do rd /s /q "%build_directory%\%%f" 1>nul
-        )
-    )
-) else (
+
+rem Check build directory, create/clean it if requested
+if "%build_directory%"=="" (
     echo %~n0: ERROR must specify a build directory.
     goto usage
+)
+echo %~n0: build_directory is "%build_directory%".
+if exist "%build_directory%" (
+    if not "%clean_build_dir%"=="" (
+        echo %~n0: cleaning build directory...
+        del /s /q /f "%build_directory%\*" 1>nul
+        for /f "delims=" %%f in ('dir /ad /b "%build_directory%"') do rd /s /q "%build_directory%\%%f" 1>nul
+    )
 )
 if not exist "%build_directory%" (
     if not "%create_dir%"=="" (
@@ -125,60 +132,34 @@ if not exist "%build_directory%" (
         goto usage
     )
 )
-if not "%com_port%"=="" (
-    echo %~n0: COM port is %com_port%.
-) else (
+
+rem Check COM port
+if "%com_port%"=="" (
     echo %~n0: ERROR must specify a COM port, e.g. COM1.
     goto usage
 )
-
-rem Set the platform
-if "%platform_number%"=="1" (
-    set platform_string=%platform_1%
-    goto build_start
-) else if "%platform_number%"=="2" (
-    set platform_string=%platform_2%
-    goto build_start
-) else if "%platform_number%"=="3" (
-    set platform_string=%platform_3%
-    goto build_start
-) else if "%platform_number%"=="4" (
-    set platform_string=%platform_4%
-    goto build_start
-) else (
-    echo %~n0: ERROR don't understand platform %platform_number%.
-    goto usage
-)
+echo %~n0: COM port is %com_port%.
 
 rem Build start
-:build_start
-    echo.
-    echo ######## start of build/test for platform %platform_number%: %platform_string% ########
-    echo.
-    echo %~n0: changing code_directory to "%code_directory%"...
-    pushd "%code_directory%"
-    if not "%fetch%"=="" (
-        if exist cellular (
-            pushd cellular
-            echo %~n0: updating cellular driver code...
-            call git pull
-            popd
-        ) else (
-            echo %~n0: cloning cellular driver from https://github.com/u-blox/cellular...
-            call git clone https://github.com/u-blox/cellular.git
-        )
+echo.
+echo ######## start of build/test for platform %platform_number%: %platform_string% ########
+echo.
+echo %~n0: changing code_directory to "%code_directory%"...
+pushd "%code_directory%"
+if not "%fetch%"=="" (
+    if exist cellular (
+        pushd cellular
+        echo %~n0: updating cellular driver code...
+        call git pull
+        popd
     ) else (
-        echo %~n0: not fetching any code, just building.
-    )   
-    if "%platform_number%"=="1" (
-        goto build_platform_1
-    ) else if "%platform_number%"=="2" (
-        goto build_platform_2
-    ) else if "%platform_number%"=="3" (
-        goto build_platform_3
-    ) else if "%platform_number%"=="4" (
-        goto build_platform_4
+        echo %~n0: cloning cellular driver from https://github.com/u-blox/cellular...
+        call git clone https://github.com/u-blox/cellular.git
     )
+) else (
+    echo %~n0: not fetching any code, just building.
+)   
+goto build_platform_%platform_number%
 
 rem Build end
 :build_end
@@ -187,23 +168,32 @@ rem Build end
     echo.
     goto end
 
-rem Build platform 1: unit tests under v4 Espressif SDK from u-blox clone of repo on NINA-W1 with a SARA-R4 module on a WHRE board
+rem Build unit tests under v4 Espressif SDK from u-blox clone of repo on NINA-W1 with a SARA-R4 module on a WHRE board
 :build_platform_1
     set espidf_repo_root=u-blox
-    set CELLULAR_FLAGS=
+    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R4
+    echo %~n0: flags set for WHRE board to indicate SARA-R4.
     echo %~n0: will pull v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf ^(using u-blox branch for fix for flash chip version used in NINA-W1^)^, specify /b to avoid build collisions...
-    goto build_platform_1_2
+    goto build_platform_1_2_3
 
-rem Build platform 2: unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R4 module
+rem Build unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R4 module
 :build_platform_2
     set espidf_repo_root=espressif
     echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf^, specify /b to avoid build collisions...
-    set CELLULAR_FLAGS=-DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
-    echo %~n0: flags set for W-ROVER board to indicate no VINT or Enable Power pins are connected.
-    goto build_platform_1_2
+    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R4 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
+    echo %~n0: flags set for W-ROVER board to indicate SARA-R4^, RXD on D19^, TXD on D21^, no VINT or Enable Power pins connected.
+    goto build_platform_1_2_3
 
-rem Build platform 1 or 2: unit tests under v4 Espressif SDK on ESP32 chipset with SARA-R4
-:build_platform_1_2
+rem Build unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R5 module
+:build_platform_3
+    set espidf_repo_root=espressif
+    echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf^, specify /b to avoid build collisions...
+    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
+    echo %~n0: flags set for W-ROVER board to indicate SARA-R5^, RXD on D19^, TXD on D21^, all pins connected up.
+    goto build_platform_1_2_3
+
+rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipset with SARA-R4 or SARA-R5
+:build_platform_1_2_3
     if not "%fetch%"=="" (
         if exist esp-idf (
             pushd esp-idf
@@ -259,8 +249,8 @@ rem Build platform 1 or 2: unit tests under v4 Espressif SDK on ESP32 chipset wi
     )
     goto build_end
 
-rem Build platform 3: Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
-:build_platform_3
+rem Build Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
+:build_platform_4
     if not "%fetch%"=="" (
         if exist amazon-freertos (
             pushd amazon-freertos
@@ -294,8 +284,8 @@ rem Build platform 3: Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WH
     popd
     goto build_end
 
-rem Build platform 4: Espressif SDK v4 on ESP32 with a SARA-R4 module on a WHRE board talking to AWS
-:build_platform_4
+rem Build Espressif SDK v4 on ESP32 with a SARA-R4 module on a WHRE board talking to AWS
+:build_platform_5
     echo %~n0: ERROR: not yet implemented.
     popd
     goto build_end
@@ -312,12 +302,8 @@ rem Usage string
     echo - /d indicates that code and build directories should be created if they do not exist,
     echo - /c indicates that the code directory should be cleaned first,
     echo - /b indicates that the build directory should be cleaned first,
-    echo - platform is a number representing the platform you'd like to test/build for selected from the following:
-    echo   1: %platform_1%
-    echo   2: %platform_2%
-    echo   3: %platform_3%
-    echo   4: %platform_4%
-    rem Add more here when new SDKs/platforms are integrated
+    echo - platform is a number representing the platform you'd like to build/test for selected from the following:
+    for /L %%a in (1,1,!num_platforms!) do echo   %%a: !platform_%%a!
     echo - code_directory is the directory into which to fetch code.
     echo - build_directory is the directory in which to do building/testing.
     echo - comport is the port where the device under test is connected (e.g. COM1).

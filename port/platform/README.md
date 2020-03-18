@@ -9,7 +9,6 @@ Each platform directory will include the following sub-directories:
 - `sdk` - build files for the SDKs on which that platform can be used.
 - `src` - the `.c` files that implement the porting layer for that platform.
 - `cfg` - definitions for the specific HW on which that platform is supported.  This shall include, as a minimum:
-  - a #define for the cellular module type to use (e.g. `CELLULAR_CFG_MODULE_SARA_R4`),
   - the following pins, where -1 is used to indicate that there is no such pin:
     - `CELLULAR_CFG_PIN_ENABLE_POWER` the GPIO output pin that enables power to the cellular module, may be -1.
     - `CELLULAR_CFG_PIN_CP_ON` the GPIO output pin that is connected to the CP_ON pin of the cellular module.
