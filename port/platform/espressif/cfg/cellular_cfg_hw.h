@@ -36,9 +36,10 @@
 #ifndef CELLULAR_CFG_RTS_THRESHOLD
 /** The buffer threshold at which RTS is de-asserted, indicating the
  * cellular module should stop sending data to us.  Must be defined
- * if CELLULAR_CFG_WHRE_PIN_RTS is not -1.
+ * if CELLULAR_CFG_PIN_RTS is not -1.
+ * Must be less than UART_FIFO_LEN, which is 128.
  */
-# define CELLULAR_CFG_RTS_THRESHOLD                  128
+# define CELLULAR_CFG_RTS_THRESHOLD                  100
 #endif
 
 /* ----------------------------------------------------------------
@@ -95,7 +96,7 @@
  * can send more data to NINA-W1 on the WHRE demo board.
  * -1 is used where there is no such connection.
  * If this is *not* -1 then be sure to set up
- * CELLULAR_CFG_RTS_THRESHOLD in cellular_cfg_sw.h also.
+ * CELLULAR_CFG_RTS_THRESHOLD also.
  */
 # define CELLULAR_CFG_PIN_RTS              -1
 #endif
