@@ -18,4 +18,4 @@ Each platform directory will include the following sub-directories:
     - `CELLULAR_CFG_PIN_CTS` the GPIO input pin that the cellular module will use to indicate that it is ready to receive data on `CELLULAR_CFG_PIN_TXD`, may be -1.
     - `CELLULAR_CFG_PIN_RTS` the GPIO output pin that tells the cellular module that it can send more data on `CELLULAR_CFG_PIN_RXD`, may be -1.
   - `CELLULAR_CFG_UART` the UART HW block to use inside the chipset.
-  - `CELLULAR_CFG_RTS_THRESHOLD` the buffer threshold at which RTS is deasserted to stop the cellular module sending data to into the UART, must be specified if `CELLULAR_CFG_WHRE_PIN_RTS` is not -1.
+  - `CELLULAR_CFG_RTS_THRESHOLD` the buffer threshold at which RTS is deasserted to stop the cellular module sending data to into the UART, must be specified if `CELLULAR_CFG_PIN_RTS` is not -1.

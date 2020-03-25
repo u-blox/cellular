@@ -19,6 +19,18 @@ Note: you may put this repo in a different location but if you do so you will ne
 
 With this done, find the `CMakeLists.txt` file in the `vendors\espressif\boards\esp32` directory of Amazon FreeRTOS.  Make a back-up of it and then overwrite it with the `CMakeLists.txt` file from this directory.
 
+To define which cellular module you are using (e.g. one of `CELLULAR_CFG_MODULE_SARA_R4` or `CELLULAR_CFG_MODULE_SARA_R5`).  Create an environment variaable called `CELLULAR_FLAGS` and set it to be that module name in the form:
+
+```
+set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5
+```
+
+Clumsy, I know, but it was the only way I could find to pass adhoc conditional compilation flags into CMake via the command-line.  You can overried any other parameters in there, it's just a list, so for instance if you wanted to sat  that there's no "enable power" capability on your board you might use:
+
+```
+set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
+```
+
 Follow the Amazon FreeRTOS build instructions for your platform but add the parameter `-DAFR_ESP_LWIP=1` to the CMake build line, i.e. so that the environment variable `AFR_ESP_LWIP` is defined for the compiler and set to 1.  On Windows this would be something like:
 
 ```

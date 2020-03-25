@@ -26,6 +26,21 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
+/** On some platforms we need to run a timer to get our 64-bit
+ * tick timer.  This specifies the timer instance to use for that.
+ */
+#ifndef CELLULAR_PORT_TICK_TIMER_INSTANCE
+# define CELLULAR_PORT_TICK_TIMER_INSTANCE 0
+#endif
+
+/** On some platforms (e.g. NRF52840) a capture/compare register
+ * needs to be used when reading a timer instance.
+ * This specifies the capture compare register to use for that.
+ */
+#ifndef CELLULAR_PORT_TICK_TIMER_CC_INSTANCE
+# define CELLULAR_PORT_TICK_TIMER_CC_INSTANCE 0
+#endif
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -56,6 +71,16 @@ int32_t cellularPortInit();
 /** Deinitialise the porting layer.
  */
 void cellularPortDeinit();
+
+/** Get the current OS tick converted to a time in milliseconds.
+ * This is guaranteed to be unaffected by any time setting activity
+ * It is NOT maintained while the processor is sleeping; port
+ * initialisation must be called on return from sleep and
+ * that will restart this time from zero once more.
+ *
+ * @return the current OS tick converted to milliseconds.
+ */
+int64_t cellularPortGetTickTimeMs();
 
 #endif // _CELLULAR_PORT_H_
 

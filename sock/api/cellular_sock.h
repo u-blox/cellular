@@ -23,6 +23,11 @@
  * functions are thread-safe.
  */
 
+/* IMPORTANT: this API is still in the process of definition, anything
+ * may change, beware!  We aim to have it settled by the middle of 2020,
+ * COVID 19 permitting.
+ */
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS: SOCKET OPTIONS FOR SOCKET LEVEL (-1)
  * -------------------------------------------------------------- */

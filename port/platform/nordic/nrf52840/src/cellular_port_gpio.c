@@ -18,8 +18,8 @@
 #include "cellular_port.h"
 #include "cellular_port_gpio.h"
 
-#include "driver/gpio.h"
-#include "driver/rtc_io.h"
+#include "nrf.h"
+#include "nrf_gpio.h"
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -46,115 +46,118 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
 {
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
     bool badConfig = false;
-    gpio_config_t config;
+    nrf_gpio_pin_dir_t direction = CELLULAR_PORT_GPIO_DIRECTION_NONE;
+    nrf_gpio_pin_input_t input = NRF_GPIO_PIN_INPUT_DISCONNECT;
+    nrf_gpio_pin_pull_t pullMode = NRF_GPIO_PIN_NOPULL;
+    nrf_gpio_pin_drive_t driveMode = GPIO_PIN_CNF_DRIVE_S0S1;
 
     if (pConfig != NULL) {
-        // Set the things that won't change
-        config.intr_type = GPIO_PIN_INTR_DISABLE;
-
         // Set the direction and drive mode
         switch (pConfig->direction) {
             case CELLULAR_PORT_GPIO_DIRECTION_NONE:
-                config.mode = GPIO_MODE_DISABLE;
+                // Do nothing here, disconnect is later
             break;
             case CELLULAR_PORT_GPIO_DIRECTION_INPUT:
-                config.mode = GPIO_MODE_INPUT;
+                direction = NRF_GPIO_PIN_DIR_INPUT;
             break;
             case CELLULAR_PORT_GPIO_DIRECTION_OUTPUT:
-                config.mode = GPIO_MODE_OUTPUT;
-                if (pConfig->driveMode == CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN) {
-                    config.mode = GPIO_MODE_OUTPUT_OD;
-                }
+                direction = NRF_GPIO_PIN_DIR_OUTPUT;
             break;
             case CELLULAR_PORT_GPIO_DIRECTION_INPUT_OUTPUT:
-                config.mode = GPIO_MODE_INPUT_OUTPUT;
-                if (pConfig->driveMode == CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN) {
-                    config.mode = GPIO_MODE_INPUT_OUTPUT_OD;
+                direction = NRF_GPIO_PIN_DIR_OUTPUT;
+                input = NRF_GPIO_PIN_INPUT_CONNECT;
+            break;
+            default:
+                badConfig = true;
+            break;
+        }
+
+        // Set pull up/down
+        switch (pConfig->pullMode) {
+            case CELLULAR_PORT_GPIO_PULL_MODE_NONE:
+                // No need to do anything
+            break;
+            case CELLULAR_PORT_GPIO_PULL_MODE_PULL_UP:
+                pullMode = NRF_GPIO_PIN_PULLUP;
+            break;
+            case CELLULAR_PORT_GPIO_PULL_MODE_PULL_DOWN:
+                pullMode = NRF_GPIO_PIN_PULLDOWN;
+            break;
+            default:
+                badConfig = true;
+            break;
+        }
+
+        // Set the drive strength
+        switch (pConfig->driveCapability) {
+            case CELLULAR_PORT_GPIO_DRIVE_CAPABILITY_WEAKEST:
+            case CELLULAR_PORT_GPIO_DRIVE_CAPABILITY_WEAK:
+                // No need to do anything
+            break;
+            case CELLULAR_PORT_GPIO_DRIVE_CAPABILITY_STRONG:
+            case CELLULAR_PORT_GPIO_DRIVE_CAPABILITY_STRONGEST:
+                driveMode = NRF_GPIO_PIN_H0H1;
+            break;
+            default:
+                badConfig = true;
+            break;
+        }
+
+        // Set the drive mode
+        switch (pConfig->driveMode) {
+            case CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL:
+                // No need to do anything
+            break;
+            case CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN:
+                switch (driveMode) {
+                    case NRF_GPIO_PIN_S0S1:
+                        driveMode = NRF_GPIO_PIN_S0D1;
+                    break;
+                    case NRF_GPIO_PIN_H0H1:
+                        driveMode = NRF_GPIO_PIN_H0D1;
+                    break;
+                    default:
+                        badConfig = true;
+                    break;
                 }
             break;
             default:
                 badConfig = true;
             break;
         }
-
-        // Set the pull up/down:
-        // Note that pulling both up and down is apparently
-        // valid for ESP32
-        config.pull_down_en = 0;
-        config.pull_up_en = 0;
-        switch (pConfig->pullMode) {
-            case CELLULAR_PORT_GPIO_PULL_MODE_NONE:
-            break;
-            case CELLULAR_PORT_GPIO_PULL_MODE_PULL_UP:
-                config.pull_up_en = 1;
-            break;
-            case CELLULAR_PORT_GPIO_PULL_MODE_PULL_DOWN:
-                config.pull_down_en = 1;
-            break;
-            default:
-                badConfig = true;
-            break;
-        }
-
-        // Set the pin
-        config.pin_bit_mask = 1ULL << pConfig->pin;
 
         // Actually do the configuration
         if (!badConfig) {
-            errorCode = CELLULAR_PORT_PLATFORM_ERROR;
-            if (gpio_config(&config) == ESP_OK) {
-                errorCode = CELLULAR_PORT_SUCCESS;
+            if (pConfig->direction == CELLULAR_PORT_GPIO_DIRECTION_NONE) {
+                nrf_gpio_input_disconnect(pConfig->pin);
+            } else {
+                nrf_gpio_cfg(pConfig->pin, direction, input,
+                             pullMode, driveMode,
+                             NRF_GPIO_PIN_NOSENSE);
             }
+            errorCode = CELLULAR_PORT_SUCCESS;
         }
     }
 
     return (int32_t) errorCode;
 }
 
-// Set the state of a GPIO, taking into account
-// holding the pin during sleep.  Note that for this
-// to work during DEEP sleep the application must called
-// gpio_deep_sleep_hold_en() prior to entering deep sleep.
+// Set the state of a GPIO.
 int32_t cellularPortGpioSet(int32_t pin, int32_t level)
 {
-    CellularPortErrorCode_t errorCode = CELLULAR_PORT_PLATFORM_ERROR;
-    esp_err_t espError;
-
-    // In case we've just come out of deep sleep set
-    // the level here as otherwise disabling hold 
-    // will return the pin to its default level
-    espError = gpio_set_level(pin, level);
-    if (espError == ESP_OK) {
-        // Now disable hold
-        if (rtc_gpio_is_valid_gpio(pin)) {
-            espError = rtc_gpio_hold_dis(pin);
-        } else {
-            espError = gpio_hold_dis(pin);
-        }
-        if (espError == ESP_OK) {
-            // Set the new level
-            espError = gpio_set_level(pin, level);
-            if (espError == ESP_OK) {
-                // Re-enable hold
-                if (rtc_gpio_is_valid_gpio(pin)) {
-                    espError = rtc_gpio_hold_en(pin);
-                } else {
-                    espError = gpio_hold_en(pin);
-                }
-                if (espError == ESP_OK) {
-                    errorCode = CELLULAR_PORT_SUCCESS;
-                }
-            }
-        }
+    if (level != 0) {
+        nrf_gpio_pin_set(pin);
+    } else {
+        nrf_gpio_pin_clear(pin);
     }
 
-    return (int32_t) errorCode;
+    return (int32_t) CELLULAR_PORT_SUCCESS;
 }
 
 // Get the state of a GPIO.
 int32_t cellularPortGpioGet(int32_t pin)
 {
-    return gpio_get_level(pin);
+    return nrf_gpio_pin_read(pin);
 }
 
 // End of file

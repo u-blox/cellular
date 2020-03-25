@@ -58,6 +58,17 @@ typedef enum {
     MAX_NUM_CELLULAR_PORT_GPIO_DRIVE_MODES
 } CellularPortGpioDriveMode_t;
 
+/** The possible GPIO drive capabilities.
+ * A number from 0 to 3 where 0 is weakest.
+ */
+typedef enum {
+    CELLULAR_PORT_GPIO_DRIVE_CAPABILITY_WEAKEST = 0,
+    CELLULAR_PORT_GPIO_DRIVE_CAPABILITY_WEAK = 1,
+    CELLULAR_PORT_GPIO_DRIVE_CAPABILITY_STRONG = 2,
+    CELLULAR_PORT_GPIO_DRIVE_CAPABILITY_STRONGEST = 3,
+    MAX_NUM_CELLULAR_PORT_GPIO_DRIVE_CAPABILITIES
+} CellularPortGpioDriveCapability_t;
+
 /** GPIO configuration structure.
  * If you update this, don't forget to update
  * CELLULAR_PORT_GPIO_CONFIG_DEFAULT also.
@@ -67,6 +78,7 @@ typedef struct {
     CellularPortGpioDirection_t direction;
     CellularPortGpioPullMode_t pullMode;
     CellularPortGpioDriveMode_t driveMode;
+    CellularPortGpioDriveCapability_t driveCapability;
 } CellularPortGpioConfig_t;
 
 /** Default values for the above.
@@ -74,7 +86,8 @@ typedef struct {
 #define CELLULAR_PORT_GPIO_CONFIG_DEFAULT {-1, \
                                            CELLULAR_PORT_GPIO_DIRECTION_NONE,    \
                                            CELLULAR_PORT_GPIO_PULL_MODE_NONE,    \
-                                           CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL}
+                                           CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL, \
+                                           CELLULAR_PORT_GPIO_DRIVE_CAPABILITY_STRONG}
 
 /* ----------------------------------------------------------------
  * FUNCTIONS

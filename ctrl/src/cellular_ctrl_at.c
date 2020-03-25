@@ -1538,7 +1538,7 @@ cellular_ctrl_at_device_err_t cellular_ctrl_at_get_last_device_error()
     return _last_at_error;
 }
 
-int cellular_ctrl_at_get_3gpp_error()
+int32_t cellular_ctrl_at_get_3gpp_error()
 {
     return _last_3gpp_error;
 }
@@ -1797,7 +1797,7 @@ void cellular_ctrl_at_flush()
     }
 }
 
-bool cellular_ctrl_at_sync(int timeout_ms)
+bool cellular_ctrl_at_sync(int32_t timeout_ms)
 {
     if (_uart >= 0) {
         cellularPortLog("CELLULAR_AT: sync.\n");

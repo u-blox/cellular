@@ -1,3 +1,5 @@
+IMPORTANT: the APIs implemented here are still in the process of definition, anything may change, beware!  We aim to have them settled by the middle of 2020, COVID 19 permitting.
+
 # Introduction
 In this repository you will find the implementation of a cellular transport in C for various embedded target platforms, enabling a cellular connection to be used inside the embedded C IoT SDKs of cloud platforms such as AWS and Azure.  The implementation consists of:
 

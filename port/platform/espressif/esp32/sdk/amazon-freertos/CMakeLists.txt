@@ -70,6 +70,12 @@ set(CMAKE_EXECUTABLE_SUFFIX ".elf")
 # Path to cellular replacement for LWIP
 set(cellular_dir "${AFR_VENDORS_DIR}/../../cellular")
 
+if (DEFINED ENV{CELLULAR_FLAGS})
+    separate_arguments(CELLULAR_FLAGS NATIVE_COMMAND "$ENV{CELLULAR_FLAGS}")
+    target_compile_options(${COMPONENT_TARGET} PUBLIC ${CELLULAR_FLAGS})
+    message("cellular: added ${CELLULAR_FLAGS} due to environment variable CELLULAR_FLAGS.")
+endif()
+
 # -------------------------------------------------------------------------------------------------
 # FreeRTOS portable layers
 # -------------------------------------------------------------------------------------------------
@@ -164,14 +170,14 @@ target_include_directories(
         "${cellular_dir}/port/api"
         "${cellular_dir}/ctrl/api"
         "${cellular_dir}/sock/api"
-        "${cellular_dir}/port/platform/espressif/cfg"
+        "${cellular_dir}/port/platform/espressif/esp32/cfg"
 
         # Private files for cellular replacing Wifi,
         # TODO: figure out to add private include files in the AWS world
         "${cellular_dir}/ctrl/src"
         "${cellular_dir}/sock/src"
         "${cellular_dir}/port/clib"
-        "${cellular_dir}/port/platform/espressif/src"
+        "${cellular_dir}/port/platform/espressif/esp32/src"
         "${cellular_dir}/port/platform/common/amazon-freertos"
 )
 endif()
@@ -271,10 +277,11 @@ target_sources(
         "${cellular_dir}/ctrl/src/cellular_ctrl.c"
         "${cellular_dir}/ctrl/src/cellular_ctrl_at.c"
         "${cellular_dir}/port/clib/cellular_port_clib.c"
-        "${cellular_dir}/port/platform/espressif/src/cellular_port.c"
-        "${cellular_dir}/port/platform/espressif/src/cellular_port_gpio.c"
-        "${cellular_dir}/port/platform/espressif/src/cellular_port_os.c"
-        "${cellular_dir}/port/platform/espressif/src/cellular_port_uart.c"
+        "${cellular_dir}/port/platform/espressif/esp32/src/cellular_port.c"
+        "${cellular_dir}/port/platform/espressif/esp32/src/cellular_port_debug.c"
+        "${cellular_dir}/port/platform/espressif/esp32/src/cellular_port_gpio.c"
+        "${cellular_dir}/port/platform/espressif/esp32/src/cellular_port_os.c"
+        "${cellular_dir}/port/platform/espressif/esp32/src/cellular_port_uart.c"
         # This file replaces the original Espressif iot_secure_sockets.c
         "${cellular_dir}/port/platform/common/amazon-freertos/iot_secure_sockets.c"
 )
@@ -297,15 +304,15 @@ target_include_directories(
         "${cellular_dir}/port/api"
         "${cellular_dir}/ctrl/api"
         "${cellular_dir}/sock/api"
-        "${cellular_dir}/port/platform/espressif/cfg"
+        "${cellular_dir}/port/platform/espressif/esp32/cfg"
 
         # Private include files for cellular replacement for LWIP,
         # TODO: figure out to add private include files in the AWS world
         "${cellular_dir}/ctrl/src"
         "${cellular_dir}/sock/src"
         "${cellular_dir}/port/clib"
-        "${cellular_dir}/port/platform/espressif/src"
-        "${cellular_dir}/port/platform/espressif/src/amazon-freertos"
+        "${cellular_dir}/port/platform/espressif/esp32/src"
+        "${cellular_dir}/port/platform/espressif/esp32/src/amazon-freertos"
 )
 
 target_link_libraries(

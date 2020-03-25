@@ -20,8 +20,8 @@
  * cellular_port* to maintain portability.
  */
 
-#include "cellular_cfg_hw.h" // Must come first, as it dictates the module
-                             // type and any board-specific overrides
+#include "cellular_cfg_hw.h" // Must come first, as it dictates
+                             // board-specific overrides
 #include "cellular_cfg_sw.h"
 #include "cellular_cfg_module.h"
 #include "cellular_port_clib.h"
@@ -653,6 +653,9 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
             cellularPortLog(", VInt pin not connected.\n");
         }
         gpioConfig.pin = pinCpOn;
+        // CP_ON open drain so that we can pull it low and then let it
+        // float afterwards since it is pulled-up by the cellular module
+        gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN;
         gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
         platformError = cellularPortGpioConfig(&gpioConfig);
         if (platformError == 0) {
@@ -662,6 +665,7 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
             }
             if (platformError == 0) {
                 if (pinEnablePower >= 0) {
+                    gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL;
                     gpioConfig.pin = pinEnablePower;
                      // Input/output so we can read it as well
                     gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_INPUT_OUTPUT;
@@ -775,44 +779,63 @@ int32_t cellularCtrlPowerOn(const char *pPin)
         errorCode = CELLULAR_CTRL_PIN_ENTRY_NOT_SUPPORTED;
         if (pPin == NULL) {
             errorCode = CELLULAR_CTRL_PLATFORM_ERROR;
-            cellularPortLog("CELLULAR_CTRL: powering on.\n");
-            // First, switch on the volts
-            if (gPinEnablePower >= 0) {
-                platformError = cellularPortGpioSet(gPinEnablePower, 1);
-            }
-            if (platformError == 0) {
-                // Wait for things to settle
-                cellularPortTaskBlock(100);
-                // SARA-R412M is powered on by holding the CP_ON pin low
-                // for more than 0.15 seconds
-                platformError = cellularPortGpioSet(gPinCpOn, 0);
+            // For some modules the power-on pulse on CP_ON and the
+            // power-off pulse on CP_ON are the the same duration,
+            // in effect a toggle.  To avoid accidentally powering
+            // the module off, check if it is already on.
+            // Note: doing this even if there is an enable power
+            // pin for safety sake
+            if (moduleIsAlive(1) == CELLULAR_CTRL_SUCCESS) {
+                cellularPortLog("CELLULAR_CTRL: powering on, module is already on.\n");
+                // Configure the module
+                errorCode = moduleConfigure();
+            } else {
+                cellularPortLog("CELLULAR_CTRL: powering on.\n");
+                // First, switch on the volts
+                if (gPinEnablePower >= 0) {
+                    platformError = cellularPortGpioSet(gPinEnablePower, 1);
+                }
                 if (platformError == 0) {
-                    cellularPortTaskBlock(300);
-                    // Not bothering with checking return code here
-                    // as it would have barfed on the last one if
-                    // it were going to
-                    cellularPortGpioSet(gPinCpOn, 1);
-                    cellularPortTaskBlock(CELLULAR_CTRL_BOOT_WAIT_TIME_MS);
-                    // Cellular module should be up, see if it's there
-                    // and, if so, configure it
-                    errorCode = moduleIsAlive(CELLULAR_CTRL_IS_ALIVE_ATTEMPTS_POWER_ON);
                     // Wait for things to settle
-                    if (errorCode == CELLULAR_CTRL_SUCCESS) {
-                        // Configure the module
-                        errorCode = moduleConfigure();
-                    }
-                    // If we were off at the start and power-on was
-                    // unsuccessful then go back to that state
-                    if ((errorCode != CELLULAR_CTRL_SUCCESS) && (enablePowerAtStart == 0)) {
-                        cellularCtrlPowerOff(NULL);
+                    cellularPortTaskBlock(100);
+                    platformError = cellularPortGpioSet(gPinCpOn, 0);
+                    if (platformError == 0) {
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+                        // SARA-R412M is powered on by holding the CP_ON pin low
+                        // for more than 0.15 seconds
+                        cellularPortTaskBlock(300);
+#endif
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+                        // SARA-R5 is powered on by holding the CP_ON pin low
+                        // for more than 1 second
+#endif
+                        cellularPortTaskBlock(1200);
+                        // Not bothering with checking return code here
+                        // as it would have barfed on the last one if
+                        // it were going to
+                        cellularPortGpioSet(gPinCpOn, 1);
+                        cellularPortTaskBlock(CELLULAR_CTRL_BOOT_WAIT_TIME_MS);
+                        // Cellular module should be up, see if it's there
+                        // and, if so, configure it
+                        errorCode = moduleIsAlive(CELLULAR_CTRL_IS_ALIVE_ATTEMPTS_POWER_ON);
+                        // Wait for things to settle
+                        if (errorCode == CELLULAR_CTRL_SUCCESS) {
+                            // Configure the module
+                            errorCode = moduleConfigure();
+                        }
+                        // If we were off at the start and power-on was
+                        // unsuccessful then go back to that state
+                        if ((errorCode != CELLULAR_CTRL_SUCCESS) && (enablePowerAtStart == 0)) {
+                            cellularCtrlPowerOff(NULL);
+                        }
+                    } else {
+                        cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for CP_ON pin %d returned error code %d.\n",
+                                        gPinCpOn, platformError);
                     }
                 } else {
-                    cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for CP_ON pin %d returned error code %d.\n",
-                                    gPinCpOn, platformError);
+                    cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for enable power pin %d returned error code%d.\n",
+                                    gPinEnablePower, platformError);
                 }
-            } else {
-                cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for enable power pin %d returned error code%d.\n",
-                                gPinEnablePower, platformError);
             }
         } else {
             cellularPortLog("CELLULAR_CTRL: a SIM PIN has been set but PIN entry is not supported I'm afraid.\n");
@@ -883,10 +906,18 @@ void cellularCtrlHardPowerOff(bool trulyHard, bool (*pKeepGoingCallback) (void))
         if (trulyHard && (gPinEnablePower > 0)) {
             cellularPortGpioSet(gPinEnablePower, 0);
         } else {
+            cellularPortGpioSet(gPinCpOn, 0);
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
             // SARA-R412M is powered of by holding the CP_ON pin low
             // for more than 1.5 seconds
-            cellularPortGpioSet(gPinCpOn, 0);
             cellularPortTaskBlock(2000);
+#endif
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+            // SARA-R5 is powered on by holding the CP_ON pin low
+            // for more than 1 second
+            cellularPortTaskBlock(1500);
+#endif
+
             cellularPortGpioSet(gPinCpOn, 1);
             if (gPinVInt >= 0) {
                 // If we have a VInt pin then wait until that

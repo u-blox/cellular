@@ -33,15 +33,8 @@
 # define CELLULAR_PORT_UART_RX_BUFFER_SIZE 1024
 #endif
 
-#ifndef CELLULAR_PORT_UART_TX_BUFFER_SIZE
-/** The size of ring buffer to use for transmit.
- * 0 means blocking.
- */
-# define CELLULAR_PORT_UART_TX_BUFFER_SIZE 0
-#endif
-
 #ifndef CELLULAR_PORT_UART_EVENT_QUEUE_SIZE
-/** The event queue size.
+/** The UART event queue size.
  */
 # define CELLULAR_PORT_UART_EVENT_QUEUE_SIZE 20
 #endif
@@ -49,13 +42,6 @@
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
-
-/** Structure to hold a UART event.
- */
-typedef struct {
-    int32_t eventType;
-    size_t size;
-} CellularPortUartEventData_t;
 
 /* ----------------------------------------------------------------
  * FUNCTIONS

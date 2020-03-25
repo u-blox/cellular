@@ -1,14 +1,30 @@
 # Introduction
 This directory contains the build infrastructure for the native Espressif ESP32 platform build system, AKA ESP-IDF.
 
-# Usage
-TODO
+# SDK Installation
+Follow the instructions to build for the ESP32 platform.  Note that this will use the very latest v4 Espressif environment, rather than the old v3.3 stuff used by the Amazon FreeRTOS SDK.
+
+https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html#get-started-step-by-step
+
+Only building/running the unit tests (which test absolutely everything) are supported at this moment.
 
 # Testing
-To build the unit tests, `cd` to the `unit_test` directory and execute the following:
+To build the unit tests, you first need to define which module you are using (e.g. one of `CELLULAR_CFG_MODULE_SARA_R4` or `CELLULAR_CFG_MODULE_SARA_R5`).  To do this, create an environment variable called `CELLULAR_FLAGS` and set it to be that module name in the form:
 
 ```
-idf.py -p COMx -D TEST_COMPONENTS="cellular_tests" flash monitor
+set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5
+```
+
+Clumsy, I know, but it was the only way I could find to pass adhoc conditional compilation flags into CMake via the command-line.  You can overried any other parameters in there, it's just a list, so for instance if you wanted to sat  that there's no "enable power" capability on your board you might use:
+
+```
+set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
+```
+
+With this done, `cd` to the `unit_test` directory and execute the following:
+
+```
+idf.py  flash monitor -p COMx -D TEST_COMPONENTS="cellular_tests"
 ```
 
 ...where `COMx` is replaced by the COM port to which your ESP32 board is attached. The command adds this directory to ESP-IDF as an ESP-IDF component and requests that the tests for this component are built, downloaded to the board and run.

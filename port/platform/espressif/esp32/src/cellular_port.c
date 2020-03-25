@@ -13,43 +13,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ 
+#include "cellular_port_clib.h"
+#include "cellular_port.h"
 
-#ifndef _CELLULAR_PORT_DEBUG_H_
-#define _CELLULAR_PORT_DEBUG_H_
+#include "esp_timer.h" // For esp_timer_get_time()
 
-/* No #includes allowed here */
+/* ----------------------------------------------------------------
+ * EXTERNED FUNCTIONS
+ * -------------------------------------------------------------- */
 
-/** Porting layer for debug functions.
- */
+// Pull in any private functions shared between the porting .c files
+// here.
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
-
-/** Define this to enable debug prints.  How they leave the building
- * depends upon the port.
- */
-#if defined(CELLULAR_CFG_ENABLE_LOGGING) && CELLULAR_CFG_ENABLE_LOGGING
-# define cellularPortLog(format, ...) cellularPortLogF(format, ##__VA_ARGS__)
-#else
-# define cellularPortLog(...)
-#endif
 
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------
- * FUNCTIONS
+ * VARIABLES
  * -------------------------------------------------------------- */
 
-/** printf()-style logging.
- *
- * @param pFormat a printf() style format string.
- * @param ...     variable argument list.
- */
-void cellularPortLogF(const char *pFormat, ...);
+/* ----------------------------------------------------------------
+ * STATIC FUNCTIONS
+ * -------------------------------------------------------------- */
 
-#endif // _CELLULAR_PORT_DEBUG_H_
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS
+ * -------------------------------------------------------------- */
+
+// Initialise the porting layer.
+int32_t cellularPortInit()
+{
+    // Nothing to do
+    return CELLULAR_PORT_SUCCESS;
+}
+
+// Deinitialise the porting layer.
+void cellularPortDeinit()
+{
+    // Nothing to do
+}
+
+// Get the current tick converted to a time in milliseconds.
+int64_t cellularPortGetTickTimeMs()
+{
+    return esp_timer_get_time() / 1000;
+}
 
 // End of file

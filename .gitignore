@@ -1,2 +1,4 @@
-/port/platform/espressif/sdk/esp-idf/unit_test/build
+/port/platform/espressif/esp32/sdk/esp-idf/unit_test/build
+/port/platform/nordic/nrf52480/sdk/gcc/unit_test/_build
+/port/platform/nordic/nrf52480/sdk/ses/unit_test/Output
 sdkconfig

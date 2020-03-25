@@ -65,7 +65,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
         errorCode = CELLULAR_PORT_SUCCESS;
         if (gMutex[uart] == NULL) {
             errorCode = cellularPortMutexCreate(&(gMutex[uart]));
-            if (errorCode == ESP_OK) {
+            if (errorCode == 0) {
                 errorCode = CELLULAR_PORT_PLATFORM_ERROR;
 
                 CELLULAR_PORT_MUTEX_LOCK(gMutex[uart]);
@@ -111,7 +111,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                             // Install the driver
                             espError = uart_driver_install(uart,
                                                            CELLULAR_PORT_UART_RX_BUFFER_SIZE,
-                                                           CELLULAR_PORT_UART_TX_BUFFER_SIZE,
+                                                           0, /* Blocking transmit */
                                                            CELLULAR_PORT_UART_EVENT_QUEUE_SIZE,
                                                            (QueueHandle_t *) pUartQueue,
                                                            0);

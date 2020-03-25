@@ -1,3 +1,5 @@
+IMPORTANT: this API is still in the process of definition, anything may change, beware!  We aim to have it settled by the middle of 2020, COVID 19 permitting.
+
 # Introduction
 These directories provide the porting layer that allows the files in the `ctrl` and `sock` directories to be linked and run on a target platform.
 

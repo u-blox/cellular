@@ -13,43 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ 
+#include "cellular_port_clib.h"
+#include "cellular_port_debug.h"
 
-#ifndef _CELLULAR_PORT_DEBUG_H_
-#define _CELLULAR_PORT_DEBUG_H_
-
-/* No #includes allowed here */
-
-/** Porting layer for debug functions.
- */
+#include "stdio.h" // For vprintf()
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
-
-/** Define this to enable debug prints.  How they leave the building
- * depends upon the port.
- */
-#if defined(CELLULAR_CFG_ENABLE_LOGGING) && CELLULAR_CFG_ENABLE_LOGGING
-# define cellularPortLog(format, ...) cellularPortLogF(format, ##__VA_ARGS__)
-#else
-# define cellularPortLog(...)
-#endif
 
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------
- * FUNCTIONS
+ * VARIABLES
  * -------------------------------------------------------------- */
 
-/** printf()-style logging.
- *
- * @param pFormat a printf() style format string.
- * @param ...     variable argument list.
- */
-void cellularPortLogF(const char *pFormat, ...);
+/* ----------------------------------------------------------------
+ * STATIC FUNCTIONS
+ * -------------------------------------------------------------- */
 
-#endif // _CELLULAR_PORT_DEBUG_H_
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS
+ * -------------------------------------------------------------- */
+
+// printf()-style logging.
+void cellularPortLogF(const char *pFormat, ...)
+{
+    va_list args;
+    va_start(args, pFormat);
+    vprintf(pFormat, args);
+    va_end(args);
+}
 
 // End of file

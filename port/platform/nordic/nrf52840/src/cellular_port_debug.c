@@ -13,43 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ 
+#include "cellular_port_clib.h"
+#include "cellular_port_debug.h"
 
-#ifndef _CELLULAR_PORT_DEBUG_H_
-#define _CELLULAR_PORT_DEBUG_H_
-
-/* No #includes allowed here */
-
-/** Porting layer for debug functions.
- */
+#include "nrfx.h"
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
-/** Define this to enable debug prints.  How they leave the building
- * depends upon the port.
- */
-#if defined(CELLULAR_CFG_ENABLE_LOGGING) && CELLULAR_CFG_ENABLE_LOGGING
-# define cellularPortLog(format, ...) cellularPortLogF(format, ##__VA_ARGS__)
-#else
-# define cellularPortLog(...)
-#endif
+// The size of logging buffer.
+#define CELLULAR_PORT_LOG_BUFFER_SIZE 128
 
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------
- * FUNCTIONS
+ * VARIABLES
  * -------------------------------------------------------------- */
 
-/** printf()-style logging.
- *
- * @param pFormat a printf() style format string.
- * @param ...     variable argument list.
- */
-void cellularPortLogF(const char *pFormat, ...);
+// The logging buffer.
+char gLogBuffer[CELLULAR_PORT_LOG_BUFFER_SIZE];
 
-#endif // _CELLULAR_PORT_DEBUG_H_
+/* ----------------------------------------------------------------
+ * STATIC FUNCTIONS
+ * -------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS
+ * -------------------------------------------------------------- */
+
+// printf()-style logging.
+// Note: this cellularPort layer does not initialise logging,
+// the application is expected to do that
+void cellularPortLogF(const char *pFormat, ...)
+{
+    va_list args;
+
+    va_start(args, pFormat);
+    vsnprintf(gLogBuffer, sizeof(gLogBuffer), pFormat, args);
+
+    NRF_LOG_RAW_INFO("%s", gLogBuffer);
+    NRF_LOG_FLUSH();
+
+    va_end(args);
+}
 
 // End of file

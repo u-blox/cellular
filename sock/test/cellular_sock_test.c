@@ -20,8 +20,8 @@
  * cellular_port* to maintain portability.
  */
 
-#include "cellular_cfg_hw.h" // Must come first, as it dictates the module
-                             // type and any board-specific overrides
+#include "cellular_cfg_hw.h" // Must come first, as it dictates
+                             // board-specific overrides
 #include "cellular_cfg_sw.h"
 #include "cellular_cfg_module.h"
 #include "cellular_port_clib.h"

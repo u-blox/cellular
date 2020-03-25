@@ -14,26 +14,32 @@
  * limitations under the License.
  */
 
-#ifndef _CELLULAR_PORT_DEBUG_H_
-#define _CELLULAR_PORT_DEBUG_H_
+#ifndef _CELLULAR_PORT_TEST_H_
+#define _CELLULAR_PORT_TEST_H_
 
-/* No #includes allowed here */
+/* Only bring in #includes specifically related to the test framework */
 
-/** Porting layer for debug functions.
+#include "unity.h"
+
+/** Porting layer for test execution for the Espressif platform.
+ * Since test execution is often macro-ised rather than
+ * function-calling this header file forms part of the platform
+ * test source code rather than pretending to be a generic API.
  */
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
-/** Define this to enable debug prints.  How they leave the building
- * depends upon the port.
+/** Macro to wrap the definition of a test function and
+ * map it to unity.
  */
-#if defined(CELLULAR_CFG_ENABLE_LOGGING) && CELLULAR_CFG_ENABLE_LOGGING
-# define cellularPortLog(format, ...) cellularPortLogF(format, ##__VA_ARGS__)
-#else
-# define cellularPortLog(...)
-#endif
+#define CELLULAR_PORT_TEST_FUNCTION(func, name, group) TEST_CASE(name, \
+                                                                 group)
+
+/** Macro to wrap a test assertion and map it to unity.
+ */
+#define CELLULAR_PORT_TEST_ASSERT(condition) TEST_ASSERT(condition)
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -43,13 +49,6 @@
  * FUNCTIONS
  * -------------------------------------------------------------- */
 
-/** printf()-style logging.
- *
- * @param pFormat a printf() style format string.
- * @param ...     variable argument list.
- */
-void cellularPortLogF(const char *pFormat, ...);
-
-#endif // _CELLULAR_PORT_DEBUG_H_
+#endif // _CELLULAR_PORT_TEST_H_
 
 // End of file

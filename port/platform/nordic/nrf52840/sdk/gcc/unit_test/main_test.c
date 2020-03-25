@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
+#include "unity.h"
+#include "cellular_port_unity.h"
 
-/* ----------------------------------------------------------------
- * EXTERNED FUNCTIONS
- * -------------------------------------------------------------- */
-
-// Pull in any private functions shared between the porting .c files
-// here.
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+#include "nrf_log_default_backends.h"
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -44,17 +43,28 @@
  * PUBLIC FUNCTIONS
  * -------------------------------------------------------------- */
 
-// Initialise the porting layer.
-int32_t cellularPortInit()
-{
-    // Nothing to do
-    return CELLULAR_PORT_SUCCESS;
-}
-
-// Deinitialise the porting layer.
-void cellularPortDeinit()
+// Unity setUp() function.
+void setUp(void)
 {
     // Nothing to do
 }
 
-// End of file
+// Unity tearDown() function.
+void tearDown(void)
+{
+    // Nothing to do
+}
+
+// Entry point
+int main(void)
+{
+    NRF_LOG_INIT(NULL);
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
+
+    UNITY_BEGIN();
+
+    cellularPortUnityPrintAll();
+    cellularPortUnityRunAll();
+
+    return UNITY_END();
+}

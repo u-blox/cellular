@@ -205,17 +205,6 @@ int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle);
  */
 CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandle_t mutexHandle);
 
-/* ----------------------------------------------------------------
- * FUNCTIONS: TIME
- * -------------------------------------------------------------- */
-
-/** Get the current OS tick converted to a time in milliseconds.
- * This is guaranteed to be unaffected by any time setting activity
- *
- * @return the current OS tick converted to milliseconds.
- */
-int64_t cellularPortGetTickTimeMs();
-
 #endif // _CELLULAR_PORT_OS_H_
 
 // End of file

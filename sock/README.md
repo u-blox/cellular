@@ -1,3 +1,5 @@
+IMPORTANT: this API is still in the process of definition, anything may change, beware!  We aim to have it settled by the middle of 2020, COVID 19 permitting.
+
 # Introduction
 These directories provide a driver that implements the user data (sockets) interface to a cellular module.  The API presented is a Berkeley sockets API, similar to that of LWIP, allowing the files here to replace LWIP, providing a cellular-based sockets interface through the IP stack inside the cellular module instead. 
 

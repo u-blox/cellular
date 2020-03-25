@@ -34,37 +34,38 @@ set num_platforms=5
 
 rem Process command line parameters
 set pos=0
-rem Retrieve arg removing quotes from paths (so that we can concatenate paths here)
-set arg=%~1
-rem pos represents the number of a positional argument
-if not "%arg%"=="" (
-    if "%arg%"=="/f" (
-        set fetch=YES
-    ) else if "%arg%"=="/d" (
-        set create_dir=YES
-    ) else if "%arg%"=="/c" (
-        set clean_code_dir=YES
-    ) else if "%arg%"=="/b" (
-        set clean_build_dir=YES
-    ) else if "%pos%"=="0" (
-        set platform_number=%arg%
-        set /A pos=pos+1
-    ) else if "%pos%"=="1" (
-        set code_directory=%arg%
-        set /A pos=pos+1
-    ) else if "%pos%"=="2" (
-        set build_directory=%arg%
-        set /A pos=pos+1
-    ) else if "%pos%"=="3" (
-        set com_port=%arg%
-        set /A pos=pos+1
-    ) else (
-        echo %~n0: ERROR can't understand parameter "%arg%".
-        goto usage
+:parameters
+    rem Retrieve arg removing quotes from paths (so that we can concatenate paths here)
+    set arg=%~1
+    rem pos represents the number of a positional argument
+    if not "%arg%"=="" (
+        if "%arg%"=="/f" (
+            set fetch=YES
+        ) else if "%arg%"=="/d" (
+            set create_dir=YES
+        ) else if "%arg%"=="/c" (
+            set clean_code_dir=YES
+        ) else if "%arg%"=="/b" (
+            set clean_build_dir=YES
+        ) else if "%pos%"=="0" (
+            set platform_number=%arg%
+            set /A pos=pos+1
+        ) else if "%pos%"=="1" (
+            set code_directory=%arg%
+            set /A pos=pos+1
+        ) else if "%pos%"=="2" (
+            set build_directory=%arg%
+            set /A pos=pos+1
+        ) else if "%pos%"=="3" (
+            set com_port=%arg%
+            set /A pos=pos+1
+        ) else (
+            echo %~n0: ERROR can't understand parameter "%arg%".
+            goto usage
+        )
+        shift /1
+        goto parameters
     )
-    shift /1
-    goto parameters
-)
 
 rem Check platform number and set platform string
 if "%platform_number%"=="" (
@@ -180,16 +181,16 @@ rem Build unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a
 :build_platform_2
     set espidf_repo_root=espressif
     echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf^, specify /b to avoid build collisions...
-    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R4 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
-    echo %~n0: flags set for W-ROVER board to indicate SARA-R4^, RXD on D19^, TXD on D21^, no VINT or Enable Power pins connected.
+    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R4 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_RTS=22 -DCELLULAR_CFG_PIN_CTS=23 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
+    echo %~n0: flags set for W-ROVER board to indicate SARA-R4^, RXD on D19^, TXD on D21^, RTS on D22^, CTS on D23^, no VINT or Enable Power pins connected.
     goto build_platform_1_2_3
 
 rem Build unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R5 module
 :build_platform_3
     set espidf_repo_root=espressif
     echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf^, specify /b to avoid build collisions...
-    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
-    echo %~n0: flags set for W-ROVER board to indicate SARA-R5^, RXD on D19^, TXD on D21^, all pins connected up.
+    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_CP_ON=26 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
+    echo %~n0: flags set for W-ROVER board to indicate SARA-R5^, RXD on D19^, TXD on D21^, CP_ON on D26^, no VINT or Enable Power pins connected.
     goto build_platform_1_2_3
 
 rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipset with SARA-R4 or SARA-R5
@@ -237,7 +238,7 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
     echo %~n0: building tests and then downloading them over %com_port%...
     echo %~n0: building in %build_directory%\esp-idf-%espidf_repo_root% to keep paths short
     @echo on
-    idf.py -p %com_port% -C cellular\port\platform\espressif\sdk\esp-idf\unit_test -B %build_directory%\esp-idf-%espidf_repo_root% -D TEST_COMPONENTS="cellular_tests" size flash
+    idf.py  size flash -p %com_port% -C cellular\port\platform\espressif\esp32\sdk\esp-idf\unit_test -B %build_directory%\esp-idf-%espidf_repo_root% -D TEST_COMPONENTS="cellular_tests"
     @echo off
     rem Back to where this batch file was called from to run the tests with the Python script there
     popd
@@ -305,7 +306,9 @@ rem Usage string
     echo - platform is a number representing the platform you'd like to build/test for selected from the following:
     for /L %%a in (1,1,!num_platforms!) do echo   %%a: !platform_%%a!
     echo - code_directory is the directory into which to fetch code.
-    echo - build_directory is the directory in which to do building/testing.
+    echo - build_directory is the directory in which to do building/testing; best to give the absolute path as some
+    echo   third party tools assume this goes under code_directory and hence the /b /d options may have
+    echo   no useful effect.
     echo - comport is the port where the device under test is connected (e.g. COM1).
     echo.
     echo Note that the installation of various tools may require administrator privileges and so it is usually

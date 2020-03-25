@@ -22,7 +22,6 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
-#include "esp_timer.h" // For esp_timer_get_time()
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -256,16 +255,6 @@ int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle)
 CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandle_t mutexHandle)
 {
     return (CellularPortTaskHandle_t) xSemaphoreGetMutexHolder(mutexHandle);
-}
-
-/* ----------------------------------------------------------------
- * PUBLIC FUNCTIONS: TIME
- * -------------------------------------------------------------- */
-
-// Get the current tick converted to a time in milliseconds.
-int64_t cellularPortGetTickTimeMs()
-{
-    return esp_timer_get_time() / 1000;
 }
 
 // End of file

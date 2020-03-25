@@ -1,3 +1,5 @@
+IMPORTANT: this API is still in the process of definition, anything may change, beware!  We aim to have it settled by the middle of 2020, COVID 19 permitting.
+
 # Introduction
 These directories provide a driver that implements the control interface to a cellular module.
 

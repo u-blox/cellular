@@ -24,20 +24,43 @@
  */
 
 /* ----------------------------------------------------------------
+ * COMPILE-TIME MACRO CROSS CHECKING
+ * -------------------------------------------------------------- */
+
+/* #define cross-checking.
+ */
+#if defined(CELLULAR_CFG_MODULE_SARA_R4) && defined(CELLULAR_CFG_MODULE_SARA_R5)
+# error More than one module type defined.
+#endif
+
+#if !defined(CELLULAR_CFG_MODULE_SARA_R4) && !defined(CELLULAR_CFG_MODULE_SARA_R5)
+# error Must define a module type (e.g. CELLULAR_CFG_MODULE_SARA_R4 or CELLULAR_CFG_MODULE_SARA_R5).
+#endif
+
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS COMMON TO ALL MODULES
+ * -------------------------------------------------------------- */
+
+#ifndef CELLULAR_CFG_BAUD_RATE
+/** The baud rate to use on the UART interface
+ */
+# define CELLULAR_CFG_BAUD_RATE                      115200
+#endif
+
+/* ----------------------------------------------------------------
  * COMPILE-TIME MACROS FOR SARA-R5
  * -------------------------------------------------------------- */
+
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+    // None yet
+#endif
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS FOR SARA-R4
  * -------------------------------------------------------------- */
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
-# ifndef CELLULAR_CFG_BAUD_RATE
-/** The baud rate to use on the UART interface to the SARA-R4
- * cellular module.
- */
-#  define CELLULAR_CFG_BAUD_RATE                      115200
-# endif
+    // None yet
 #endif
 
 #endif // _CELLULAR_CFG_MODULE_H_
