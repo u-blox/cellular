@@ -20,8 +20,7 @@
  * cellular_port* to maintain portability.
  */
 
-#include "cellular_cfg_hw.h" // Must come first, as it dictates
-                             // board-specific overrides
+#include "cellular_cfg_hw_platform_specific.h"
 #include "cellular_cfg_sw.h"
 #include "cellular_cfg_module.h"
 #include "cellular_port_clib.h"
@@ -29,7 +28,7 @@
 #include "cellular_port_debug.h"
 #include "cellular_port_os.h"
 #include "cellular_port_uart.h"
-#include "cellular_port_test.h"
+#include "cellular_port_test_platform_specific.h"
 #include "cellular_ctrl.h"
 #include "cellular_sock.h"
 #include "cellular_sock_errno.h" // For CELLULAR_SOCK_EWOULDBLOCK
@@ -1131,7 +1130,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
 
     // No need initialise anything for this test
     for (size_t x = 0; x < sizeof(gTestAddressList) / sizeof(gTestAddressList[0]); x++) {
-        cellularPortLog("CELLULAR_TEST: %d: original address string \"%s\" (%d byte(s)).\n",
+        cellularPortLog("CELLULAR_SOCK_TEST: %d: original address string \"%s\" (%d byte(s)).\n",
                         x,
                         gTestAddressList[x].pAddressString,
                         cellularPort_strlen(gTestAddressList[x].pAddressString));

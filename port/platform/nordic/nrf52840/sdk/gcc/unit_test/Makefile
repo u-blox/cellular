@@ -66,9 +66,9 @@ SRC_FILES += \
   ../../../../../../../ctrl/test/cellular_ctrl_test.c \
   ../../../../../../../sock/test/cellular_sock_test.c \
   ../../../../../../test/cellular_port_test.c \
-  ../../../../../common/unity/cellular_port_unity.c \
+  ../../../test/main_test.c \
+  ../../../../../common/unity/cellular_port_unity_addons.c \
   $(UNITY_PATH)/src/unity.c \
-  main_test.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \
@@ -113,6 +113,7 @@ INC_FOLDERS += \
   ../../../src \
   ../../../../../../test \
   ../../../../../common/unity \
+  ../../../test \
   $(UNITY_PATH)/src \
 
 # Libraries common to all targets
@@ -138,6 +139,7 @@ override CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # keep every function in a separate section, this allows linker to discard unused ones
 override CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 override CFLAGS += -fno-builtin -fshort-enums
+override CFLAGS += -DUNITY_INCLUDE_CONFIG_H
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
@@ -197,11 +199,10 @@ $(foreach target, $(TARGETS), $(call define_target, $(target)))
 # Flash the program
 flash: default
 	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
-	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex --sectorerase
-	nrfjprog -f nrf52 --reset
+	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex --chiperase --verify -r
 
 erase:
-	nrfjprog -f nrf52 --eraseall
+	nrfjprog -f nrf52 --chiperase
 
 SDK_CONFIG_FILE := ../../../cfg/sdk_config.h
 CMSIS_CONFIG_TOOL := $(SDK_ROOT)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef _CELLULAR_CFG_HW_H_
-#define _CELLULAR_CFG_HW_H_
+#ifndef _CELLULAR_CFG_HW_PLATFORM_SPECIFIC_H_
+#define _CELLULAR_CFG_HW_PLATFORM_SPECIFIC_H_
 
 /* No #includes allowed here */
 
@@ -101,6 +101,6 @@
 # define CELLULAR_CFG_PIN_RTS              -1
 #endif
 
-#endif // _CELLULAR_CFG_HW_H_
+#endif // _CELLULAR_CFG_HW_PLATFORM_SPECIFIC_H_
 
 // End of file

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef _CELLULAR_CFG_HW_H_
-#define _CELLULAR_CFG_HW_H_
+#ifndef _CELLULAR_CFG_HW_PLATFORM_SPECIFIC_H_
+#define _CELLULAR_CFG_HW_PLATFORM_SPECIFIC_H_
 
 /* No #includes allowed here */
 
@@ -49,14 +49,14 @@
 /** The NRF52840 GPIO output that enables power to the cellular module.
  * -1 is used where there is no such connection.
  */
-# define CELLULAR_CFG_PIN_ENABLE_POWER     2
+# define CELLULAR_CFG_PIN_ENABLE_POWER     -1
 #endif
 
 #ifndef CELLULAR_CFG_PIN_CP_ON
 /** The NRF52840 GPIO output that that is connected to the CP_ON pin of
  * the cellular module.
  */
-# define CELLULAR_CFG_PIN_CP_ON            25
+# define CELLULAR_CFG_PIN_CP_ON            20
 #endif
 
 #ifndef CELLULAR_CFG_PIN_VINT
@@ -64,21 +64,21 @@
  * cellular module.
  * -1 is used where there is no such connection.
  */
-# define CELLULAR_CFG_PIN_VINT             36
+# define CELLULAR_CFG_PIN_VINT             21
 #endif
 
 #ifndef CELLULAR_CFG_PIN_TXD
 /** The NRF52840 GPIO output pin that sends UART data to the cellular
  * module.
  */
-# define CELLULAR_CFG_PIN_TXD              4
+# define CELLULAR_CFG_PIN_TXD              22
 #endif
 
 #ifndef CELLULAR_CFG_PIN_RXD
 /** The NRF52840 GPIO input pin that receives UART data from the cellular
  * module.
  */
-# define CELLULAR_CFG_PIN_RXD              15
+# define CELLULAR_CFG_PIN_RXD              23
 #endif
 
 #ifndef CELLULAR_CFG_PIN_CTS
@@ -99,6 +99,6 @@
 # define CELLULAR_CFG_PIN_RTS              -1
 #endif
 
-#endif // _CELLULAR_CFG_HW_H_
+#endif // _CELLULAR_CFG_HW_PLATFORM_SPECIFIC_H_
 
 // End of file

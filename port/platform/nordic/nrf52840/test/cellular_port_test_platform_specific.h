@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef _CELLULAR_PORT_TEST_H_
-#define _CELLULAR_PORT_TEST_H_
+#ifndef _CELLULAR_PORT_TEST_PLATFORM_SPECIFIC_H_
+#define _CELLULAR_PORT_TEST_PLATFORM_SPECIFIC_H_
 
 /* Only bring in #includes specifically related to the test framework */
 
-#include "unity.h"
+#include "cellular_port_unity_addons.h"
 
-/** Porting layer for test execution for the Espressif platform.
+/** Porting layer for test execution on the Nordic platform.
  * Since test execution is often macro-ised rather than
  * function-calling this header file forms part of the platform
  * test source code rather than pretending to be a generic API.
@@ -31,24 +31,19 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
+/** Macro to wrap a test assertion and map it to our Unity port.
+ */
+#define CELLULAR_PORT_TEST_ASSERT(condition) CELLULAR_PORT_UNITY_TEST_ASSERT(condition)
+
 /** Macro to wrap the definition of a test function and
- * map it to unity.
+ * map it to our Unity port.
  */
-#define CELLULAR_PORT_TEST_FUNCTION(func, name, group) TEST_CASE(name, \
-                                                                 group)
-
-/** Macro to wrap a test assertion and map it to unity.
- */
-#define CELLULAR_PORT_TEST_ASSERT(condition) TEST_ASSERT(condition)
-
-/* ----------------------------------------------------------------
- * TYPES
- * -------------------------------------------------------------- */
+#define CELLULAR_PORT_TEST_FUNCTION(function, name, group) CELLULAR_PORT_UNITY_TEST_FUNCTION(name, group)
 
 /* ----------------------------------------------------------------
  * FUNCTIONS
  * -------------------------------------------------------------- */
 
-#endif // _CELLULAR_PORT_TEST_H_
+#endif // _CELLULAR_PORT_TEST_PLATFORM_SPECIFIC_H_
 
 // End of file

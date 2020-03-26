@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef _CELLULAR_PORT_UNITY_H_
-#define _CELLULAR_PORT_UNITY_H_
+#ifndef _CELLULAR_PORT_UNITY_ADDONS_H_
+#define _CELLULAR_PORT_UNITY_ADDONS_H_
+
+/** This file defines some additional bits and bobs to make Unity
+ * work for cellular.
+ */
 
 #include "unity.h"
 
@@ -70,10 +74,14 @@ void cellularPortUnityTestRegister(CellularPortUnityTestDescription_t *pDescript
  * map it to Unity.
  */
 #define CELLULAR_PORT_UNITY_TEST_FUNCTION(name, group)                                                       \
-    static void CELLULAR_PORT_UNITY_UID(pTestFunction) (void);                                               \
+    /* Test function prototype */                                                                            \
+    static void CELLULAR_PORT_UNITY_UID(testFunction) (void);                                                \
+    /* Use constructor attribute so that this is run during C initialisation before anything else runs */    \
     static void __attribute__((constructor)) CELLULAR_PORT_UNITY_UID(testRegistrationHelper) ()              \
     {                                                                                                        \
-        static const pCellularPortUnityTestFunction_t pFunction = {&CELLULAR_PORT_UNITY_UID(pTestFunction)}; \
+        /* Static pointer to the test function that follows */                                               \
+        static const pCellularPortUnityTestFunction_t pFunction = &CELLULAR_PORT_UNITY_UID(testFunction);    \
+        /* Static description of the tests to pass to the register function */                               \
         static CellularPortUnityTestDescription_t CELLULAR_PORT_UNITY_UID(testDescription) = {               \
             .pName = name,                                                                                   \
             .pGroup = group,                                                                                 \
@@ -82,22 +90,28 @@ void cellularPortUnityTestRegister(CellularPortUnityTestDescription_t *pDescript
             .line = __LINE__,                                                                                \
             .pNext = NULL                                                                                    \
         };                                                                                                   \
+        /* Call the register function with the description so it can keep a list of the tests */             \
         cellularPortUnityTestRegister(&CELLULAR_PORT_UNITY_UID(testDescription));                            \
     }                                                                                                        \
-    static void CELLULAR_PORT_UNITY_UID(pTestFunction) (void)
+    /* Actual start of test function */                                                                      \
+    static void CELLULAR_PORT_UNITY_UID(testFunction) (void)
 
 /* ----------------------------------------------------------------
  * FUNCTIONS
  * -------------------------------------------------------------- */
 
 /** Print out all the registered test cases.
+ *
+ * @param pPrefix prefix string to print at start of line.
  */
-void cellularPortUnityPrintAll();
+void cellularPortUnityPrintAll(const char *pPrefix);
 
 /** Run all the registered test cases.
+ *
+ * @param pPrefix prefix string to print at start of line.
  */
-void cellularPortUnityRunAll();
+void cellularPortUnityRunAll(const char *pPrefix);
 
-#endif // _CELLULAR_PORT_UNITY_H_
+#endif // _CELLULAR_PORT_UNITY_ADDONS_H_
 
 // End of file

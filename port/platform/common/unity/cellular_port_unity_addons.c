@@ -15,15 +15,16 @@
  */
 
 /* This file implements a mechanism to run a series of Unity tests,
- * learing from the implementation of the esp-idf unity component.
+ * learning from the implementation of the esp-idf unity component,
+ * which in turn learned it from the catch framework.
  * It may be included in a build for a platform which includes no
  * unit test framework of its own.
  */
 
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
-#include "unity.h"
-#include "cellular_port_unity.h"
+#include "cellular_port_test_platform_specific.h"
+#include "cellular_port_unity_addons.h"
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -33,9 +34,8 @@
  * TYPES
  * -------------------------------------------------------------- */
 
-// Start and end of linked list of test descriptions.
-static CellularPortUnityTestDescription_t *gpTestHead = NULL;
-static CellularPortUnityTestDescription_t *gpTestTail = NULL;
+// Linked list anchor.
+static CellularPortUnityTestDescription_t *gpTestList = NULL;
 
 /* ----------------------------------------------------------------
  * VARIABLES
@@ -52,25 +52,25 @@ static CellularPortUnityTestDescription_t *gpTestTail = NULL;
 // Add a test to the list.
 void cellularPortUnityTestRegister(CellularPortUnityTestDescription_t *pDescription)
 {
-    CellularPortUnityTestDescription_t *pTmp;
+    CellularPortUnityTestDescription_t **ppTest = &gpTestList;
 
-    if (!gpTestHead) {
-        gpTestHead = pDescription;
-        gpTestTail = pDescription;
-    } else {
-        pTmp = gpTestHead;
-        gpTestHead = pDescription;
-        gpTestHead->pNext = pTmp;
+    while (*ppTest != NULL) {
+        ppTest = &((*ppTest)->pNext);
     }
+    *ppTest = pDescription;
 }
 
 // Print out the test names and groups
-void cellularPortUnityPrintAll()
+void cellularPortUnityPrintAll(const char *pPrefix)
 {
-    const CellularPortUnityTestDescription_t *pTest = gpTestHead;
+    const CellularPortUnityTestDescription_t *pTest = gpTestList;
     size_t count = 0;
+    char buffer[16];
 
     while (pTest != NULL) {
+        UnityPrint(pPrefix);
+        cellularPort_snprintf(buffer, sizeof(buffer), "%3.d: ", count + 1);
+        UnityPrint(buffer);
         UnityPrint(pTest->pName);
         UnityPrint(" [");
         UnityPrint(pTest->pGroup);
@@ -79,17 +79,17 @@ void cellularPortUnityPrintAll()
         pTest = pTest->pNext;
         count++;
     }
-    UnityPrintNumber((UNITY_INT) (count));
-    UnityPrint(" test(s).");
     UNITY_PRINT_EOL();
 }
 
 // Run all of the tests.
-void cellularPortUnityRunAll()
+void cellularPortUnityRunAll(const char *pPrefix)
 {
-    const CellularPortUnityTestDescription_t *pTest = gpTestHead;
+    const CellularPortUnityTestDescription_t *pTest = gpTestList;
 
     while (pTest != NULL) {
+        UNITY_PRINT_EOL();
+        UnityPrint(pPrefix);
         UnityPrint("Running ");
         UnityPrint(pTest->pName);
         UnityPrint("...");

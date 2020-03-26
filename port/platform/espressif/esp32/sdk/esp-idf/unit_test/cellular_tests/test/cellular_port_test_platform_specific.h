@@ -14,57 +14,41 @@
  * limitations under the License.
  */
 
-#include "cellular_port_clib.h"
-#include "cellular_port.h"
-#include "unity.h"
-#include "cellular_port_unity.h"
+#ifndef _CELLULAR_PORT_TEST_PLATFORM_SPECIFIC_H_
+#define _CELLULAR_PORT_TEST_PLATFORM_SPECIFIC_H_
 
-#include "nrf_log.h"
-#include "nrf_log_ctrl.h"
-#include "nrf_log_default_backends.h"
+/* Only bring in #includes specifically related to the test framework */
+
+#include "unity.h"
+
+/** Porting layer for test execution for the Espressif platform.
+ * Since test execution is often macro-ised rather than
+ * function-calling this header file forms part of the platform
+ * test source code rather than pretending to be a generic API.
+ */
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
+
+/** Macro to wrap the definition of a test function and
+ * map it to unity.
+ */
+#define CELLULAR_PORT_TEST_FUNCTION(func, name, group) TEST_CASE(name, \
+                                                                 group)
+
+/** Macro to wrap a test assertion and map it to unity.
+ */
+#define CELLULAR_PORT_TEST_ASSERT(condition) TEST_ASSERT(condition)
 
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------
- * VARIABLES
+ * FUNCTIONS
  * -------------------------------------------------------------- */
 
-/* ----------------------------------------------------------------
- * STATIC FUNCTIONS
- * -------------------------------------------------------------- */
+#endif // _CELLULAR_PORT_TEST_PLATFORM_SPECIFIC_H_
 
-/* ----------------------------------------------------------------
- * PUBLIC FUNCTIONS
- * -------------------------------------------------------------- */
-
-// Unity setUp() function.
-void setUp(void)
-{
-    // Nothing to do
-}
-
-// Unity tearDown() function.
-void tearDown(void)
-{
-    // Nothing to do
-}
-
-// Entry point
-int main(void)
-{
-    NRF_LOG_INIT(NULL);
-    NRF_LOG_DEFAULT_BACKENDS_INIT();
-
-    UNITY_BEGIN();
-
-    cellularPortUnityPrintAll();
-    cellularPortUnityRunAll();
-
-    return UNITY_END();
-}
+// End of file
