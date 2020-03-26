@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifdef CELLULAR_CFG_OVERRIDE
+# include "cellular_cfg_override.h" // For a customer's configuration override
+#endif
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_os.h"
@@ -125,15 +128,18 @@ static void irqHandler(NRF_UARTE_Type *pReg,
                        CellularPortUartBuffer_t *pRxBuffer)
 {
     size_t length;
+    bool wasRxEvent = false;
 
     if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_ERROR)) {
         // Clear any errors
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_ERROR);
         nrf_uarte_errorsrc_get_and_clear(pReg);
+        wasRxEvent = true;
     } else if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_ENDRX)) {
         // Clear Rx event and grab bytes used
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_ENDRX);
         pRxBuffer->bytesUsed += nrf_uarte_rx_amount_get(pReg);
+        wasRxEvent = true;
     }
 
     if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_RXTO)) {
@@ -141,15 +147,28 @@ static void irqHandler(NRF_UARTE_Type *pReg,
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_RXTO);
     }
 
-    // Start the next receive
-    length = CELLULAR_PORT_UART_RX_BUFFER_SIZE - pRxBuffer->bytesUsed;
-    if (length > DMA_MAX_LEN) {
-        length = DMA_MAX_LEN;
+    if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_ENDTX)) {
+        nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_ENDTX);
+        // Transmitter has to be stopped by triggering STOPTX task to achieve
+        // the lowest possible level of the UARTE power consumption.
+        nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STOPTX);
     }
-    nrf_uarte_rx_buffer_set(pReg,
-                            pRxBuffer->pBufferStart + pRxBuffer->bytesUsed,
-                            length);
-    nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STARTRX);
+
+    if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_TXSTOPPED)) {
+        nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_TXSTOPPED);
+    }
+
+    if (wasRxEvent) {
+        // Start the next receive
+        length = CELLULAR_PORT_UART_RX_BUFFER_SIZE - pRxBuffer->bytesUsed;
+        if (length > DMA_MAX_LEN) {
+            length = DMA_MAX_LEN;
+        }
+        nrf_uarte_rx_buffer_set(pReg,
+                                pRxBuffer->pBufferStart + pRxBuffer->bytesUsed,
+                                length);
+        nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STARTRX);
+    }
 }
 
 // Convert a baud rate into an NRF52840 baud rate.
@@ -399,14 +418,6 @@ int32_t cellularPortUartDeinit(int32_t uart)
             // The caller needs to make sure that no read/write
             // is in progress when this function is called.
 
-            // Make sure all transfers are finished before UARTE is
-            // disabled to achieve the lowest power consumption
-            nrf_uarte_shorts_disable(pReg, NRF_UARTE_SHORT_ENDRX_STARTRX);
-            nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STOPRX);
-            nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_TXSTOPPED);
-            nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STOPTX);
-            while (!nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_TXSTOPPED)) {}
-
             // Disable interrupts
             nrf_uarte_int_disable(pReg, NRF_UARTE_INT_ENDRX_MASK |
                                         NRF_UARTE_INT_ENDTX_MASK |
@@ -414,6 +425,14 @@ int32_t cellularPortUartDeinit(int32_t uart)
                                         NRF_UARTE_INT_RXTO_MASK  |
                                         NRF_UARTE_INT_TXSTOPPED_MASK);
             NRFX_IRQ_DISABLE(nrfx_get_irq_number((void *) (pReg)));
+
+            // Make sure all transfers are finished before UARTE is
+            // disabled to achieve the lowest power consumption
+            nrf_uarte_shorts_disable(pReg, NRF_UARTE_SHORT_ENDRX_STARTRX);
+            nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STOPRX);
+            nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_TXSTOPPED);
+            nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STOPTX);
+            while (!nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_TXSTOPPED)) {}
 
             // Disable the UARTE
             nrf_uarte_disable(pReg);

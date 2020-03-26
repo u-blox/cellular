@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifdef CELLULAR_CFG_OVERRIDE
+# include "cellular_cfg_override.h" // For a customer's configuration override
+#endif
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_os.h"
@@ -54,6 +57,9 @@ int32_t cellularPortTaskCreate(void (*pFunction)(void *),
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if ((pFunction != NULL) && (pTaskHandle != NULL)) {
+        // On the native FreeRTOS that NRF52840 uses stack size is
+        // actually in words, so divide by four here.
+        stackSizeBytes >>= 4;
         if (ppParameter != NULL) {
             if (xTaskCreate(pFunction, pName, stackSizeBytes,
                             *ppParameter, priority,

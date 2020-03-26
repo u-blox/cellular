@@ -14,6 +14,9 @@
  * limitations under the License.
  */
  
+#ifdef CELLULAR_CFG_OVERRIDE
+# include "cellular_cfg_override.h" // For a customer's configuration override
+#endif
 #include <stdio.h>
 #include <string.h>
 #include "unity.h"

@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
+#ifdef CELLULAR_CFG_OVERRIDE
+# include "cellular_cfg_override.h" // For a customer's configuration override
+#endif
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
 

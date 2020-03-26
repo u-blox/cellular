@@ -25,6 +25,9 @@
  */
 
 // Note: no dependency here on HW or module type
+#ifdef CELLULAR_CFG_OVERRIDE
+# include "cellular_cfg_override.h" // For a customer's configuration override
+#endif
 #include "cellular_cfg_sw.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
