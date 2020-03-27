@@ -17,10 +17,12 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
-#include "cellular_port_clib.h"
-#include "cellular_port.h"
 #include "cellular_port_test_platform_specific.h"
 
+#include "assert.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "nrf_drv_clock.h"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
@@ -28,6 +30,9 @@
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
+
+// How much stack the task running all the tests needs in bytes.
+#define CELLULAR_PORT_TEST_RUNNER_TASK_STACK_SIZE_BYTES (1024 * 4)
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -57,13 +62,17 @@ void tearDown(void)
     // Nothing to do
 }
 
-// Entry point
-int main(void)
+void testFail(void)
 {
-    NRF_LOG_INIT(NULL);
-    NRF_LOG_DEFAULT_BACKENDS_INIT();
+    
+}
 
-    NRF_LOG_RAW_INFO("\n\nCELLULAR_TEST: Starting up...\n");
+// The task within which testing runs.
+void testTask(void *pParam)
+{
+    (void) pParam;
+
+    NRF_LOG_RAW_INFO("\n\nCELLULAR_TEST: Test task started.\n");
 
     UNITY_BEGIN();
 
@@ -72,5 +81,39 @@ int main(void)
     NRF_LOG_RAW_INFO("CELLULAR_TEST: Running all tests.\n");
     cellularPortUnityRunAll("CELLULAR_TEST: ");
 
-    return UNITY_END();
+    UNITY_END();
+
+    NRF_LOG_RAW_INFO("\n\nCELLULAR_TEST: Test task ended.\n");
+    NRF_LOG_FLUSH();
+
+    while(1){}
+}
+
+// Entry point
+int main(void)
+{
+    TaskHandle_t taskHandle = NULL;
+
+    NRF_LOG_INIT(NULL);
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
+
+#if configTICK_SOURCE == FREERTOS_USE_RTC
+    // If the clock has not already been started, start it
+    nrf_drv_clock_init();
+#endif
+
+   // Create the test task and have it running
+   // at a low priority
+    assert(xTaskCreate(testTask, "TestTask",
+                       CELLULAR_PORT_TEST_RUNNER_TASK_STACK_SIZE_BYTES / 4,
+                       NULL, 14 /* Priority */,
+                       &taskHandle) == pdPASS);
+
+    // Start the scheduler.
+    vTaskStartScheduler();
+
+    // Should never get here
+    assert(false);
+
+    return 0;
 }

@@ -41,6 +41,16 @@
  */
 #define CELLULAR_PORT_TEST_ASSERT(condition) TEST_ASSERT(condition)
 
+/** The task priority to use for the task created during.
+ * testing: make sure that the priority of the task RUNNING
+ * the tests is lower than this.
+ */
+#define CELLULAR_PORT_TEST_TASK_PRIORITY 12
+
+/** The stack size to use for the test tasks created during testing.
+ */
+#define CELLULAR_PORT_TEST_TASK_STACK_SIZE_BYTES 2048
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */

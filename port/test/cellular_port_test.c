@@ -39,14 +39,8 @@
 // The size of each item on the queue.
 #define CELLULAR_PORT_TEST_QUEUE_ITEM_SIZE sizeof(int32_t)
 
-// The task priority to use; platform dependent, hope this is good.
-#define CELLULAR_PORT_TEST_TASK_PRIORITY 12
-
-// The task stack size; platform dependent, hope this is good.
-#define CELLULAR_PORT_TEST_TASK_STACK_SIZE 2048
-
 // The guard time for the OS test.
-#define CELLULAR_PORT_TEST_OS_GUARD_DURATION_MS 2000
+#define CELLULAR_PORT_TEST_OS_GUARD_DURATION_MS 3000
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -183,11 +177,11 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
     CELLULAR_PORT_TEST_ASSERT(gQueueHandle != NULL);
 
     cellularPortLog("CELLULAR_PORT_TEST: creating a test task with stack %d byte(s) and priority %d, passing it the pointer 0x%08x containing the string \"%s\"...\n",
-                    CELLULAR_PORT_TEST_TASK_STACK_SIZE,
+                    CELLULAR_PORT_TEST_TASK_STACK_SIZE_BYTES,
                     CELLULAR_PORT_TEST_TASK_PRIORITY,
                     &gpTaskParameter, gpTaskParameter);
     errorCode = cellularPortTaskCreate(testTask, "test_task",
-                                       CELLULAR_PORT_TEST_TASK_STACK_SIZE,
+                                       CELLULAR_PORT_TEST_TASK_STACK_SIZE_BYTES,
                                        (void **) &gpTaskParameter,
                                        CELLULAR_PORT_TEST_TASK_PRIORITY,
                                        &gTaskHandle);
@@ -220,6 +214,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
     CELLULAR_PORT_MUTEX_LOCK(gMutexHandle);
     CELLULAR_PORT_MUTEX_UNLOCK(gMutexHandle);
     cellularPortLog("CELLULAR_PORT_TEST: task stopped.\n");
+
+    // Pause to let the task print its final messages
+    cellularPortTaskBlock(1000);
 
     cellularPortLog("CELLULAR_PORT_TEST: deleting mutex...\n");
     cellularPortMutexDelete(gMutexHandle);

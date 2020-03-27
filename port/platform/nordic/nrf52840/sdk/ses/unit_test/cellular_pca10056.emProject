@@ -16,7 +16,7 @@
       arm_target_device_name="nRF52840_xxAA"
       arm_target_interface_type="SWD"
       c_preprocessor_definitions="BOARD_PCA10056;BSP_DEFINES_ONLY;CONFIG_GPIO_AS_PINRESET;FLOAT_ABI_HARD;INITIALIZE_USER_SECTIONS;NO_VTOR_CONFIG;NRF52840_XXAA;FREERTOS;UNITY_INCLUDE_CONFIG_H"
-      c_user_include_directories="../../../cfg;$(SDK_ROOT)/components;$(SDK_ROOT)/modules/nrfx/mdk;$(SDK_ROOT)/components/libraries/fifo;$(SDK_ROOT)/components/libraries/strerror;$(SDK_ROOT)/components/toolchain/cmsis/include;$(SDK_ROOT)/external/freertos/source/include;$(SDK_ROOT)/external/freertos/config;$(SDK_ROOT)/components/libraries/util;$(SDK_ROOT)/components/libraries/balloc;$(SDK_ROOT)/components/libraries/ringbuf;$(SDK_ROOT)/modules/nrfx/hal;$(SDK_ROOT)/components/libraries/bsp;$(SDK_ROOT)/components/libraries/uart;$(SDK_ROOT)/components/libraries/log;$(SDK_ROOT)/modules/nrfx;$(SDK_ROOT)/components/libraries/experimental_section_vars;$(SDK_ROOT)/integration/nrfx/legacy;$(SDK_ROOT)/external/freertos/portable/CMSIS/nrf52;$(SDK_ROOT)/components/libraries/delay;$(SDK_ROOT)/integration/nrfx;$(SDK_ROOT)/components/drivers_nrf/nrf_soc_nosd;$(SDK_ROOT)/components/libraries/atomic;$(SDK_ROOT)/components/boards;$(SDK_ROOT)/components/libraries/memobj;$(SDK_ROOT)/external/freertos/portable/GCC/nrf52;$(SDK_ROOT)/modules/nrfx/drivers/include;$(SDK_ROOT)/external/fprintf;$(SDK_ROOT)/components/libraries/log/src;$(SDK_ROOT)/external/segger_rtt;.;../../../../../../api;../../../../../../../ctrl/api;../../../../../../../sock/api;../../../../../../../cfg;../../../../../../../ctrl/src;../../../../../../../sock/src;../../../../../../clib;../../../src;../../../../../../test;../../../test/;../../../../../common/unity;$(UNITY_PATH)/src;"
+      c_user_include_directories="../../../cfg;$(SDK_ROOT)/components;$(SDK_ROOT)/modules/nrfx/mdk;$(SDK_ROOT)/components/libraries/fifo;$(SDK_ROOT)/components/libraries/strerror;$(SDK_ROOT)/components/toolchain/cmsis/include;$(SDK_ROOT)/external/freertos/source/include;$(SDK_ROOT)/external/freertos/config;$(SDK_ROOT)/components/libraries/util;$(SDK_ROOT)/components/libraries/balloc;$(SDK_ROOT)/components/libraries/ringbuf;$(SDK_ROOT)/modules/nrfx/hal;$(SDK_ROOT)/components/libraries/bsp;$(SDK_ROOT)/components/libraries/uart;$(SDK_ROOT)/components/libraries/log;$(SDK_ROOT)/modules/nrfx;$(SDK_ROOT)/components/libraries/experimental_section_vars;$(SDK_ROOT)/integration/nrfx/legacy;$(SDK_ROOT)/external/freertos/portable/CMSIS/nrf52;$(SDK_ROOT)/components/libraries/delay;$(SDK_ROOT)/integration/nrfx;$(SDK_ROOT)/components/drivers_nrf/nrf_soc_nosd;$(SDK_ROOT)/components/libraries/atomic;$(SDK_ROOT)/components/boards;$(SDK_ROOT)/components/libraries/memobj;$(SDK_ROOT)/external/freertos/portable/GCC/nrf52;$(SDK_ROOT)/modules/nrfx/drivers/include;$(SDK_ROOT)/external/fprintf;$(SDK_ROOT)/components/libraries/log/src;$(SDK_ROOT)/external/segger_rtt;$(SDK_ROOT)/components/libraries/hardfault.;../../../../../../api;../../../../../../../ctrl/api;../../../../../../../sock/api;../../../../../../../cfg;../../../../../../../ctrl/src;../../../../../../../sock/src;../../../../../../clib;../../../src;../../../../../../test;../../../test/;../../../../../common/unity;$(UNITY_PATH)/src;"
       debug_register_definition_file="$(SDK_ROOT)/modules/nrfx/mdk/nrf52840.svd"
       debug_start_from_entry_point_symbol="No"
       debug_target_connection="J-Link"
@@ -54,7 +54,7 @@
     <folder Name="FreeRTOS">
       <file file_name="$(SDK_ROOT)/external/freertos/source/croutine.c" />
       <file file_name="$(SDK_ROOT)/external/freertos/source/event_groups.c" />
-      <file file_name="$(SDK_ROOT)/external/freertos/source/portable/MemMang/heap_1.c" />
+      <file file_name="$(SDK_ROOT)/external/freertos/source/portable/MemMang/heap_4.c" />
       <file file_name="$(SDK_ROOT)/external/freertos/source/list.c" />
       <file file_name="$(SDK_ROOT)/external/freertos/portable/GCC/nrf52/port.c" />
       <file file_name="$(SDK_ROOT)/external/freertos/portable/CMSIS/nrf52/port_cmsis.c" />
@@ -94,6 +94,8 @@
       <file file_name="$(SDK_ROOT)/components/libraries/ringbuf/nrf_ringbuf.c" />
       <file file_name="$(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c" />
       <file file_name="$(SDK_ROOT)/components/libraries/uart/retarget.c" />
+      <file file_name="$(SDK_ROOT)/components/libraries/hardfault/nrf52/handler/hardfault_handler_gcc.c" />
+      <file file_name="$(SDK_ROOT)/components/libraries/hardfault/hardfault_implementation.c" />
     </folder>
     <folder Name="nRF_Drivers">
       <file file_name="$(SDK_ROOT)/modules/nrfx/soc/nrfx_atomic.c" />
@@ -101,6 +103,8 @@
       <file file_name="$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_timer.c" />
       <file file_name="$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uart.c" />
       <file file_name="$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uarte.c" />
+      <file file_name="$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c" />
+      <file file_name="$(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_clock.c" />
     </folder>
     <folder Name="Application">
       <file file_name="../../../test/main_test.c" />

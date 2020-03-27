@@ -33,14 +33,6 @@
 # define CELLULAR_PORT_TICK_TIMER_INSTANCE 0
 #endif
 
-/** On some platforms (e.g. NRF52840) a capture/compare register
- * needs to be used when reading a timer instance.
- * This specifies the capture compare register to use for that.
- */
-#ifndef CELLULAR_PORT_TICK_TIMER_CC_INSTANCE
-# define CELLULAR_PORT_TICK_TIMER_CC_INSTANCE 0
-#endif
-
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */

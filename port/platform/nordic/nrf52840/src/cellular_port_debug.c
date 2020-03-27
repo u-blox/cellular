@@ -29,7 +29,7 @@
  * -------------------------------------------------------------- */
 
 // The size of logging buffer.
-#define CELLULAR_PORT_LOG_BUFFER_SIZE 128
+#define CELLULAR_PORT_LOG_BUFFER_SIZE 1024
 
 /* ----------------------------------------------------------------
  * TYPES

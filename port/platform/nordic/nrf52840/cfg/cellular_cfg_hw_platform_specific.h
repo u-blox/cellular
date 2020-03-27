@@ -24,11 +24,16 @@
  */
 
 /* ----------------------------------------------------------------
- * COMPILE-TIME MACROS FOR NRF52840: MISC
+ * COMPILE-TIME MACROS FOR NRF52840: UARTE
  * -------------------------------------------------------------- */
 
 #ifndef CELLULAR_CFG_UART
-/** The UART HW block to use inside the NRF52840 chip.
+/** The UARTE HW block to use inside the NRF52840 chip.
+ * IMPORTANT: this code provides its own UARTE driver and hence
+ * the UARTE chosen here must be set to 0 in sdk_config.h so that
+ * the Nordic NRF5 driver does not use it, e.g. if the
+ * value of CELLULAR_CFG_UART is set to 0 then NRFX_UARTE0_ENABLED
+ * must be set to 0 in sdk_config.h.
  */
 # define CELLULAR_CFG_UART                           0
 #endif
@@ -39,6 +44,16 @@
  * if CELLULAR_CFG_PIN_RTS is not -1.
  */
 # define CELLULAR_CFG_RTS_THRESHOLD                  100
+#endif
+
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS FOR NRF52840: TIMER
+ * -------------------------------------------------------------- */
+
+/** The TIMER instance to use.
+ */
+#ifndef CELLULAR_PORT_TICK_TIMER_INSTANCE
+# define CELLULAR_PORT_TICK_TIMER_INSTANCE 0
 #endif
 
 /* ----------------------------------------------------------------

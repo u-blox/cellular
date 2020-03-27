@@ -75,7 +75,7 @@ typedef struct {
  *                       there for the lifetime of the task.
  *                       May be NULL.
  * @param priority       the priority at which to run the task,
- *                       the meaning of which is platform dependent
+ *                       the meaning of which is platform dependent.
  * @param pTaskHandle    a place to put the handle of the created
  *                       task.
  * @return               zero on success else negative error code.

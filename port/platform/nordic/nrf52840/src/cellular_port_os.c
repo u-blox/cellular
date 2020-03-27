@@ -101,11 +101,9 @@ bool cellularPortTaskIsThis(const CellularPortTaskHandle_t taskHandle)
 // Block the current task for a time.
 void cellularPortTaskBlock(int32_t delayMs)
 {
-    // Note: the standard FreeRTOS construction is
-    // milliseconds / portTICK_PERIOD_MS but in this case
-    // the tick is 1024 Hz so portTICK_PERIOD_MS turns
-    // out to be zero.  Not a problem though, since a tick
-    // is already pretty much a millisecond.
+    // Make sure the scheduler has been started
+    // or this will fly off into space 
+    cellularPort_assert(xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED);
     vTaskDelay(delayMs);
 }
 

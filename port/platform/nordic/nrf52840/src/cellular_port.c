@@ -42,6 +42,10 @@
  * VARIABLES
  * -------------------------------------------------------------- */
 
+/** Keep track of whether we've been initialised or not.
+ */
+static bool gInitialised = false;
+
 // The tick timer.
 static nrfx_timer_t gTickTimer = NRFX_TIMER_INSTANCE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
 
@@ -53,8 +57,10 @@ static int32_t gTickTimerOverflowCount = 0;
  * -------------------------------------------------------------- */
 
 // The tick handler.
-static void timerTickHandler(nrf_timer_event_t eventType, void * pContext)
+static void timerTickHandler(nrf_timer_event_t eventType, void *pContext)
 {
+    (void) pContext;
+
     if (eventType == NRF_TIMER_EVENT_COMPARE0) {
         gTickTimerOverflowCount++;
     }
@@ -70,17 +76,29 @@ int32_t cellularPortInit()
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_PLATFORM_ERROR;
     nrfx_timer_config_t timerCfg = NRFX_TIMER_DEFAULT_CONFIG;
 
-    // IMPORTANT: if you change either of these then you also
-    // need to change the calculation in cellularPortGetTickTimeMs()
-    timerCfg.frequency = NRF_TIMER_FREQ_31250Hz;
-    timerCfg.bit_width = NRF_TIMER_BIT_WIDTH_24;
+    if (!gInitialised) {
+        // IMPORTANT: if you change either of these then you also
+        // need to change the calculation in cellularPortGetTickTimeMs()
+        timerCfg.frequency = NRF_TIMER_FREQ_31250Hz;
+        timerCfg.bit_width = NRF_TIMER_BIT_WIDTH_24;
 
-    // There is no 64-bit timer on the NRF52840,
-    // hence start a timer with interrupt
-    // here so that we can make our own
-    if (nrfx_timer_init(&gTickTimer,
-                        &timerCfg,
-                        timerTickHandler) == NRFX_SUCCESS) {
+        // There is no 64-bit timer on the NRF52840,
+        // hence start a timer with interrupt
+        // here so that we can make our own
+        if (nrfx_timer_init(&gTickTimer,
+                            &timerCfg,
+                            timerTickHandler) == NRFX_SUCCESS) {
+            // Set the compare interrupt on CC zero comparing
+            // with 0, and enable the interrupt
+            nrfx_timer_compare(&gTickTimer, 0, 0, true);
+
+            // Now enable the timer
+            nrfx_timer_enable(&gTickTimer);
+
+            errorCode = CELLULAR_PORT_SUCCESS;
+            gInitialised = true;
+        }
+    } else {
         errorCode = CELLULAR_PORT_SUCCESS;
     }
 
@@ -90,25 +108,32 @@ int32_t cellularPortInit()
 // Deinitialise the porting layer.
 void cellularPortDeinit()
 {
-    nrfx_timer_uninit(&gTickTimer);
+    if (gInitialised) {
+        nrfx_timer_disable(&gTickTimer);
+        nrfx_timer_compare_int_disable(&gTickTimer, 0);
+        nrfx_timer_uninit(&gTickTimer);
+        gInitialised = false;
+    }
 }
 
 // Get the current tick converted to a time in milliseconds.
 int64_t cellularPortGetTickTimeMs()
 {
-    int64_t tickTimerValue;
+    int64_t tickTimerValue = 0;
 
-    tickTimerValue = nrfx_timer_capture_get(&gTickTimer,
-                                            CELLULAR_PORT_TICK_TIMER_CC_INSTANCE);
+    if (gInitialised) {
+        // Read the timer on CC 1
+        tickTimerValue = nrfx_timer_capture(&gTickTimer, 1);
 
-    // Convert to milliseconds when running at 31.25 kHz (one tick
-    // every 32 us)
-    tickTimerValue = (tickTimerValue << 5) / 1000;
+        // Convert to milliseconds when running at 31.25 kHz (one tick
+        // every 32 us)
+        tickTimerValue = (((uint64_t) tickTimerValue) << 5) / 1000;
 
-    // The timer is running at 31.25 kHz and is 24 bits wide so
-    // each overflow represents ((1 / 31250) * (2 ^24)) seconds,
-    // so about very 537 seconds.
-    tickTimerValue += gTickTimerOverflowCount * 536871;
+        // The timer is running at 31.25 kHz and is 24 bits wide so
+        // each overflow represents ((1 / 31250) * (2 ^24)) seconds,
+        // so about very 537 seconds.
+        tickTimerValue += gTickTimerOverflowCount * 536871;
+    }
 
     return tickTimerValue;
 }
