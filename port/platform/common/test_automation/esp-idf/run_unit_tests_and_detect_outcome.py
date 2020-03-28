@@ -28,7 +28,7 @@ def reboot_callback(match):
     global reboots
     print prompt + "progress update - target has rebooted!"
     reboots += 1
-    finished = true
+    finished = True
 
 def run_callback(match):
     '''Handler for a test beginning to run'''

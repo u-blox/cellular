@@ -2,6 +2,7 @@
 <session>
  <Bookmarks/>
  <Breakpoints groups="Breakpoints" active_group="Breakpoints">
+  <BreakpointListItem trigger="" line="444" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="4" filename="../../../../../../../ctrl/test/cellular_ctrl_test.c" useHWbreakpoint="false"/>
   <BreakpointListItem trigger="" line="58" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="4" filename="../../../../../common/unity/cellular_port_unity.c" useHWbreakpoint="false"/>
   <BreakpointListItem trigger="" line="76" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="4" filename="../../../../../common/unity/cellular_port_unity.c" useHWbreakpoint="false"/>
   <BreakpointListItem trigger="" line="61" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="4" filename="main_test.c" useHWbreakpoint="false"/>
@@ -28,12 +29,6 @@
   <ProjectSessionItem path="cellular_pca10056;cellular_pca10056"/>
   <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;Application"/>
   <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;cellular"/>
-  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;FreeRTOS"/>
-  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;None"/>
-  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;nRF_Drivers"/>
-  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;nRF_Libraries"/>
-  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;nRF_Log"/>
-  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;Segger Startup Files"/>
  </Project>
  <Register1>
   <RegisterWindow visibleNodes="CPU - Current Context/r0;CPU - Current Context/r1;CPU - Current Context/r2;CPU - Current Context/r3;CPU - Current Context/r4;CPU - Current Context/r5;CPU - Current Context/r6;CPU - Current Context/r7;CPU - Current Context/r8;CPU - Current Context/r9;CPU - Current Context/r10;CPU - Current Context/r11;CPU - Current Context/r12;CPU - Current Context/sp(r13);CPU - Current Context/lr(r14);CPU - Current Context/pc(r15);CPU - Current Context/apsr;CPU/r0;CPU/r1;CPU/r2;CPU/r3;CPU/r4;CPU/r5;CPU/r6;CPU/r7;CPU/r8;CPU/r9;CPU/r10;CPU/r11;CPU/r12;CPU/sp(r13);CPU/lr(r14);CPU/pc(r15);CPU/xpsr;CPU/msp;CPU/psp;CPU/cfbp;CPU/internal;NVIC/NVIC_ISER0;NVIC/NVIC_ISER1;NVIC/NVIC_ICER0;NVIC/NVIC_ICER1;NVIC/NVIC_ISPR0;NVIC/NVIC_ISPR1;NVIC/NVIC_ICPR0;NVIC/NVIC_ICPR1;NVIC/NVIC_IABR0;NVIC/NVIC_IABR1;NVIC/NVIC_IPR0;NVIC/NVIC_IPR1;NVIC/NVIC_IPR2;NVIC/NVIC_IPR3;NVIC/NVIC_IPR4;NVIC/NVIC_IPR5;NVIC/NVIC_IPR6;NVIC/NVIC_IPR7;NVIC/NVIC_IPR8;NVIC/NVIC_IPR9;NVIC/NVIC_IPR10;NVIC/NVIC_IPR11" binaryNodes="" asciiNodes="" openNodes="CPU - Current Context;CPU;NVIC" name="cellular_pca10056" decimalNodes="" octalNodes="" unsignedNodes=""/>
@@ -66,43 +61,7 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="164" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/modules/nrfx/mdk/ses_startup_nrf_common.s" selected="0" top="139" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="389" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/Program Files/Segger/SEGGER Embedded Studio for ARM 4.50/source/thumb_crt0.s" selected="0" top="379" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="249" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../../../unity/src/unity.c" selected="0" top="226" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="111" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/modules/nrfx/mdk/ses_startup_nrf52840.s" selected="0" top="97" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="183" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/modules/nrfx/mdk/system_nrf52840.c" selected="0" top="152" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="460" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../../ctrl/test/cellular_ctrl_test.c" selected="0" top="440" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="56" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../common/unity/cellular_port_unity_addons.c" selected="0" top="40" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="83" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../src/cellular_port.c" selected="0" top="61" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="123" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/modules/nrfx/drivers/src/nrfx_timer.c" selected="0" top="106" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="644" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/modules/nrfx/hal/nrf_timer.h" selected="0" top="629" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="318" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/modules/nrfx/drivers/nrfx_common.h" selected="0" top="302" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1627" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/components/toolchain/cmsis/include/core_cm4.h" selected="0" top="1612" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="593" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../src/cellular_port_uart.c" selected="0" top="579" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="514" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/modules/nrfx/hal/nrf_gpio.h" selected="0" top="494" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="459" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/modules/nrfx/hal/nrf_uarte.h" selected="0" top="442" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="738" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../../ctrl/src/cellular_ctrl.c" selected="0" top="711" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="154" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../src/cellular_port_gpio.c" selected="0" top="130" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1069" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../../ctrl/src/cellular_ctrl_at.c" selected="0" top="1047" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="63" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../src/cellular_port_os.c" selected="0" top="49" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1996" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/external/freertos/source/tasks.c" selected="0" top="1982" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="130" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/external/freertos/source/portable/MemMang/heap_1.c" selected="0" top="115" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="175" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/external/freertos/portable/CMSIS/nrf52/port_cmsis.c" selected="0" top="155" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="264" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/components/toolchain/cmsis/include/cmsis_gcc.h" selected="0" top="249" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="99" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/components/libraries/util/app_error_weak.c" selected="0" top="41" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1980" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/external/freertos/source/queue.c" selected="0" top="1965" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="50" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/components/libraries/util/nrf_assert.c" selected="0" top="35" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="308" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/external/freertos/source/portable/MemMang/heap_4.c" selected="0" top="293" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="111" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/external/freertos/portable/GCC/nrf52/port.c" selected="0" top="88" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="167" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/external/freertos/source/list.c" selected="0" top="137" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="50" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/components/libraries/hardfault/nrf52/handler/hardfault_handler_gcc.c" selected="0" top="35" codecName=""/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="147" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/components/libraries/hardfault/hardfault_implementation.c" selected="0" top="133" codecName=""/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="582" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/components/libraries/log/src/nrf_log_frontend.c" selected="0" top="565" codecName=""/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="230" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/components/libraries/log/nrf_log_backend_interface.h" selected="0" top="214" codecName=""/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="115" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/components/libraries/log/src/nrf_log_backend_rtt.c" selected="0" top="99" codecName=""/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="32" y="93" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/external/freertos/portable/CMSIS/nrf52/port_cmsis_systick.c" selected="0" top="88" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="230" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/integration/nrfx/legacy/nrf_drv_clock.c" selected="0" top="229" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="93" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../test/main_test.c" selected="1" top="81" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="93" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../test/main_test.c" selected="1" top="82" codecName="Default"/>
  </Files>
  <ARMCrossStudioWindow activeProject="cellular_pca10056" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

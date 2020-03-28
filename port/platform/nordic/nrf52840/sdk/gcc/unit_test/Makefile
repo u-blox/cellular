@@ -4,60 +4,59 @@ OUTPUT_DIRECTORY := _build
 
 override UNITY_PATH ?= ../../../../../../../../Unity
 override NRF5_PATH ?= ../../../../../../../../nrf5
-SDK_ROOT = $(NRF5_PATH)
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
   LINKER_SCRIPT  := uart_gcc_nrf52.ld
 
 # Source files common to all targets
 SRC_FILES += \
-  $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
-  $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \
-  $(SDK_ROOT)/modules/nrfx/soc/nrfx_atomic.c \
-  $(SDK_ROOT)/components/boards/boards.c \
-  $(SDK_ROOT)/components/libraries/util/app_error.c \
-  $(SDK_ROOT)/components/libraries/util/app_error_handler_gcc.c \
-  $(SDK_ROOT)/components/libraries/util/app_error_weak.c \
-  $(SDK_ROOT)/components/libraries/fifo/app_fifo.c \
-  $(SDK_ROOT)/components/libraries/uart/app_uart_fifo.c \
-  $(SDK_ROOT)/components/libraries/util/app_util_platform.c \
-  $(SDK_ROOT)/components/libraries/util/nrf_assert.c \
-  $(SDK_ROOT)/components/libraries/atomic/nrf_atomic.c \
-  $(SDK_ROOT)/components/libraries/balloc/nrf_balloc.c \
-  $(SDK_ROOT)/components/libraries/memobj/nrf_memobj.c \
-  $(SDK_ROOT)/components/libraries/ringbuf/nrf_ringbuf.c \
-  $(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
-  $(SDK_ROOT)/components/libraries/uart/retarget.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_timer.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uart.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uarte.c \
-  $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_clock.c \
-  $(SDK_ROOT)/external/fprintf/nrf_fprintf.c \
-  $(SDK_ROOT)/external/fprintf/nrf_fprintf_format.c \
-  $(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_clock.c \
-  $(SDK_ROOT)/components/libraries/log/src/nrf_log_backend_rtt.c \
-  $(SDK_ROOT)/components/libraries/log/src/nrf_log_backend_serial.c \
-  $(SDK_ROOT)/components/libraries/log/src/nrf_log_backend_uart.c \
-  $(SDK_ROOT)/components/libraries/log/src/nrf_log_default_backends.c \
-  $(SDK_ROOT)/components/libraries/log/src/nrf_log_frontend.c \
-  $(SDK_ROOT)/components/libraries/log/src/nrf_log_str_formatter.c \
-  $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
-  $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \
-  $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
-  $(SDK_ROOT)/components/libraries/hardfault/nrf52/handler/hardfault_handler_gcc.c \
-  $(SDK_ROOT)/components/libraries/hardfault/hardfault_implementation.c \
-  $(SDK_ROOT)/external/freertos/source/croutine.c \
-  $(SDK_ROOT)/external/freertos/source/event_groups.c \
-  $(SDK_ROOT)/external/freertos/source/portable/MemMang/heap_4.c \
-  $(SDK_ROOT)/external/freertos/source/list.c \
-  $(SDK_ROOT)/external/freertos/portable/GCC/nrf52/port.c \
-  $(SDK_ROOT)/external/freertos/portable/CMSIS/nrf52/port_cmsis.c \
-  $(SDK_ROOT)/external/freertos/portable/CMSIS/nrf52/port_cmsis_systick.c \
-  $(SDK_ROOT)/external/freertos/source/queue.c \
-  $(SDK_ROOT)/external/freertos/source/stream_buffer.c \
-  $(SDK_ROOT)/external/freertos/source/tasks.c \
-  $(SDK_ROOT)/external/freertos/source/timers.c \
+  $(NRF5_PATH)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
+  $(NRF5_PATH)/modules/nrfx/mdk/system_nrf52840.c \
+  $(NRF5_PATH)/modules/nrfx/soc/nrfx_atomic.c \
+  $(NRF5_PATH)/components/boards/boards.c \
+  $(NRF5_PATH)/components/libraries/util/app_error.c \
+  $(NRF5_PATH)/components/libraries/util/app_error_handler_gcc.c \
+  $(NRF5_PATH)/components/libraries/util/app_error_weak.c \
+  $(NRF5_PATH)/components/libraries/fifo/app_fifo.c \
+  $(NRF5_PATH)/components/libraries/uart/app_uart_fifo.c \
+  $(NRF5_PATH)/components/libraries/util/app_util_platform.c \
+  $(NRF5_PATH)/components/libraries/util/nrf_assert.c \
+  $(NRF5_PATH)/components/libraries/atomic/nrf_atomic.c \
+  $(NRF5_PATH)/components/libraries/balloc/nrf_balloc.c \
+  $(NRF5_PATH)/components/libraries/memobj/nrf_memobj.c \
+  $(NRF5_PATH)/components/libraries/ringbuf/nrf_ringbuf.c \
+  $(NRF5_PATH)/components/libraries/strerror/nrf_strerror.c \
+  $(NRF5_PATH)/components/libraries/uart/retarget.c \
+  $(NRF5_PATH)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
+  $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_timer.c \
+  $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_uart.c \
+  $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_uarte.c \
+  $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_clock.c \
+  $(NRF5_PATH)/external/fprintf/nrf_fprintf.c \
+  $(NRF5_PATH)/external/fprintf/nrf_fprintf_format.c \
+  $(NRF5_PATH)/integration/nrfx/legacy/nrf_drv_clock.c \
+  $(NRF5_PATH)/components/libraries/log/src/nrf_log_backend_rtt.c \
+  $(NRF5_PATH)/components/libraries/log/src/nrf_log_backend_serial.c \
+  $(NRF5_PATH)/components/libraries/log/src/nrf_log_backend_uart.c \
+  $(NRF5_PATH)/components/libraries/log/src/nrf_log_default_backends.c \
+  $(NRF5_PATH)/components/libraries/log/src/nrf_log_frontend.c \
+  $(NRF5_PATH)/components/libraries/log/src/nrf_log_str_formatter.c \
+  $(NRF5_PATH)/external/segger_rtt/SEGGER_RTT.c \
+  $(NRF5_PATH)/external/segger_rtt/SEGGER_RTT_printf.c \
+  $(NRF5_PATH)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
+  $(NRF5_PATH)/components/libraries/hardfault/nrf52/handler/hardfault_handler_gcc.c \
+  $(NRF5_PATH)/components/libraries/hardfault/hardfault_implementation.c \
+  $(NRF5_PATH)/external/freertos/source/croutine.c \
+  $(NRF5_PATH)/external/freertos/source/event_groups.c \
+  $(NRF5_PATH)/external/freertos/source/portable/MemMang/heap_4.c \
+  $(NRF5_PATH)/external/freertos/source/list.c \
+  $(NRF5_PATH)/external/freertos/portable/GCC/nrf52/port.c \
+  $(NRF5_PATH)/external/freertos/portable/CMSIS/nrf52/port_cmsis.c \
+  $(NRF5_PATH)/external/freertos/portable/CMSIS/nrf52/port_cmsis_systick.c \
+  $(NRF5_PATH)/external/freertos/source/queue.c \
+  $(NRF5_PATH)/external/freertos/source/stream_buffer.c \
+  $(NRF5_PATH)/external/freertos/source/tasks.c \
+  $(NRF5_PATH)/external/freertos/source/timers.c \
   ../../../../../../../ctrl/src/cellular_ctrl.c \
   ../../../../../../../ctrl/src/cellular_ctrl_at.c \
   ../../../../../../../sock/src/cellular_sock.c \
@@ -77,36 +76,36 @@ SRC_FILES += \
 # Include folders common to all targets
 INC_FOLDERS += \
   ../../../cfg \
-  $(SDK_ROOT)/components \
-  $(SDK_ROOT)/modules/nrfx/mdk \
-  $(SDK_ROOT)/components/libraries/fifo \
-  $(SDK_ROOT)/components/libraries/strerror \
-  $(SDK_ROOT)/components/toolchain/cmsis/include \
-  $(SDK_ROOT)/external/freertos/source/include \
-  $(SDK_ROOT)/external/freertos/config \
-  $(SDK_ROOT)/components/libraries/util \
-  $(SDK_ROOT)/components/libraries/balloc \
-  $(SDK_ROOT)/components/libraries/ringbuf \
-  $(SDK_ROOT)/modules/nrfx/hal \
-  $(SDK_ROOT)/components/libraries/bsp \
-  $(SDK_ROOT)/components/libraries/uart \
-  $(SDK_ROOT)/components/libraries/log \
-  $(SDK_ROOT)/modules/nrfx \
-  $(SDK_ROOT)/components/libraries/experimental_section_vars \
-  $(SDK_ROOT)/integration/nrfx/legacy \
-  $(SDK_ROOT)/external/freertos/portable/CMSIS/nrf52 \
-  $(SDK_ROOT)/components/libraries/delay \
-  $(SDK_ROOT)/integration/nrfx \
-  $(SDK_ROOT)/components/drivers_nrf/nrf_soc_nosd \
-  $(SDK_ROOT)/components/libraries/atomic \
-  $(SDK_ROOT)/components/boards \
-  $(SDK_ROOT)/components/libraries/memobj \
-  $(SDK_ROOT)/external/freertos/portable/GCC/nrf52 \
-  $(SDK_ROOT)/modules/nrfx/drivers/include \
-  $(SDK_ROOT)/external/fprintf \
-  $(SDK_ROOT)/components/libraries/log/src \
-  $(SDK_ROOT)/external/segger_rtt \
-  $(SDK_ROOT)/components/libraries/hardfault \
+  $(NRF5_PATH)/components \
+  $(NRF5_PATH)/modules/nrfx/mdk \
+  $(NRF5_PATH)/components/libraries/fifo \
+  $(NRF5_PATH)/components/libraries/strerror \
+  $(NRF5_PATH)/components/toolchain/cmsis/include \
+  $(NRF5_PATH)/external/freertos/source/include \
+  $(NRF5_PATH)/external/freertos/config \
+  $(NRF5_PATH)/components/libraries/util \
+  $(NRF5_PATH)/components/libraries/balloc \
+  $(NRF5_PATH)/components/libraries/ringbuf \
+  $(NRF5_PATH)/modules/nrfx/hal \
+  $(NRF5_PATH)/components/libraries/bsp \
+  $(NRF5_PATH)/components/libraries/uart \
+  $(NRF5_PATH)/components/libraries/log \
+  $(NRF5_PATH)/modules/nrfx \
+  $(NRF5_PATH)/components/libraries/experimental_section_vars \
+  $(NRF5_PATH)/integration/nrfx/legacy \
+  $(NRF5_PATH)/external/freertos/portable/CMSIS/nrf52 \
+  $(NRF5_PATH)/components/libraries/delay \
+  $(NRF5_PATH)/integration/nrfx \
+  $(NRF5_PATH)/components/drivers_nrf/nrf_soc_nosd \
+  $(NRF5_PATH)/components/libraries/atomic \
+  $(NRF5_PATH)/components/boards \
+  $(NRF5_PATH)/components/libraries/memobj \
+  $(NRF5_PATH)/external/freertos/portable/GCC/nrf52 \
+  $(NRF5_PATH)/modules/nrfx/drivers/include \
+  $(NRF5_PATH)/external/fprintf \
+  $(NRF5_PATH)/components/libraries/log/src \
+  $(NRF5_PATH)/external/segger_rtt \
+  $(NRF5_PATH)/components/libraries/hardfault \
   . \
   ../../../../../../api \
   ../../../../../../../ctrl/api \
@@ -164,7 +163,7 @@ ASMFLAGS += -DDEBUG_NRF
 
 # Linker flags
 LDFLAGS += $(OPT)
-LDFLAGS += -mthumb -mabi=aapcs -L$(SDK_ROOT)/modules/nrfx/mdk -T$(LINKER_SCRIPT)
+LDFLAGS += -mthumb -mabi=aapcs -L$(NRF5_PATH)/modules/nrfx/mdk -T$(LINKER_SCRIPT)
 LDFLAGS += -mcpu=cortex-m4
 LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # let linker dump unused sections
@@ -194,7 +193,7 @@ help:
 	@echo		sdk_config - starting external tool for editing sdk_config.h
 	@echo		flash      - flashing binary
 
-TEMPLATE_PATH := $(SDK_ROOT)/components/toolchain/gcc
+TEMPLATE_PATH := $(NRF5_PATH)/components/toolchain/gcc
 
 
 include $(TEMPLATE_PATH)/Makefile.common
@@ -212,6 +211,6 @@ erase:
 	nrfjprog -f nrf52 --chiperase
 
 SDK_CONFIG_FILE := ../../../cfg/sdk_config.h
-CMSIS_CONFIG_TOOL := $(SDK_ROOT)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
+CMSIS_CONFIG_TOOL := $(NRF5_PATH)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
 sdk_config:
 	java -jar $(CMSIS_CONFIG_TOOL) $(SDK_CONFIG_FILE)

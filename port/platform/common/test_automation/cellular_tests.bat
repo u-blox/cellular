@@ -13,6 +13,7 @@ set platform_number=
 set platform_string=
 set code_directory=
 set config_directory=%~dp0config
+set branch=
 set com_port=
 set espidf_repo_root=
 set CELLULAR_FLAGS=
@@ -51,12 +52,15 @@ set pos=0
             set platform_number=%arg%
             set /A pos=pos+1
         ) else if "%pos%"=="1" (
-            set code_directory=%arg%
+            set branch=%arg%
             set /A pos=pos+1
         ) else if "%pos%"=="2" (
-            set build_directory=%arg%
+            set code_directory=%arg%
             set /A pos=pos+1
         ) else if "%pos%"=="3" (
+            set build_directory=%arg%
+            set /A pos=pos+1
+        ) else if "%pos%"=="4" (
             set com_port=%arg%
             set /A pos=pos+1
         ) else (
@@ -79,6 +83,13 @@ if %platform_number% LEQ %num_platforms% (
     echo %~n0: ERROR don't understand platform %platform_number%.
     goto usage
 )
+
+rem Check branch
+if "%branch%"=="" (
+    echo %~n0: ERROR must specify a branch, e.g. master.
+    goto usage
+)
+echo %~n0: branch of cellular code is %branch%.
 
 rem Check code directory, create/clean it if requested
 if "%code_directory%"=="" (
@@ -160,6 +171,10 @@ if not "%fetch%"=="" (
 ) else (
     echo %~n0: not fetching any code, just building.
 )   
+echo %~n0: checking out %branch% branch of cellular driver code...
+pushd cellular
+git checkout %branch%
+popd
 goto build_platform_%platform_number%
 
 rem Build end
@@ -238,7 +253,7 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
     echo %~n0: building tests and then downloading them over %com_port%...
     echo %~n0: building in %build_directory%\esp-idf-%espidf_repo_root% to keep paths short
     @echo on
-    idf.py  size flash -p %com_port% -C cellular\port\platform\espressif\esp32\sdk\esp-idf\unit_test -B %build_directory%\esp-idf-%espidf_repo_root% -D TEST_COMPONENTS="cellular_tests"
+    idf.py  -p %com_port% -C cellular\port\platform\espressif\esp32\sdk\esp-idf\unit_test -B %build_directory%\esp-idf-%espidf_repo_root% -D TEST_COMPONENTS="cellular_tests" size flash
     @echo off
     rem Back to where this batch file was called from to run the tests with the Python script there
     popd
@@ -294,7 +309,7 @@ rem Build Espressif SDK v4 on ESP32 with a SARA-R4 module on a WHRE board talkin
 rem Usage string
 :usage
     echo.
-    echo Usage: %~n0 [/f /d /c /b] platform code_directory build_directory comport
+    echo Usage: %~n0 [/f /d /c /b] platform branch code_directory build_directory comport
     echo.
     echo where:
     echo.
@@ -305,6 +320,7 @@ rem Usage string
     echo - /b indicates that the build directory should be cleaned first,
     echo - platform is a number representing the platform you'd like to build/test for selected from the following:
     for /L %%a in (1,1,!num_platforms!) do echo   %%a: !platform_%%a!
+    echo - branch is the branch of the cellular driver code to check out from git, e.g. master.
     echo - code_directory is the directory into which to fetch code.
     echo - build_directory is the directory in which to do building/testing; best to give the absolute path as some
     echo   third party tools assume this goes under code_directory and hence the /b /d options may have
