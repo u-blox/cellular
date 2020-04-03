@@ -24,7 +24,7 @@ set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_ENABLE_POWER
 With this done, `cd` to the `unit_test` directory and execute the following:
 
 ```
-idf.py  flash monitor -p COMx -D TEST_COMPONENTS="cellular_tests"
+idf.py  -p COMx -D TEST_COMPONENTS="cellular_tests" flash monitor
 ```
 
 ...where `COMx` is replaced by the COM port to which your ESP32 board is attached. The command adds this directory to ESP-IDF as an ESP-IDF component and requests that the tests for this component are built, downloaded to the board and run.
