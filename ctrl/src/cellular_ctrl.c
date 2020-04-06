@@ -68,10 +68,10 @@ static bool gInitialised = false;
 static int32_t gPinEnablePower;
 
 /** The GPIO pin to be used to signal power on to the cellular
- * module, i.e. the pin that is connected to the CP_ON pin of the
+ * module, i.e. the pin that is connected to the PWR_ON pin of the
  * module.
  */
-static int32_t gPinCpOn;
+static int32_t gPinPwrOn;
 
 /** The GPIO pin to the VInt output on the cellular module.
  */
@@ -339,8 +339,10 @@ static CellularCtrlErrorCode_t moduleConfigure()
     cellular_ctrl_at_cmd_stop_read_resp();
     cellular_ctrl_at_cmd_start("AT&D0"); // Ignore changes to DTR
     cellular_ctrl_at_cmd_stop_read_resp();
-    cellular_ctrl_at_cmd_start("AT+UCGED=5"); // Switch on channel and environment reporting for EUTRAN
-    cellular_ctrl_at_cmd_stop_read_resp();
+#ifndef CELLULAR_CFG_MODULE_SARA_R5
+    cellular_ctrl_at_cmd_start("AT+UCGED=2"); // Switch on channel and environment reporting for EUTRAN
+    cellular_ctrl_at_cmd_stop_read_resp();    // Note: set command is not supported on SARA-R5, only mode is 2.
+#endif
     cellular_ctrl_at_cmd_start("AT+CPSMS=0"); // TODO switch off power saving until it is integrated into this API
     cellular_ctrl_at_cmd_stop_read_resp();
     cellular_ctrl_at_cmd_start("AT+CFUN=4"); // Stay in airplane mode until commanded to connect,
@@ -625,14 +627,14 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
 
 // Initialise the cellular control driver.
 int32_t cellularCtrlInit(int32_t pinEnablePower,
-                         int32_t pinCpOn,
+                         int32_t pinPwrOn,
                          int32_t pinVInt,
                          bool leavePowerAlone,
                          int32_t uart,
                          CellularPortQueueHandle_t queueUart)
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
-    int32_t platformError;
+    int32_t platformError = 0;
     CellularPortGpioConfig_t gpioConfig = CELLULAR_PORT_GPIO_CONFIG_DEFAULT;
     int32_t enablePowerAtStart;
 
@@ -644,7 +646,7 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
         } else {
             cellularPortLog("not connected, ");
         }
-        cellularPortLog("CP ON pin %d", pinCpOn);
+        cellularPortLog("PWR_ON pin %d", pinPwrOn);
         if (leavePowerAlone) {
             cellularPortLog(", leaving the level of both those pins alone");
         }
@@ -653,17 +655,17 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
         } else {
             cellularPortLog(", VInt pin not connected.\n");
         }
-        gpioConfig.pin = pinCpOn;
-        // CP_ON open drain so that we can pull it low and then let it
-        // float afterwards since it is pulled-up by the cellular module
-        gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN;
-        gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
-        platformError = cellularPortGpioConfig(&gpioConfig);
+        gpioConfig.pin = pinPwrOn;
+        if (!leavePowerAlone) {
+            // Set PWR_ON high so that we can pull it low
+            platformError = cellularPortGpioSet(pinPwrOn, 1);
+        }
         if (platformError == 0) {
-            if (!leavePowerAlone) {
-                // Set CP_ON high so that we can pull it low
-                platformError = cellularPortGpioSet(pinCpOn, 1);
-            }
+            // PWR_ON open drain so that we can pull it low and then let it
+            // float afterwards since it is pulled-up by the cellular module
+            gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN;
+            gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
+            platformError = cellularPortGpioConfig(&gpioConfig);
             if (platformError == 0) {
                 if (pinEnablePower >= 0) {
                     gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL;
@@ -704,7 +706,7 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
                         errorCode = cellular_ctrl_at_init(uart, queueUart);
                         if (errorCode == 0) {
                             gPinEnablePower = pinEnablePower;
-                            gPinCpOn = pinCpOn;
+                            gPinPwrOn = pinPwrOn;
                             gPinVInt = pinVInt;
                             gUart = uart;
                             gNetworkStatus = CELLULAR_CTRL_NETWORK_STATUS_UNKNOWN;
@@ -716,12 +718,12 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
                     }
                 }
             } else {
-                cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for CP_ON pin %d returned error code %d.\n",
-                                pinCpOn, platformError);
+                cellularPortLog("CELLULAR_CTRL: cellularPortGpioConfig() for PWR_ON pin %d returned error code %d.\n",
+                                pinPwrOn, platformError);
             }
         } else {
-            cellularPortLog("CELLULAR_CTRL: cellularPortGpioConfig() for CP_ON pin %d returned error code %d.\n",
-                            pinCpOn, platformError);
+            cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for PWR_ON pin %d returned error code %d.\n",
+                            pinPwrOn, platformError);
         }
     } else {
         errorCode = CELLULAR_CTRL_SUCCESS;
@@ -780,8 +782,8 @@ int32_t cellularCtrlPowerOn(const char *pPin)
         errorCode = CELLULAR_CTRL_PIN_ENTRY_NOT_SUPPORTED;
         if (pPin == NULL) {
             errorCode = CELLULAR_CTRL_PLATFORM_ERROR;
-            // For some modules the power-on pulse on CP_ON and the
-            // power-off pulse on CP_ON are the the same duration,
+            // For some modules the power-on pulse on PWR_ON and the
+            // power-off pulse on PWR_ON are the the same duration,
             // in effect a toggle.  To avoid accidentally powering
             // the module off, check if it is already on.
             // Note: doing this even if there is an enable power
@@ -799,22 +801,22 @@ int32_t cellularCtrlPowerOn(const char *pPin)
                 if (platformError == 0) {
                     // Wait for things to settle
                     cellularPortTaskBlock(100);
-                    platformError = cellularPortGpioSet(gPinCpOn, 0);
+                    platformError = cellularPortGpioSet(gPinPwrOn, 0);
                     if (platformError == 0) {
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
-                        // SARA-R412M is powered on by holding the CP_ON pin low
+                        // SARA-R412M is powered on by holding the PWR_ON pin low
                         // for more than 0.15 seconds
                         cellularPortTaskBlock(300);
 #endif
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
-                        // SARA-R5 is powered on by holding the CP_ON pin low
+                        // SARA-R5 is powered on by holding the PWR_ON pin low
                         // for more than 1 second
-#endif
                         cellularPortTaskBlock(1200);
+#endif
                         // Not bothering with checking return code here
                         // as it would have barfed on the last one if
                         // it were going to
-                        cellularPortGpioSet(gPinCpOn, 1);
+                        cellularPortGpioSet(gPinPwrOn, 1);
                         cellularPortTaskBlock(CELLULAR_CTRL_BOOT_WAIT_TIME_MS);
                         // Cellular module should be up, see if it's there
                         // and, if so, configure it
@@ -830,8 +832,8 @@ int32_t cellularCtrlPowerOn(const char *pPin)
                             cellularCtrlPowerOff(NULL);
                         }
                     } else {
-                        cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for CP_ON pin %d returned error code %d.\n",
-                                        gPinCpOn, platformError);
+                        cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for PWR_ON pin %d returned error code %d.\n",
+                                        gPinPwrOn, platformError);
                     }
                 } else {
                     cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for enable power pin %d returned error code%d.\n",
@@ -861,6 +863,7 @@ void cellularCtrlPowerOff(bool (*pKeepGoingCallback) (void))
         clearRadioParameters();
         cellular_ctrl_at_cmd_start("AT+CPWROFF");
         cellular_ctrl_at_cmd_stop_read_resp();
+        cellular_ctrl_at_unlock();
 
         if (gPinVInt >= 0) {
             // If we have a VInt pin then wait until that
@@ -874,24 +877,24 @@ void cellularCtrlPowerOff(bool (*pKeepGoingCallback) (void))
         } else {
             // Wait for the module to stop responding at the AT interface
             // by poking it with "AT"
-            cellular_ctrl_at_clear_error();
-            cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
             for (size_t x = 0; !moduleIsOff && (x < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 4) &&
                                ((pKeepGoingCallback == NULL) ||
                                 pKeepGoingCallback()); x++) {
+                cellular_ctrl_at_lock();
+                cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
                 cellular_ctrl_at_cmd_start("AT");
                 cellular_ctrl_at_cmd_stop_read_resp();
                 moduleIsOff = (cellular_ctrl_at_get_last_error() != 0);
+                cellular_ctrl_at_restore_at_timeout();
+                cellular_ctrl_at_unlock();
                 cellularPortTaskBlock(250);
             }
-            cellular_ctrl_at_restore_at_timeout();
         }
 
         if (gPinEnablePower >= 0) {
             cellularPortGpioSet(gPinEnablePower, 0);
         }
-        cellularPortGpioSet(gPinCpOn, 1);
-        cellular_ctrl_at_unlock();
+        cellularPortGpioSet(gPinPwrOn, 1);
         gAtNumConsecutiveTimeouts = 0;
     }
 }
@@ -907,19 +910,11 @@ void cellularCtrlHardPowerOff(bool trulyHard, bool (*pKeepGoingCallback) (void))
         if (trulyHard && (gPinEnablePower > 0)) {
             cellularPortGpioSet(gPinEnablePower, 0);
         } else {
-            cellularPortGpioSet(gPinCpOn, 0);
-#ifdef CELLULAR_CFG_MODULE_SARA_R4
-            // SARA-R412M is powered of by holding the CP_ON pin low
-            // for more than 1.5 seconds
+            cellularPortGpioSet(gPinPwrOn, 0);
+            // Both SARA-R412M and SARA-R5 are powered off by
+            // holding the PWR_ON pin low for more than 1.5 seconds
             cellularPortTaskBlock(2000);
-#endif
-#ifdef CELLULAR_CFG_MODULE_SARA_R5
-            // SARA-R5 is powered on by holding the CP_ON pin low
-            // for more than 1 second
-            cellularPortTaskBlock(1500);
-#endif
-
-            cellularPortGpioSet(gPinCpOn, 1);
+            cellularPortGpioSet(gPinPwrOn, 1);
             if (gPinVInt >= 0) {
                 // If we have a VInt pin then wait until that
                 // goes low
@@ -932,17 +927,18 @@ void cellularCtrlHardPowerOff(bool trulyHard, bool (*pKeepGoingCallback) (void))
             } else {
                 // Wait for the module to stop responding at the AT interface
                 // by poking it with "AT"
-                cellular_ctrl_at_clear_error();
-                cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
                 for (size_t x = 0; !moduleIsOff && (x < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 4) &&
                                    ((pKeepGoingCallback == NULL) ||
                                     pKeepGoingCallback()); x++) {
+                    cellular_ctrl_at_lock();
+                    cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
                     cellular_ctrl_at_cmd_start("AT");
                     cellular_ctrl_at_cmd_stop_read_resp();
+                    cellular_ctrl_at_restore_at_timeout();
+                    cellular_ctrl_at_unlock();
                     moduleIsOff = (cellular_ctrl_at_get_last_error() != 0);
                     cellularPortTaskBlock(250);
                 }
-                cellular_ctrl_at_restore_at_timeout();
             }
             // Now switch off power if possible
             if (gPinEnablePower > 0) {
@@ -971,7 +967,12 @@ int32_t cellularCtrlReboot()
         cellular_ctrl_at_lock();
         // Clear out the old RF readings
         clearRadioParameters();
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+        // SARA-R5 doesn't support 15 (which doesn't reset the SIM)
+        cellular_ctrl_at_cmd_start("AT+CFUN=16");
+#else
         cellular_ctrl_at_cmd_start("AT+CFUN=15");
+#endif
         cellular_ctrl_at_cmd_stop_read_resp();
         if (cellular_ctrl_at_unlock_return_error() == 0) {
             // Wait for the module to boot
@@ -1325,7 +1326,11 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
                         pPassword = _APN_GET(pApnConfig);
                         cellularPortLog("CELLULAR_CTRL: APN from database is \"%s\".\n", pApn);
                     } else {
-                        cellularPortLog("CELLULAR_CTRL: user-specified APN is \"%s\".\n", pApn);
+                        if (pApn != NULL) {
+                            cellularPortLog("CELLULAR_CTRL: user-specified APN is \"%s\".\n", pApn);
+                        } else {
+                            cellularPortLog("CELLULAR_CTRL: default APN will be used by network.\n");
+                        }
                     }
                     // Register and activate PDP context
                     errorCode = tryConnect(pKeepGoingCallback, pApn,
@@ -1612,10 +1617,7 @@ int32_t cellularCtrlGetApnStr(char *pStr, size_t size)
 int32_t cellularCtrlRefreshRadioParameters()
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
-    double rsrx;
     int32_t rssi;
-    char buf[16];
-    char *pLimit;
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_NOT_REGISTERED;
@@ -1650,28 +1652,26 @@ int32_t cellularCtrlRefreshRadioParameters()
                 cellular_ctrl_at_lock();
                 cellular_ctrl_at_cmd_start("AT+UCGED?");
                 cellular_ctrl_at_cmd_stop();
-                cellular_ctrl_at_resp_start("+RSRP:", false);
-                gCellId = cellular_ctrl_at_read_int();
+                // Response is:
+                // +UCGED: 2
+                // <rat>,<MCC>,<MNC>
+                // <EARFCN>,<Lband>,<ul_BW>,<dl_BW>,<TAC>,<P-CID>,<RSRP>,<RSRQ>,<NBMsinr>,<esm_cause>,<emm_state>,<tx_pwr>,<drx_cycle_len>,<tmsi>
+                // e.g.
+                // 6,310,410
+                // 5110,12,10,10,830e,162,-86,-14,131,-1,3,255,128,"FB306E02"
+                cellular_ctrl_at_resp_start("+UCGED: 2", false);
+                // Skip <rat>,<MCC>,<MNC>
+                cellular_ctrl_at_skip_param(3);
+                // Read EARFCN
                 gEarfcn = cellular_ctrl_at_read_int();
-                if (cellular_ctrl_at_read_string(buf, sizeof(buf), false) > 0) {
-                    rsrx = cellularPort_strtof(buf, &pLimit);
-                    if (rsrx >= 0) {
-                        gRsrpDbm = (int32_t) (rsrx + 0.5);
-                    } else {
-                        gRsrpDbm = (int32_t) (rsrx - 0.5);
-                    }
-                }
-                cellular_ctrl_at_resp_start("+RSRQ:", false);
-                // Skip past cell ID and EARFCN since they will be the same
-                cellular_ctrl_at_skip_param(2);
-                if (cellular_ctrl_at_read_string(buf, sizeof(buf), false) > 0) {
-                    rsrx = cellularPort_strtof(buf, &pLimit);
-                    if (rsrx >= 0) {
-                        gRsrqDbm = (int32_t) (rsrx + 0.5);
-                    } else {
-                        gRsrqDbm = (int32_t) (rsrx - 0.5);
-                    }
-                }
+                // Skip <Lband>,<ul_BW>,<dl_BW>,<TAC>
+                cellular_ctrl_at_skip_param(4);
+                // Read Cell ID
+                gCellId = cellular_ctrl_at_read_int();
+                // Read RSRP
+                gRsrpDbm = cellular_ctrl_at_read_int();
+                // Read RSRQ
+                gRsrqDbm = cellular_ctrl_at_read_int();
                 cellular_ctrl_at_resp_stop();
                 if (cellular_ctrl_at_unlock_return_error() == 0) {
                     errorCode = CELLULAR_CTRL_SUCCESS;

@@ -17,9 +17,9 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
+#include "cellular_port_test_platform_specific.h"
 #include <stdio.h>
 #include <string.h>
-#include "unity.h"
 
 static void print_banner(const char* text);
 

@@ -11,7 +11,7 @@ Each platform directory will include the following sub-directories:
 - `cfg` - definitions for the specific HW on which that platform is supported.  This shall include, as a minimum:
   - the following pins, where -1 is used to indicate that there is no such pin:
     - `CELLULAR_CFG_PIN_ENABLE_POWER` the GPIO output pin that enables power to the cellular module, may be -1.
-    - `CELLULAR_CFG_PIN_CP_ON` the GPIO output pin that is connected to the CP_ON pin of the cellular module.
+    - `CELLULAR_CFG_PIN_PWR_ON` the GPIO output pin that is connected to the PWR_ON pin of the cellular module.
     - `CELLULAR_CFG_PIN_VINT` the GPIO input pin that is connected to the VInt pin of the cellular module, may be -1.
     - `CELLULAR_CFG_PIN_TXD` the GPIO output pin that sends UART data to the cellular module.
     - `CELLULAR_CFG_PIN_RXD` the GPIO input pin that receives UART data from the cellular module.

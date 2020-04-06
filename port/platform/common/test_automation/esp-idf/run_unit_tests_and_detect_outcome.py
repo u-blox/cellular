@@ -194,6 +194,7 @@ def watch_tests(port_handle, log_file_handle):
 if __name__ == "__main__":
     '''RunEspIdfTests: main'''
     success = True
+    return_value = 1
 
     # Switch off traceback to stop the horrid developmenty prints
     #sys.tracebacklimit = 0
@@ -236,6 +237,7 @@ if __name__ == "__main__":
             # Run the tests
             if run_all_tests(port_handle, log_file_handle):
                 watch_tests(port_handle, log_file_handle)
+                return_value = tests_failed
             # Write the report
             if report_file_handle:
                 report_file_handle.write("<testsuite name=\"{}\" tests=\"{}\" failures=\"{}\">\n".\
@@ -248,4 +250,5 @@ if __name__ == "__main__":
         if log_file_handle:
             log_file_handle.close()
         port_handle.close()
-    print prompt + "end."
+    print prompt + "end with return value " + str(return_value) + "."
+    sys.exit(return_value)

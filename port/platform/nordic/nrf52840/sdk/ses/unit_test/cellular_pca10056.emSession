@@ -2,10 +2,8 @@
 <session>
  <Bookmarks/>
  <Breakpoints groups="Breakpoints" active_group="Breakpoints">
-  <BreakpointListItem trigger="" line="444" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="4" filename="../../../../../../../ctrl/test/cellular_ctrl_test.c" useHWbreakpoint="false"/>
-  <BreakpointListItem trigger="" line="58" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="4" filename="../../../../../common/unity/cellular_port_unity.c" useHWbreakpoint="false"/>
-  <BreakpointListItem trigger="" line="76" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="4" filename="../../../../../common/unity/cellular_port_unity.c" useHWbreakpoint="false"/>
-  <BreakpointListItem trigger="" line="61" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="4" filename="main_test.c" useHWbreakpoint="false"/>
+  <BreakpointListItem trigger="" line="401" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="2" filename="../../../src/cellular_port_uart.c" useHWbreakpoint="false"/>
+  <BreakpointListItem trigger="" line="110" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="4" filename="../../../test/main_test.c" useHWbreakpoint="false"/>
   <Exceptions set="MemManage;UsageFault_Coprocessor;UsageFault_CheckingError;UsageFault_StateError;BusFault;ExceptionEntryReturnFault;HardFault"/>
  </Breakpoints>
  <ExecutionProfileWindow/>
@@ -28,10 +26,15 @@
   <ProjectSessionItem path="cellular_pca10056"/>
   <ProjectSessionItem path="cellular_pca10056;cellular_pca10056"/>
   <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;Application"/>
+  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;Board Definition"/>
   <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;cellular"/>
+  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;FreeRTOS"/>
+  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;None"/>
+  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;nRF_Drivers"/>
+  <ProjectSessionItem path="cellular_pca10056;cellular_pca10056;nRF_Libraries"/>
  </Project>
  <Register1>
-  <RegisterWindow visibleNodes="CPU - Current Context/r0;CPU - Current Context/r1;CPU - Current Context/r2;CPU - Current Context/r3;CPU - Current Context/r4;CPU - Current Context/r5;CPU - Current Context/r6;CPU - Current Context/r7;CPU - Current Context/r8;CPU - Current Context/r9;CPU - Current Context/r10;CPU - Current Context/r11;CPU - Current Context/r12;CPU - Current Context/sp(r13);CPU - Current Context/lr(r14);CPU - Current Context/pc(r15);CPU - Current Context/apsr;CPU/r0;CPU/r1;CPU/r2;CPU/r3;CPU/r4;CPU/r5;CPU/r6;CPU/r7;CPU/r8;CPU/r9;CPU/r10;CPU/r11;CPU/r12;CPU/sp(r13);CPU/lr(r14);CPU/pc(r15);CPU/xpsr;CPU/msp;CPU/psp;CPU/cfbp;CPU/internal;NVIC/NVIC_ISER0;NVIC/NVIC_ISER1;NVIC/NVIC_ICER0;NVIC/NVIC_ICER1;NVIC/NVIC_ISPR0;NVIC/NVIC_ISPR1;NVIC/NVIC_ICPR0;NVIC/NVIC_ICPR1;NVIC/NVIC_IABR0;NVIC/NVIC_IABR1;NVIC/NVIC_IPR0;NVIC/NVIC_IPR1;NVIC/NVIC_IPR2;NVIC/NVIC_IPR3;NVIC/NVIC_IPR4;NVIC/NVIC_IPR5;NVIC/NVIC_IPR6;NVIC/NVIC_IPR7;NVIC/NVIC_IPR8;NVIC/NVIC_IPR9;NVIC/NVIC_IPR10;NVIC/NVIC_IPR11" binaryNodes="" asciiNodes="" openNodes="CPU - Current Context;CPU;NVIC" name="cellular_pca10056" decimalNodes="" octalNodes="" unsignedNodes=""/>
+  <RegisterWindow visibleNodes="CPU - Current Context/r0;CPU - Current Context/r1;CPU - Current Context/r2;CPU - Current Context/r3;CPU - Current Context/r4;CPU - Current Context/r5;CPU - Current Context/r6;CPU - Current Context/r7;CPU - Current Context/r8;CPU - Current Context/r9;CPU - Current Context/r10;CPU - Current Context/r11;CPU - Current Context/r12;CPU - Current Context/sp(r13);CPU - Current Context/lr(r14);CPU - Current Context/pc(r15);CPU - Current Context/apsr;CPU/r0;CPU/r1;CPU/r2;CPU/r3;CPU/r4;CPU/r5;CPU/r6;CPU/r7;CPU/r8;CPU/r9;CPU/r10;CPU/r11;CPU/r12;CPU/sp(r13);CPU/lr(r14);CPU/pc(r15);CPU/xpsr;CPU/msp;CPU/psp;CPU/cfbp;CPU/internal" binaryNodes="" asciiNodes="" openNodes="CPU - Current Context" name="cellular_pca10056" decimalNodes="" octalNodes="" unsignedNodes=""/>
  </Register1>
  <Register2>
   <RegisterWindow visibleNodes="CPU - Current Context/r0;CPU - Current Context/r1;CPU - Current Context/r2;CPU - Current Context/r3;CPU - Current Context/r4;CPU - Current Context/r5;CPU - Current Context/r6;CPU - Current Context/r7;CPU - Current Context/r8;CPU - Current Context/r9;CPU - Current Context/r10;CPU - Current Context/r11;CPU - Current Context/r12;CPU - Current Context/sp(r13);CPU - Current Context/lr(r14);CPU - Current Context/pc(r15);CPU - Current Context/apsr;CPU/r0;CPU/r1;CPU/r2;CPU/r3;CPU/r4;CPU/r5;CPU/r6;CPU/r7;CPU/r8;CPU/r9;CPU/r10;CPU/r11;CPU/r12;CPU/sp(r13);CPU/lr(r14);CPU/pc(r15);CPU/xpsr;CPU/msp;CPU/psp;CPU/cfbp;CPU/internal" binaryNodes="" asciiNodes="" openNodes="CPU - Current Context" name="cellular_pca10056" decimalNodes="" octalNodes="" unsignedNodes=""/>
@@ -61,7 +64,15 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="93" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../test/main_test.c" selected="1" top="82" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="93" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../test/main_test.c" selected="0" top="90" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="409" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../src/cellular_port_uart.c" selected="1" top="387" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="457" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/modules/nrfx/hal/nrf_uarte.h" selected="0" top="444" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="425" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../../ctrl/test/cellular_ctrl_test.c" selected="0" top="407" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="319" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/modules/nrfx/drivers/nrfx_common.h" selected="0" top="304" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="144" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/integration/nrfx/nrfx_glue.h" selected="0" top="129" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1639" useTextEdit="1" useBinaryEdit="0" left="0" path="C:/nrf5/components/toolchain/cmsis/include/core_cm4.h" selected="0" top="1624" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1703" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../../ctrl/src/cellular_ctrl_at.c" selected="0" top="1684" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="230" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../src/cellular_port_os.c" selected="0" top="205" codecName="Default"/>
  </Files>
- <ARMCrossStudioWindow activeProject="cellular_pca10056" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="" debugSearchPath="" autoConnectCapabilities="3711"/>
+ <ARMCrossStudioWindow activeProject="cellular_pca10056" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="C:/projects/esp32/cellular/port/platform/nordic/nrf52840/cfg" debugSearchPath="" autoConnectCapabilities="3199"/>
 </session>

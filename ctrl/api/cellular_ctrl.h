@@ -62,16 +62,31 @@
 
 /** The time to wait before the cellular module is ready at boot.
  */
-#define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 5000
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+# define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 5000
+#endif
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+# define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 3000
+#endif
 
 /** The time to wait for an organised power off.
  */
-#define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 10
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+# define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 10
+#endif
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+# define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 90
+#endif
 
 /** The maximum number of simultaneous radio access technologies
  *  supported by the cellular module.
  */
-#define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 2
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+# define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 2
+#endif
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+# define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 1
+#endif
 
 /** The PDP context ID to use.
  */
@@ -194,9 +209,9 @@ typedef enum {
  *                         The sense of the pin should be such that
  *                         low means off and high means on.
  *                         Set to -1 if there is no such pin.
- * @param pinCpOn          the pin that signals power-on to the
+ * @param pinPwrOn          the pin that signals power-on to the
  *                         cellular module, i.e. the pin
- *                         that is connected to the module's CP_ON pin.
+ *                         that is connected to the module's PWR_ON pin.
  * @param pinVInt          the pin that can be monitored to detect
  *                         that the cellular module is powered up.
  *                         This pin should be connected to the
@@ -206,8 +221,8 @@ typedef enum {
  *                         there is no such pin.
  * @param leavePowerAlone  set this to true if initialisation should
  *                         not modify the state of pinEnablePower or 
- *                         pinCpOn, else it will ensure that pinEnablePower
- *                         is low to disable power to the module and pinCpOn
+ *                         pinPwrOn, else it will ensure that pinEnablePower
+ *                         is low to disable power to the module and pinPwrOn
  *                         is high so that it can be pulled low to logically
  *                         power the module on.
  * @param uart             the UART number to use.  The uart must
@@ -219,7 +234,7 @@ typedef enum {
  *                         failure.
  */
 int32_t cellularCtrlInit(int32_t pinEnablePower,
-                         int32_t pinCpOn,
+                         int32_t pinPwrOn,
                          int32_t pinVInt,
                          bool leavePowerAlone,
                          int32_t uart,

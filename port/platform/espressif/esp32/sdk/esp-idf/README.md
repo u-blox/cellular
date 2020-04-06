@@ -15,7 +15,7 @@ To build the unit tests, you first need to define which module you are using (e.
 set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5
 ```
 
-Clumsy, I know, but it was the only way I could find to pass adhoc conditional compilation flags into CMake via the command-line.  You can overried any other parameters in there, it's just a list, so for instance if you wanted to sat  that there's no "enable power" capability on your board you might use:
+Clumsy, I know, but it was the only way I could find to pass adhoc conditional compilation flags into CMake via the command-line.  You can override any other parameters in there, it's just a list, so for instance if you wanted to say that there's no "enable power" capability on your board you might use:
 
 ```
 set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
@@ -28,6 +28,31 @@ idf.py  -p COMx -D TEST_COMPONENTS="cellular_tests" flash monitor
 ```
 
 ...where `COMx` is replaced by the COM port to which your ESP32 board is attached. The command adds this directory to ESP-IDF as an ESP-IDF component and requests that the tests for this component are built, downloaded to the board and run.
+
+During the build, check that you see a line something like the following somewhere near the start of the build:
+
+```
+cellular: added -DYOUR_FLAGS_HERE due to environment variable CELLULAR_FLAGS.
+cellular_tests: added -DYOUR_FLAGS_HERE due to environment variable CELLULAR_FLAGS.
+```
+
+e.g.:
+
+```
+-- Adding linker script C:/projects/esp32/cellular/port/platform/espressif/esp32/sdk/esp-idf/unit_test/build/esp-idf/esp32/esp32_out.ld
+-- Adding linker script C:/projects/esp32/esp-idf/components/esp32/ld/esp32.rom.ld
+-- Adding linker script C:/projects/esp32/esp-idf/components/esp32/ld/esp32.peripherals.ld
+-- Adding linker script C:/projects/esp32/esp-idf/components/esp32/ld/esp32.rom.libgcc.ld
+-- Adding linker script C:/projects/esp32/esp-idf/components/esp32/ld/esp32.rom.spiram_incompatible_fns.ld
+cellular: added -DCELLULAR_CFG_MODULE_SARA_R5;-DCELLULAR_CFG_PIN_RXD=19;-DCELLULAR_CFG_PIN_TXD=21;-DCELLULAR_CFG_PIN_PWR_ON=26;-DCELLULAR_CFG_PIN_VINT=-1;-DCELLULAR_CFG_PIN_ENABLE_POWER=-1 due to environment variable CELLULAR_FLAGS.
+cellular_tests: added -DCELLULAR_CFG_MODULE_SARA_R5;-DCELLULAR_CFG_PIN_RXD=19;-DCELLULAR_CFG_PIN_TXD=21;-DCELLULAR_CFG_PIN_PWR_ON=26;-DCELLULAR_CFG_PIN_VINT=-1;-DCELLULAR_CFG_PIN_ENABLE_POWER=-1 due to environment variable CELLULAR_FLAGS.
+```
+
+If you do not then the build has not picked up the `CELLULAR_FLAGS` environment variable for some reason.  Try running it again and adding `reconfigure` to the `idf.py` command-line, i.e.:
+
+```
+idf.py  -p COMx -D TEST_COMPONENTS="cellular_tests" flash monitor reconfigure
+```
 
 When the code has built and downloaded, the Espressif monitor terminal will be launced on the same `COMx` port at 115200 baud and the board will be reset.  If you prefer to use your own serial terminal program then omit `monitor` from the command line above and launch your own serial terminal program instead.  You should see a prompt:
 

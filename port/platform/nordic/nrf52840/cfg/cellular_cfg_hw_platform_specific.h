@@ -67,14 +67,14 @@
 # define CELLULAR_CFG_PIN_ENABLE_POWER     -1
 #endif
 
-#ifndef CELLULAR_CFG_PIN_CP_ON
-/** The NRF52840 GPIO output that that is connected to the CP_ON pin of
+#ifndef CELLULAR_CFG_PIN_PWR_ON
+/** The NRF52840 GPIO output that that is connected to the PWR_ON pin of
  * the cellular module.
  */
-# define CELLULAR_CFG_PIN_CP_ON            20
+# define CELLULAR_CFG_PIN_PWR_ON            20
 #endif
 
-#ifndef CELLULAR_CFG_PIN_VINT
+ #ifndef CELLULAR_CFG_PIN_VINT
 /** The NRF52840GPIO input that is connected to the VInt pin of the
  * cellular module.
  * -1 is used where there is no such connection.

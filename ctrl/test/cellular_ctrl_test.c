@@ -55,6 +55,13 @@
 // The time in seconds allowed for a connection to complete.
 #define CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS 240
 
+// Figure out if NB1 is supported
+#ifndef CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
+# ifdef CELLULAR_CFG_MODULE_SARA_R4
+#  define CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
+# endif 
+#endif
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -121,7 +128,7 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
     CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsAlive());
 
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_PWR_ON,
                                                pinVint,
                                                false,
                                                CELLULAR_CFG_UART,
@@ -133,10 +140,11 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
     for (size_t x = 0; x < 2; x++) {
         cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls");
         if (x > 0) {
-           cellularPortLog(" with a callback passed to cellularCtrlPowerOff() and a %d second power-off timer.\n",
-                           CELLULAR_CTRL_TEST_POWER_OFF_TIME_MS / 1000);
+           cellularPortLog(" with a callback passed to cellularCtrlPowerOff() and a %d second power-off timer, iteration %d.\n",
+                           CELLULAR_CTRL_TEST_POWER_OFF_TIME_MS / 1000, x + 1);
         } else {
-           cellularPortLog(" with cellularCtrlPowerOff(NULL).\n");
+           cellularPortLog(" with cellularCtrlPowerOff(NULL), iteration %d.\n",
+                           x + 1);
         }
         CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsAlive());
 #if (CELLULAR_CFG_PIN_ENABLE_POWER) != -1
@@ -162,7 +170,8 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
     // a call to cellularCtrlHardOff() to a call to
     // cellularCtrlPowerOn().
     for (size_t x = 0; x < 2; x++) {
-        cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls with cellularCtrlHardPowerOff().\n");
+        cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls with cellularCtrlHardPowerOff(), iteration %d.\n",
+                        x + 1);
         CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsAlive());
 #if (CELLULAR_CFG_PIN_ENABLE_POWER) != -1
         CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsPowered());
@@ -230,7 +239,7 @@ static void connectDisconnect(CellularCtrlRat_t rat)
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
@@ -417,11 +426,12 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
                                                queueHandle) == 0);
+
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
@@ -451,7 +461,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestGetBandMask(),
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
@@ -460,7 +470,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestGetBandMask(),
 
     cellularPortLog("CELLULAR_CTRL_TEST: getting band masks...\n");
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CTRL_RAT_CATM1) != 0);
+#if CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CTRL_RAT_NB1) != 0);
+#endif
 
     cellularCtrlPowerOff(NULL);
 
@@ -488,7 +500,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
     CellularPortQueueHandle_t queueHandle;
     int32_t y;
     uint64_t originalMaskCatM1;
+#if CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
     uint64_t originalMaskNB1;
+#endif
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
@@ -500,7 +514,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
@@ -509,24 +523,29 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
 
     cellularPortLog("CELLULAR_CTRL_TEST: reading original band masks...\n");
     originalMaskCatM1 = cellularCtrlGetBandMask(CELLULAR_CTRL_RAT_CATM1);
+#if CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
     originalMaskNB1 = cellularCtrlGetBandMask(CELLULAR_CTRL_RAT_NB1);
-
+#endif
     cellularPortLog("CELLULAR_CTRL_TEST: setting band masks...\n");
     // Take the existing values and mask off every other bit
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CTRL_RAT_CATM1,
                                                       originalMaskCatM1 &
                                                       0xaaaaaaaaaaaaaaaaULL) == 0);
+#if CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CTRL_RAT_NB1,
                                                       originalMaskNB1 &
                                                       0xaaaaaaaaaaaaaaaaULL) == 0);
+#endif
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlReboot() == 0);
 
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CTRL_RAT_CATM1) ==
                                                       (originalMaskCatM1 &
                                                        0xaaaaaaaaaaaaaaaaULL));
+#if CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CTRL_RAT_NB1) ==
                                                       (originalMaskNB1 &
                                                        0xaaaaaaaaaaaaaaaaULL));
+#endif
     // Put things back as they were if we can, or if not,
     // then a sensible default
     cellularPortLog("CELLULAR_CTRL_TEST: completed, tidying up...\n");
@@ -538,6 +557,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
             cellularPortLog("CELLULAR_CTRL_TEST: !!! ATTENTION: the band mask for cat-M1 on the module under test may have been left screwy, please check!!!\n");
         }
     }
+#if CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
     if (cellularCtrlSetBandMask(CELLULAR_CTRL_RAT_NB1,
                                 originalMaskNB1) != 0) {
         if (cellularCtrlSetBandMask(CELLULAR_CTRL_RAT_NB1,
@@ -545,6 +565,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
             cellularPortLog("CELLULAR_CTRL_TEST: !!! ATTENTION: the band mask for NB1 on the module under test may have been left screwy, please check!!!\n");
         }
     }
+#endif
 
     cellularCtrlPowerOff(NULL);
 
@@ -565,7 +586,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
 
 /** Test power on/off and aliveness.
  * Note: it may seem more logical to put this test early on, however
- * in that case if the previous test run failed, the
+ * in that case that the previous test run failed, the
  * modem may be left on and this would cause these tests to
  * fail as a consequence (since they check that the module
  * is off at the start).  The bandmask tests, on the other hand,
@@ -604,7 +625,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
@@ -663,6 +684,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
     cellularPortTaskBlock(100);
 }
 
+#if CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS > 1
+
 /** Test set/get RAT rank.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
@@ -703,7 +726,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
@@ -892,6 +915,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
     cellularPortTaskBlock(100);
 }
 
+#endif
+
 /** Test connected things on the default test RAT.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestConnectedThings(),
@@ -931,7 +956,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
@@ -1053,7 +1078,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
@@ -1175,7 +1200,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadImeiEtc(),
                                                    CELLULAR_CFG_UART,
                                                    &queueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                               CELLULAR_CFG_PIN_CP_ON,
+                                               CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,

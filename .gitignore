@@ -2,3 +2,4 @@
 /port/platform/nordic/nrf52480/sdk/gcc/unit_test/_build
 /port/platform/nordic/nrf52480/sdk/ses/unit_test/Output
 sdkconfig
+*.emSession

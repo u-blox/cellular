@@ -54,11 +54,11 @@
 # define CELLULAR_CFG_PIN_ENABLE_POWER     2
 #endif
 
-#ifndef CELLULAR_CFG_PIN_CP_ON
-/** The ESP32 GPIO output that that is connected to the CP_ON pin of
+#ifndef CELLULAR_CFG_PIN_PWR_ON
+/** The ESP32 GPIO output that that is connected to the PWR_ON pin of
  * the cellular module on the WHRE demo board.
  */
-# define CELLULAR_CFG_PIN_CP_ON            25
+# define CELLULAR_CFG_PIN_PWR_ON            25
 #endif
 
 #ifndef CELLULAR_CFG_PIN_VINT

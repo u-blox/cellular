@@ -92,10 +92,10 @@ typedef struct {
 /** Structure of the things we need to keep track of per UART.
  */
 typedef struct {
+    NRF_UARTE_Type *pReg;
     CellularPortMutexHandle_t mutex;
     CellularPortQueueHandle_t queue;
     CellularPortUartBuffer_t rxBuffer;
-    NRF_UARTE_Type *pReg;
 } CellularPortUartData_t;
 
 /* ----------------------------------------------------------------
@@ -105,17 +105,17 @@ typedef struct {
 // UART data and pointer to Rx buffer (the latter needed by the
 // interrupt handler)
 #if !NRFX_UARTE0_ENABLED && !NRFX_UARTE1_ENABLED
-static CellularPortUartData_t gUartData[] = {{NULL, NULL, {NULL, 0}, NRF_UARTE0},
-                                             {NULL, NULL, {NULL, 0}, NRF_UARTE1}};
-static CellularPortUartBuffer_t *pgRxBuffer[] = {&(gUartData[0].rxBuffer),
+static CellularPortUartData_t gUartData[] = {{NRF_UARTE0, NULL, NULL, {NULL, 0}},
+                                             {NRF_UARTE1, NULL, NULL, {NULL, 0}}};
+static CellularPortUartBuffer_t *gpRxBuffer[] = {&(gUartData[0].rxBuffer),
                                                  &(gUartData[1].rxBuffer)};
 # else
 #  if !NRFX_UARTE0_ENABLED 
-static CellularPortUartData_t gUartData[] = {{NULL, NULL, {NULL, 0}, NRF_UARTE0}};
-static CellularPortUartBuffer_t *pgRxBuffer[] = {&(gUartData[0].rxBuffer), NULL};
+static CellularPortUartData_t gUartData[] = {NRF_UARTE0, NULL, NULL, {NULL, 0}};
+static CellularPortUartBuffer_t *gpRxBuffer[] = {&(gUartData[0].rxBuffer), NULL};
 #  else
-static CellularPortUartData_t gUartData[] = {{NULL, NULL, {NULL, 0}, NRF_UARTE1}};
-static CellularPortUartBuffer_t *pgRxBuffer[] = {NULL, &(gUartData[0].rxBuffer)};
+static CellularPortUartData_t gUartData[] = {NRF_UARTE1, NULL, NULL, {NULL, 0}};
+static CellularPortUartBuffer_t *gpRxBuffer[] = {NULL, &(gUartData[0].rxBuffer)};
 #  endif
 #endif
 
@@ -123,9 +123,9 @@ static CellularPortUartBuffer_t *pgRxBuffer[] = {NULL, &(gUartData[0].rxBuffer)}
  * STATIC FUNCTIONS
  * -------------------------------------------------------------- */
 
-// The interrupt handler: only handles Rx data as Tx is blocking.
-static void irqHandler(NRF_UARTE_Type *pReg,
-                       CellularPortUartBuffer_t *pRxBuffer)
+// The interrupt handler: only handles Rx events as Tx is blocking.
+static void rxIrqHandler(NRF_UARTE_Type *pReg,
+                         CellularPortUartBuffer_t *pRxBuffer)
 {
     size_t length;
     bool wasRxEvent = false;
@@ -145,17 +145,6 @@ static void irqHandler(NRF_UARTE_Type *pReg,
     if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_RXTO)) {
         // Clear time-out event
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_RXTO);
-    }
-
-    if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_ENDTX)) {
-        nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_ENDTX);
-        // Transmitter has to be stopped by triggering STOPTX task to achieve
-        // the lowest possible level of the UARTE power consumption.
-        nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STOPTX);
-    }
-
-    if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_TXSTOPPED)) {
-        nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_TXSTOPPED);
     }
 
     if (wasRxEvent) {
@@ -257,14 +246,14 @@ __STATIC_INLINE IRQn_Type getIrqNumber(void const *pReg)
 #if !NRFX_UARTE0_ENABLED
 void nrfx_uarte_0_irq_handler(void)
 {
-    irqHandler(NRF_UARTE0, pgRxBuffer[0]);
+    rxIrqHandler(NRF_UARTE0, gpRxBuffer[0]);
 }
 #endif
 
 #if !NRFX_UARTE1_ENABLED
 void nrfx_uarte_1_irq_handler(void)
 {
-    irqHandler(NRF_UARTE1, pgRxBuffer[1]);
+    rxIrqHandler(NRF_UARTE1, gpRxBuffer[1]);
 }
 #endif
 
@@ -327,6 +316,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                                                             pUartQueue);
                         if (errorCode == 0) {
                             gUartData[uart].queue = *pUartQueue;
+
                             // Set baud rate
                             nrf_uarte_baudrate_set(pReg, baudRateNrf);
 
@@ -353,22 +343,26 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                             if (hwfc == NRF_UARTE_HWFC_ENABLED) {
                                 nrf_uarte_hwfc_pins_set(pReg, pinRtsNrf, pinCtsNrf);
                             }
+
+                            // Configure the UART
                             nrf_uarte_configure(pReg, NRF_UARTE_PARITY_EXCLUDED, hwfc);
 
-                            // Set interrupts and buffer and let it go
+                            // Enable the UART
+                            nrf_uarte_enable(pReg);
+
+                            // Clear flags, set Rx interrupt and buffer and let it go
                             nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_ENDRX);
                             nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_ENDTX);
                             nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_ERROR);
                             nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_RXTO);
                             nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_TXSTOPPED);
+
                             nrf_uarte_rx_buffer_set(pReg, gUartData[uart].rxBuffer.pBufferStart,
                                                     DMA_MAX_LEN);
                             nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STARTRX);
                             nrf_uarte_int_enable(pReg, NRF_UARTE_INT_ENDRX_MASK |
-                                                       NRF_UARTE_INT_ENDTX_MASK |
                                                        NRF_UARTE_INT_ERROR_MASK |
-                                                       NRF_UARTE_INT_RXTO_MASK  |
-                                                       NRF_UARTE_INT_TXSTOPPED_MASK);
+                                                       NRF_UARTE_INT_RXTO_MASK  );
                             NRFX_IRQ_PRIORITY_SET(getIrqNumber((void *) pReg),
                                                   NRFX_UARTE_DEFAULT_CONFIG_IRQ_PRIORITY);
                             NRFX_IRQ_ENABLE(getIrqNumber((void *) (pReg)));
@@ -418,21 +412,21 @@ int32_t cellularPortUartDeinit(int32_t uart)
             // The caller needs to make sure that no read/write
             // is in progress when this function is called.
 
-            // Disable interrupts
+            // Disable Rx interrupts
             nrf_uarte_int_disable(pReg, NRF_UARTE_INT_ENDRX_MASK |
-                                        NRF_UARTE_INT_ENDTX_MASK |
                                         NRF_UARTE_INT_ERROR_MASK |
-                                        NRF_UARTE_INT_RXTO_MASK  |
-                                        NRF_UARTE_INT_TXSTOPPED_MASK);
+                                        NRF_UARTE_INT_RXTO_MASK);
             NRFX_IRQ_DISABLE(nrfx_get_irq_number((void *) (pReg)));
 
             // Make sure all transfers are finished before UARTE is
             // disabled to achieve the lowest power consumption
             nrf_uarte_shorts_disable(pReg, NRF_UARTE_SHORT_ENDRX_STARTRX);
+            nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_RXTO);
             nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STOPRX);
             nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_TXSTOPPED);
             nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STOPTX);
-            while (!nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_TXSTOPPED)) {}
+            while (!nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_TXSTOPPED) ||
+                   !nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_RXTO)) {}
 
             // Disable the UARTE
             nrf_uarte_disable(pReg);

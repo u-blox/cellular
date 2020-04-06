@@ -25,7 +25,7 @@ Segger Embedded Studio (SES), as far as I can tell, is unable to adopt the value
 "C:\Program Files\Segger\SEGGER Embedded Studio for ARM 4.50\bin\emstudio" -D SOME_PATH=c:/my_thing
 ```
 
-Note that these `-D` configuration items are NOT passed on to the compilation tools like `make` would do, they only get into SES itself as project variables.  In order to make that possible the `cellular_pca10056` project file has 10 project variables named `EXTRA0` to `EXTRA9` that *do* get passed on to the compilation tools which you can define for yourself on the command line.  For instance, to effect `#define CELLULAR_CFG_PIN_ENABLE_POWER=-1`, you would do the following:
+Note that these `-D` configuration items are NOT passed on to the compilation tools like `make` would do, they only get into SES itself as these "global macros".  In order to make that possible the `cellular_pca10056` project file has 10 project variables named `EXTRA0` to `EXTRA9` that *do* get passed on to the compilation tools which you can define for yourself on the command line.  For instance, to effect `#define CELLULAR_CFG_PIN_ENABLE_POWER=-1`, you would do the following:
 
 ```
 "C:\Program Files\Segger\SEGGER Embedded Studio for ARM 4.50\bin\emstudio" -D EXTRA0="CELLULAR_CFG_PIN_ENABLE_POWER=-1"

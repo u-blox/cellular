@@ -43,4 +43,14 @@ The SSID field of the Wifi API is re-used to provide the APN for cellular.  A de
 
 If you do have a specific APN, e.g. for some specific/feature from the network, then enter that APN in the field instead.  The other fields in `configure.json` can be left as they are.
 
-Continue following the Amazon FreeRTOS instructions to generate the binary and download it to the ESP32 platform. When you run the "Hello MQTT" demo it will now run over cellular instead of Wifi.
+Continue following the Amazon FreeRTOS instructions to generate the binary and download it to the ESP32 platform.
+
+During the build, check that you see a line something like the following somewhere near the start of the build:
+
+```
+cellular: added -DYOUR_FLAGS_HERE due to environment variable CELLULAR_FLAGS.
+```
+
+If you do not then the build has not picked up the `CELLULAR_FLAGS` environment variable for some reason.  Best delete the build directory to clear out the CMake stuff and try again.
+
+When you run the "Hello MQTT" demo it will now run over cellular instead of Wifi.

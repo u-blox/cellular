@@ -18,7 +18,6 @@
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
 #include "cellular_port_test_platform_specific.h"
-
 #include "assert.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -108,6 +107,9 @@ int main(void)
                        CELLULAR_PORT_TEST_RUNNER_TASK_STACK_SIZE_BYTES / 4,
                        NULL, 14 /* Priority */,
                        &taskHandle) == pdPASS);
+
+    // Activate deep sleep mode.
+    SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 
     // Start the scheduler.
     vTaskStartScheduler();

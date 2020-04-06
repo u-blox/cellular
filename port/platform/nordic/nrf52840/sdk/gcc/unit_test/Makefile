@@ -17,8 +17,6 @@ SRC_FILES += \
   $(NRF5_PATH)/components/libraries/util/app_error.c \
   $(NRF5_PATH)/components/libraries/util/app_error_handler_gcc.c \
   $(NRF5_PATH)/components/libraries/util/app_error_weak.c \
-  $(NRF5_PATH)/components/libraries/fifo/app_fifo.c \
-  $(NRF5_PATH)/components/libraries/uart/app_uart_fifo.c \
   $(NRF5_PATH)/components/libraries/util/app_util_platform.c \
   $(NRF5_PATH)/components/libraries/util/nrf_assert.c \
   $(NRF5_PATH)/components/libraries/atomic/nrf_atomic.c \
@@ -29,12 +27,12 @@ SRC_FILES += \
   $(NRF5_PATH)/components/libraries/uart/retarget.c \
   $(NRF5_PATH)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
   $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_timer.c \
-  $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_uart.c \
-  $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_uarte.c \
   $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_clock.c \
   $(NRF5_PATH)/external/fprintf/nrf_fprintf.c \
   $(NRF5_PATH)/external/fprintf/nrf_fprintf_format.c \
   $(NRF5_PATH)/integration/nrfx/legacy/nrf_drv_clock.c \
+  $(NRF5_PATH)/components/drivers_nrf/nrf_soc_nosd/nrf_nvic.c \
+  $(NRF5_PATH)/components/drivers_nrf/nrf_soc_nosd/nrf_soc.c \
   $(NRF5_PATH)/components/libraries/log/src/nrf_log_backend_rtt.c \
   $(NRF5_PATH)/components/libraries/log/src/nrf_log_backend_serial.c \
   $(NRF5_PATH)/components/libraries/log/src/nrf_log_backend_uart.c \
@@ -75,6 +73,7 @@ SRC_FILES += \
 
 # Include folders common to all targets
 INC_FOLDERS += \
+  . \
   ../../../cfg \
   $(NRF5_PATH)/components \
   $(NRF5_PATH)/modules/nrfx/mdk \
@@ -106,7 +105,6 @@ INC_FOLDERS += \
   $(NRF5_PATH)/components/libraries/log/src \
   $(NRF5_PATH)/external/segger_rtt \
   $(NRF5_PATH)/components/libraries/hardfault \
-  . \
   ../../../../../../api \
   ../../../../../../../ctrl/api \
   ../../../../../../../sock/api \

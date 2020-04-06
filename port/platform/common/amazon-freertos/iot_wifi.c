@@ -123,7 +123,7 @@ WIFIReturnCode_t WIFI_On( void )
                                              &gQueueHandle);
             if (errorCode == 0) {
                 errorCode = cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
-                                             CELLULAR_CFG_PIN_CP_ON,
+                                             CELLULAR_CFG_PIN_PWR_ON,
                                              CELLULAR_CFG_PIN_VINT,
                                              false,
                                              CELLULAR_CFG_UART,

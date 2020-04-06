@@ -1,5 +1,5 @@
 @echo off
-echo This batch file sets up the environment variables for building/testing the cellular driver https://github.com/u-blox/cellular.
+echo This batch file builds/tests the cellular driver https://github.com/u-blox/cellular.
 echo.
 
 setlocal EnableDelayedExpansion
@@ -204,8 +204,8 @@ rem Build unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a
 :build_platform_3
     set espidf_repo_root=espressif
     echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf^, specify /b to avoid build collisions...
-    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_CP_ON=26 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
-    echo %~n0: flags set for W-ROVER board to indicate SARA-R5^, RXD on D19^, TXD on D21^, CP_ON on D26^, no VINT or Enable Power pins connected.
+    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_PWR_ON=26 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
+    echo %~n0: flags set for W-ROVER board to indicate SARA-R5^, RXD on D19^, TXD on D21^, PWR_ON on D26^, no VINT or Enable Power pins connected.
     goto build_platform_1_2_3
 
 rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipset with SARA-R4 or SARA-R5
@@ -239,7 +239,7 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
         >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
     )
     rem If error flag is set, we do not have admin.
-    if not "%errorlevel%"=="0" (
+    if not %ERRORLEVEL% EQU 0 (
         echo %~n0: ERROR administrator privileges are required to run the ESP-IDF installation batch file, please run as administrator.
         goto build_end
     )
@@ -257,9 +257,10 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
     @echo off
     rem Back to where this batch file was called from to run the tests with the Python script there
     popd
-    if "%errorlevel%"=="0" (
+    if %ERRORLEVEL% EQU 0 (
         python %~dp0esp-idf\run_unit_tests_and_detect_outcome.py %com_port% %build_directory%\test_results.log %build_directory%\test_results.xml
-        set return_value=0
+        echo %~n0: return value from Python script is !return_value!.
+        set return_value=!errorlevel!
     ) else (
         echo %~n0: ERROR build or download failed.
     )
@@ -334,5 +335,5 @@ rem Usage string
 rem Done
 :end
     echo.
-    echo %~n0: end.
-    exit /b %return_value%
+    echo %~n0: end with return value !return_value!.
+    exit /b !return_value!
