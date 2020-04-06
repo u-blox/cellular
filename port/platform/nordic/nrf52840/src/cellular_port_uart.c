@@ -362,7 +362,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                             nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STARTRX);
                             nrf_uarte_int_enable(pReg, NRF_UARTE_INT_ENDRX_MASK |
                                                        NRF_UARTE_INT_ERROR_MASK |
-                                                       NRF_UARTE_INT_RXTO_MASK  );
+                                                       NRF_UARTE_INT_RXTO_MASK);
                             NRFX_IRQ_PRIORITY_SET(getIrqNumber((void *) pReg),
                                                   NRFX_UARTE_DEFAULT_CONFIG_IRQ_PRIORITY);
                             NRFX_IRQ_ENABLE(getIrqNumber((void *) (pReg)));
@@ -602,6 +602,52 @@ int32_t cellularPortUartWrite(int32_t uart,
     }
 
     return (int32_t) sizeOrErrorCode;
+}
+
+// Determine if RTS flow control is enabled.
+bool cellularPortIsRtsFlowControlEnabled(int32_t uart)
+{
+    bool rtsFlowControlIsEnabled = false;
+    NRF_UARTE_Type *pReg;
+
+    if ((uart < sizeof(gUartData) / sizeof(gUartData[0])) &&
+        (gUartData[uart].mutex != NULL)) {
+
+        CELLULAR_PORT_MUTEX_LOCK(gUartData[uart].mutex);
+
+        pReg = gUartData[uart].pReg;
+
+        if (nrf_uarte_rts_pin_get(pReg) != NRF_UARTE_PSEL_DISCONNECTED) {
+            rtsFlowControlIsEnabled = true;
+        }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gUartData[uart].mutex);
+    }
+
+    return rtsFlowControlIsEnabled;
+}
+
+// Determine if CTS flow control is enabled.
+bool cellularPortIsCtsFlowControlEnabled(int32_t uart)
+{
+    bool ctsFlowControlIsEnabled = false;
+    NRF_UARTE_Type *pReg;
+
+    if ((uart < sizeof(gUartData) / sizeof(gUartData[0])) &&
+        (gUartData[uart].mutex != NULL)) {
+
+        CELLULAR_PORT_MUTEX_LOCK(gUartData[uart].mutex);
+
+        pReg = gUartData[uart].pReg;
+
+        if (nrf_uarte_cts_pin_get(pReg) != NRF_UARTE_PSEL_DISCONNECTED) {
+            ctsFlowControlIsEnabled = true;
+        }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gUartData[uart].mutex);
+    }
+
+    return ctsFlowControlIsEnabled;
 }
 
 // End of file

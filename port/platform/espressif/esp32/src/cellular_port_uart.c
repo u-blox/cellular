@@ -287,13 +287,15 @@ int32_t cellularPortUartWrite(int32_t uart,
 
     return (int32_t) sizeOrErrorCode;
 }
+
 // Determine if RTS flow control is enabled.
 bool cellularPortIsRtsFlowControlEnabled(int32_t uart)
 {
     bool rtsFlowControlIsEnabled = false;
     uart_hw_flowcontrol_t flowControl;
 
-    if (gMutex[uart] != NULL) {
+    if ((uart < sizeof(gMutex) / sizeof(gMutex[0])) &&
+        (gMutex[uart] != NULL)) {
 
         CELLULAR_PORT_MUTEX_LOCK(gMutex[uart]);
 
@@ -310,13 +312,14 @@ bool cellularPortIsRtsFlowControlEnabled(int32_t uart)
     return rtsFlowControlIsEnabled;
 }
 
-/// Determine if CTS flow control is enabled.
+// Determine if CTS flow control is enabled.
 bool cellularPortIsCtsFlowControlEnabled(int32_t uart)
 {
     bool ctsFlowControlIsEnabled = false;
     uart_hw_flowcontrol_t flowControl;
 
-    if (gMutex[uart] != NULL) {
+    if ((uart < sizeof(gMutex) / sizeof(gMutex[0])) &&
+        (gMutex[uart] != NULL)) {
 
         CELLULAR_PORT_MUTEX_LOCK(gMutex[uart]);
 

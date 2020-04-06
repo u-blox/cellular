@@ -211,8 +211,8 @@ rem Build unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a
 rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipset with SARA-R4 or SARA-R5
 :build_platform_1_2_3
     if not "%fetch%"=="" (
-        if exist esp-idf (
-            pushd esp-idf
+        if exist esp-idf-%espidf_repo_root% (
+            pushd esp-idf-%espidf_repo_root
             echo %~n0: updating ESP-IDF code...
             call git pull
             popd
@@ -220,7 +220,14 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
             echo %~n0: cloning ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf into esp-idf-%espidf_repo_root%...
             call git clone https://github.com/%espidf_repo_root%/esp-idf esp-idf-%espidf_repo_root%
         )
+
+        echo %~n0: IMPORTANT: TEMPORARILY checking out v4.1 of esp-idf until they fix their issue number 5046.
+        pushd esp-idf-%espidf_repo_root%
+        call git checkout release/v4.1
+        popd
+
     )
+
     echo %~n0: setting up paths assuming Python 2.7 is in "C:\Python27"...
     set path=C:\Python27;C:\Python27\Scripts;%path%
     echo %~n0: print version information start
