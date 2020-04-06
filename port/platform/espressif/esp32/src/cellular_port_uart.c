@@ -287,5 +287,50 @@ int32_t cellularPortUartWrite(int32_t uart,
 
     return (int32_t) sizeOrErrorCode;
 }
+// Determine if RTS flow control is enabled.
+bool cellularPortIsRtsFlowControlEnabled(int32_t uart)
+{
+    bool rtsFlowControlIsEnabled = false;
+    uart_hw_flowcontrol_t flowControl;
+
+    if (gMutex[uart] != NULL) {
+
+        CELLULAR_PORT_MUTEX_LOCK(gMutex[uart]);
+
+        if (uart_get_hw_flow_ctrl(uart, &flowControl) == ESP_OK) {
+            if ((flowControl == UART_HW_FLOWCTRL_RTS) ||
+                (flowControl == UART_HW_FLOWCTRL_CTS_RTS)) {
+                rtsFlowControlIsEnabled = true;
+            }
+        }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutex[uart]);
+    }
+
+    return rtsFlowControlIsEnabled;
+}
+
+/// Determine if CTS flow control is enabled.
+bool cellularPortIsCtsFlowControlEnabled(int32_t uart)
+{
+    bool ctsFlowControlIsEnabled = false;
+    uart_hw_flowcontrol_t flowControl;
+
+    if (gMutex[uart] != NULL) {
+
+        CELLULAR_PORT_MUTEX_LOCK(gMutex[uart]);
+
+        if (uart_get_hw_flow_ctrl(uart, &flowControl) == ESP_OK) {
+            if ((flowControl == UART_HW_FLOWCTRL_CTS) ||
+                (flowControl == UART_HW_FLOWCTRL_CTS_RTS)) {
+                ctsFlowControlIsEnabled = true;
+            }
+        }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutex[uart]);
+    }
+
+    return ctsFlowControlIsEnabled;
+}
 
 // End of file

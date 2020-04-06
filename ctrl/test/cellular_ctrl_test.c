@@ -58,8 +58,10 @@
 // Figure out if NB1 is supported
 #ifndef CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
 # ifdef CELLULAR_CFG_MODULE_SARA_R4
-#  define CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
-# endif 
+#  define CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED 1
+# else
+#  define CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED 0
+# endif
 #endif
 
 /* ----------------------------------------------------------------
@@ -96,6 +98,11 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
 {
     CellularPortQueueHandle_t queueHandle;
     bool (*pKeepGoingCallback) (void) = NULL;
+    bool trulyHardPowerOff = false;
+
+#if CELLULAR_CFG_PIN_ENABLE_POWER >= 0
+    trulyHardPowerOff = true;
+#endif
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
 
@@ -170,15 +177,18 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
     // a call to cellularCtrlHardOff() to a call to
     // cellularCtrlPowerOn().
     for (size_t x = 0; x < 2; x++) {
-        cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls with cellularCtrlHardPowerOff(), iteration %d.\n",
-                        x + 1);
+        cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls with cellularCtrlHardPowerOff()");
+        if (trulyHardPowerOff) {
+            cellularPortLog(" and truly hard power off");
+        }
+        cellularPortLog(", iteration %d.\n", x + 1);
         CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsAlive());
 #if (CELLULAR_CFG_PIN_ENABLE_POWER) != -1
         CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsPowered());
 #endif
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlIsAlive());
-        cellularCtrlHardPowerOff(true, NULL);
+        cellularCtrlHardPowerOff(trulyHardPowerOff, NULL);
     }
 
     cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls after hard power off.\n");

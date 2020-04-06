@@ -141,6 +141,26 @@ int32_t cellularPortUartWrite(int32_t uart,
                               const char *pBuffer,
                               size_t sizeBytes);
 
+/** Determine if RTS flow control, i.e. signalling from
+ * the module to this software that the module is ready to
+ * receive data, is enabled.
+ *
+ * @param uart      the UART number.
+ * @return          true if RTS flow control is enabled
+ *                  on this UART, else false.
+ */
+bool cellularPortIsRtsFlowControlEnabled(int32_t uart);
+
+/** Determine if CTS flow control, i.e. from this software
+ * to the module that this sofware is ready to accept data,
+ * is enabled.
+ *
+ * @param uart      the UART number.
+ * @return          true if CTS flow control is enabled
+ *                  on this UART, else false.
+ */
+bool cellularPortIsCtsFlowControlEnabled(int32_t uart);
+
 #endif // _CELLULAR_PORT_UART_H_
 
 // End of file
