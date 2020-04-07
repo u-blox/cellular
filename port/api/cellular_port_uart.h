@@ -34,7 +34,9 @@
 #endif
 
 #ifndef CELLULAR_PORT_UART_EVENT_QUEUE_SIZE
-/** The UART event queue size.
+/** The UART event queue size (in units of
+ * sizeof(CellularPortUartEventData_t), which is platform
+ * specific).
  */
 # define CELLULAR_PORT_UART_EVENT_QUEUE_SIZE 20
 #endif
