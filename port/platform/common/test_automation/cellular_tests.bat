@@ -17,7 +17,7 @@ set branch=
 set com_port=
 set espidf_repo_root=
 set CELLULAR_FLAGS=
-set return_value=1
+set return_code=1
 
 rem Need to set this to avoid odd problems with code page cp65001
 rem and Python
@@ -212,7 +212,6 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
 :build_platform_1_2_3
     if not "%fetch%"=="" (
         if exist esp-idf-%espidf_repo_root% (
-            pushd esp-idf-%espidf_repo_root
             echo %~n0: updating ESP-IDF code...
             call git pull
             popd
@@ -246,7 +245,7 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
         >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
     )
     rem If error flag is set, we do not have admin.
-    if not %ERRORLEVEL% EQU 0 (
+    if not !ERRORLEVEL! EQU 0 (
         echo %~n0: ERROR administrator privileges are required to run the ESP-IDF installation batch file, please run as administrator.
         goto build_end
     )
@@ -264,10 +263,10 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
     @echo off
     rem Back to where this batch file was called from to run the tests with the Python script there
     popd
-    if %ERRORLEVEL% EQU 0 (
+    if !ERRORLEVEL! EQU 0 (
         python %~dp0esp-idf\run_unit_tests_and_detect_outcome.py %com_port% %build_directory%\test_results.log %build_directory%\test_results.xml
-        echo %~n0: return value from Python script is !return_value!.
-        set return_value=!errorlevel!
+        echo %~n0: return value from Python script is !ERRORLEVEL!.
+        set return_code=!ERRORLEVEL!
     ) else (
         echo %~n0: ERROR build or download failed.
     )
@@ -342,5 +341,5 @@ rem Usage string
 rem Done
 :end
     echo.
-    echo %~n0: end with return value !return_value!.
-    exit /b !return_value!
+    echo %~n0: end with return code !return_code!.
+    exit /b !return_code!

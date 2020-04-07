@@ -60,6 +60,16 @@
  * COMPILE-TIME MACROS FOR NRF52840: PINS
  * -------------------------------------------------------------- */
 
+/* NRF52840 uses a port numbering scheme with 32 GPIO lines
+ * on each port and two ports, so GPIO 0 you will see written as
+ * 0.00, GPIO 31 0.31, GPIO 32 1.00 and GPIO 63 (if you have that
+ * many, I think it depends on the chip package) 1.31.
+ * Also, if you are using the NRF52840 DK board a load of these
+ * have pre-assigned functions so you have to read the back of
+ * the PCB _very_ carefully to find any that are free.  In
+ * general, port 1 is freer than port 0, hence the choices below.
+ */
+
 #ifndef CELLULAR_CFG_PIN_ENABLE_POWER
 /** The NRF52840 GPIO output that enables power to the cellular module.
  * -1 is used where there is no such connection.
@@ -71,7 +81,7 @@
 /** The NRF52840 GPIO output that that is connected to the PWR_ON pin of
  * the cellular module.
  */
-# define CELLULAR_CFG_PIN_PWR_ON            20
+# define CELLULAR_CFG_PIN_PWR_ON            33 // AKA 1.01
 #endif
 
  #ifndef CELLULAR_CFG_PIN_VINT
@@ -79,21 +89,21 @@
  * cellular module.
  * -1 is used where there is no such connection.
  */
-# define CELLULAR_CFG_PIN_VINT             21
+# define CELLULAR_CFG_PIN_VINT              34 // AKA 1.02
 #endif
 
 #ifndef CELLULAR_CFG_PIN_TXD
 /** The NRF52840 GPIO output pin that sends UART data to the cellular
  * module.
  */
-# define CELLULAR_CFG_PIN_TXD              22
+# define CELLULAR_CFG_PIN_TXD               35 // AKA 1.03
 #endif
 
 #ifndef CELLULAR_CFG_PIN_RXD
 /** The NRF52840 GPIO input pin that receives UART data from the cellular
  * module.
  */
-# define CELLULAR_CFG_PIN_RXD              23
+# define CELLULAR_CFG_PIN_RXD               36 // AKA 1.04
 #endif
 
 #ifndef CELLULAR_CFG_PIN_CTS
