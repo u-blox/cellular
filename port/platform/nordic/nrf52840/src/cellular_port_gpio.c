@@ -62,6 +62,7 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
             break;
             case CELLULAR_PORT_GPIO_DIRECTION_INPUT:
                 direction = NRF_GPIO_PIN_DIR_INPUT;
+                input = NRF_GPIO_PIN_INPUT_CONNECT;
             break;
             case CELLULAR_PORT_GPIO_DIRECTION_OUTPUT:
                 direction = NRF_GPIO_PIN_DIR_OUTPUT;

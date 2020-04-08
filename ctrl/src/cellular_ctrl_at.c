@@ -836,6 +836,8 @@ static void task_oob(void *parameters)
 
     (void) parameters;
 
+    cellularPortLog("CELLULAR_AT: task_oob() started.\n");
+
     while (data_size_or_error >= 0) {
         data_size_or_error = cellularPortUartEventReceive(_queue_uart);
         if (data_size_or_error >= 0) {
@@ -886,6 +888,8 @@ static void task_oob(void *parameters)
 
     // Delete ourself: only valid way out in Free RTOS
     cellularPortTaskDelete(NULL);
+
+    cellularPortLog("CELLULAR_AT: task_oob() ended.\n");
 }
 
 // Dummy function that should never be called, just used in the
@@ -906,6 +910,8 @@ static void task_callbacks(void *parameters)
 
     (void) parameters;
 
+    cellularPortLog("CELLULAR_AT: task_callbacks() started.\n");
+
     cb.function = dummy;
     cb.param = NULL;
 
@@ -921,6 +927,8 @@ static void task_callbacks(void *parameters)
 
     // Delete ourself: only valid way out in Free RTOS
     cellularPortTaskDelete(NULL);
+
+    cellularPortLog("CELLULAR_AT: task_callbacks() ended.\n");
 }
 
 /* ----------------------------------------------------------------
@@ -1001,7 +1009,8 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
     }
 
     // Start a task to handle out of band responses
-    if (cellularPortTaskCreate(task_oob, "at_task_oob", 2048,
+    if (cellularPortTaskCreate(task_oob, "at_task_oob",
+                               CELLULAR_CTRL_OOB_TASK_STACK_CALLBACK_SIZE_BYTES,
                                NULL,
                                CELLULAR_CTRL_AT_TASK_URC_HANDLER_PRIORITY,
                                &_task_handle_oob) != 0) {
@@ -1011,6 +1020,11 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
         cellularPortMutexDelete(_queue_callbacks);
         return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
     }
+
+    // Pause here to allow the task creation that was
+    // requested above to actually occur in the idle thread,
+    // required by some RTOSs (e.g. FreeRTOS).
+    cellularPortTaskBlock(100);
 
     // Start a task to run callbacks and a queue to feed it
     if (cellularPortTaskCreate(task_callbacks, "at_callbacks",
@@ -1026,8 +1040,17 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
         cellularPortMutexDelete(_mtx_oob_task_running);
         cellularPortMutexDelete(_mtx_callbacks_task_running);
         cellularPortMutexDelete(_queue_callbacks);
+        // Pause here to allow the task deletion that was
+        // requested above to actually occur in the idle thread,
+        // required by some RTOSs (e.g. FreeRTOS)
+        cellularPortTaskBlock(100);
         return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
     }
+
+    // Pause here to allow the task creation that was
+    // requested above to actually occur in the idle thread,
+    // required by some RTOSs (e.g. FreeRTOS)
+    cellularPortTaskBlock(100);
 
     // Set _uart now that all is good
     _uart = uart;
@@ -1048,6 +1071,7 @@ void cellular_ctrl_at_deinit()
         cellularPortUartEventSend(_queue_uart, -1);
         CELLULAR_PORT_MUTEX_LOCK(_mtx_oob_task_running);
         CELLULAR_PORT_MUTEX_UNLOCK(_mtx_oob_task_running);
+
         // Get callbacks task to exit
         cb.function = NULL;
         cb.param = NULL;
@@ -1068,6 +1092,11 @@ void cellular_ctrl_at_deinit()
         cellularPortMutexDelete(_mtx_callbacks_task_running);
         cellularPortQueueDelete(_queue_callbacks);
         cellularPort_assert(CELLULAR_CTRL_AT_GUARD_CHECK(_buf));
+
+        // Pause here to allow the tidy-up to occur in the idle thread,
+        // required by some RTOSs (e.g. FreeRTOS).
+        cellularPortTaskBlock(100);
+
         _uart = -1;
     }
 }

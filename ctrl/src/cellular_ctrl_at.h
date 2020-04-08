@@ -61,6 +61,12 @@
 # endif
 #endif
 
+/** The stack size for the OOB task.
+ */
+#ifndef CELLULAR_CTRL_OOB_TASK_STACK_CALLBACK_SIZE_BYTES
+# define CELLULAR_CTRL_OOB_TASK_STACK_CALLBACK_SIZE_BYTES (1024 *3)
+#endif
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */

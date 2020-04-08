@@ -74,7 +74,7 @@
 #if CELLULAR_PORT_UART_RX_BUFFER_SIZE < 256
 # define DMA_MAX_LEN CELLULAR_PORT_UART_RX_BUFFER_SIZE
 #else 
-# define DMA_MAX_LEN 256 // Best if this is an exact divisor of CELLULAR_PORT_UART_RX_BUFFER_SIZE
+# define DMA_MAX_LEN 256 // Best if CELLULAR_PORT_UART_RX_BUFFER_SIZE is a multiple of this
 #endif
 
 /* ----------------------------------------------------------------
@@ -93,8 +93,8 @@ typedef struct {
 typedef struct {
     char *pStart;
     char *pRead;
-    char *pWrite;
-    size_t toRead;
+    volatile char *pWrite;
+    volatile size_t toRead;
 } CellularPortUartBuffer_t;
 
 /** Structure of the things we need to keep track of per UART.
@@ -130,28 +130,25 @@ static CellularPortUartData_t gUartData[] = {NRF_UARTE1, NULL, NULL, {NULL, 0}};
 // The interrupt handler: only handles Rx events as Tx is blocking.
 static void rxIrqHandler(CellularPortUartData_t *pUartData)
 {
-    size_t length;
-    bool wasRxEvent = false;
     NRF_UARTE_Type *pReg = pUartData->pReg;
     BaseType_t higherPriorityTaskWoken = 0;
     CellularPortUartBuffer_t *pRxBuffer = &(pUartData->rxBuffer);
-    bool moveBufferOn = false;
 
     if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_ERROR)) {
-        // Clear any errors and move the buffer on
+        // Clear any errors: no need to do anything, they
+        // have no effect upon reception
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_ERROR);
         nrf_uarte_errorsrc_get_and_clear(pReg);
-        moveBufferOn= true;
     } else if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_RXDRDY)) {
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_RXDRDY);
         // Note: no need to check for overrun here, the
         // initialisation of the pointer and the DMA length
-        // should make sure that it can never overrun
-        (pRxBuffer->pWrite)++;
+        // should ensure that it will never overrun
         (pRxBuffer->toRead)++;
         if (pRxBuffer->toRead == 1) {
             // Got a new byte into a buffer that the user had
-            // previously fully read: let the user know about it
+            // previously fully read: let the user know
+            // that there's more to read now
             CellularPortUartEventData_t uartEvent;
             // Inform the application of the receive event,
             // which also gives time for the data to get into RAM
@@ -163,21 +160,17 @@ static void rxIrqHandler(CellularPortUartData_t *pUartData)
     } else if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_ENDRX)) {
         // Clear the event and move the buffer on
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_ENDRX);
-        moveBufferOn= true;
+        pRxBuffer->pWrite += DMA_MAX_LEN;
+        // Start the next receive
+        if (pRxBuffer->pWrite + DMA_MAX_LEN > pRxBuffer->pStart +
+                                              CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
+            pRxBuffer->pWrite = pRxBuffer->pStart;
+        }
+        nrf_uarte_rx_buffer_set(pReg, (uint8_t *) (pRxBuffer->pWrite), DMA_MAX_LEN);
+        nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STARTRX);
     } else if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_RXTO)) {
         // We've been stopped, so just clear the event
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_RXTO);
-    }
-
-    if (moveBufferOn) {
-        // Start the next receive
-        if (pRxBuffer->pWrite + DMA_MAX_LEN >= pRxBuffer->pStart +
-                                 CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
-            pRxBuffer->pWrite = pRxBuffer->pStart;
-        }
-        nrf_uarte_rx_buffer_set(pReg, pRxBuffer->pWrite,
-                                DMA_MAX_LEN);
-        nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STARTRX);
     }
 
     // Required for FreeRTOS task scheduling to work
@@ -332,11 +325,12 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
 
                     CELLULAR_PORT_MUTEX_LOCK(gUartData[uart].mutex);
 
+                    errorCode = CELLULAR_PORT_OUT_OF_MEMORY;
                     // Malloc memory for the read buffer
                     gUartData[uart].rxBuffer.pStart = pCellularPort_malloc(CELLULAR_PORT_UART_RX_BUFFER_SIZE);
                     if (gUartData[uart].rxBuffer.pStart != NULL) {
                         gUartData[uart].rxBuffer.pWrite = gUartData[uart].rxBuffer.pStart;
-                        gUartData[uart].rxBuffer.pRead = gUartData[uart].rxBuffer.pWrite;
+                        gUartData[uart].rxBuffer.pRead = gUartData[uart].rxBuffer.pStart;
                         gUartData[uart].rxBuffer.toRead = 0;
                         // Create the queue
                         errorCode = cellularPortQueueCreate(CELLULAR_PORT_UART_EVENT_QUEUE_SIZE,
@@ -386,7 +380,8 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                             nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_RXDRDY);
                             nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_TXSTOPPED);
 
-                            nrf_uarte_rx_buffer_set(pReg, gUartData[uart].rxBuffer.pWrite,
+                            nrf_uarte_rx_buffer_set(pReg,
+                                                    (uint8_t *) (gUartData[uart].rxBuffer.pWrite),
                                                     DMA_MAX_LEN);
                             nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STARTRX);
                             nrf_uarte_int_enable(pReg, NRF_UARTE_INT_ENDRX_MASK |
@@ -539,7 +534,6 @@ int32_t cellularPortUartGetReceiveSize(int32_t uart)
     if (uart < sizeof(gUartData) / sizeof(gUartData[0])) {
         sizeOrErrorCode = CELLULAR_PORT_NOT_INITIALISED;
         if (gUartData[uart].mutex != NULL) {
-
             // No need to lock the mutex, this is atomic
             sizeOrErrorCode = gUartData[uart].rxBuffer.toRead;
         }
@@ -554,6 +548,7 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
 {
     CellularPortErrorCode_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
     CellularPortUartBuffer_t *pRxBuffer;
+    size_t leftOvers = 0;
 
     if ((pBuffer != NULL) && (uart < sizeof(gUartData) / sizeof(gUartData[0]))) {
         sizeOrErrorCode = CELLULAR_PORT_NOT_INITIALISED;
@@ -567,13 +562,26 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
             if (sizeOrErrorCode > sizeBytes) {
                 sizeOrErrorCode = sizeBytes;
             }
+            // Deal with wrapping around the end of the buffer
+            if (pRxBuffer->pRead + sizeOrErrorCode > pRxBuffer->pStart +
+                                                     CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
+                leftOvers = pRxBuffer->pRead + sizeOrErrorCode - pRxBuffer->pStart -
+                            CELLULAR_PORT_UART_RX_BUFFER_SIZE;
+                sizeOrErrorCode -= leftOvers;
+            }
+            // Copy up to the end of the buffer
             pCellularPort_memcpy(pBuffer, pRxBuffer->pRead,
                                  sizeOrErrorCode);
             pRxBuffer->toRead -= sizeOrErrorCode; 
             pRxBuffer->pRead += sizeOrErrorCode;
-            if (pRxBuffer->pRead >= pRxBuffer->pStart +
-                                    CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
+            // Copy any leftovers
+            if (leftOvers > 0) {
                 pRxBuffer->pRead = pRxBuffer->pStart;
+                pCellularPort_memcpy(pBuffer + sizeOrErrorCode,
+                                     pRxBuffer->pRead, leftOvers);
+                pRxBuffer->toRead -= leftOvers; 
+                pRxBuffer->pRead += leftOvers;
+                sizeOrErrorCode += leftOvers;
             }
 
             CELLULAR_PORT_MUTEX_UNLOCK(gUartData[uart].mutex);

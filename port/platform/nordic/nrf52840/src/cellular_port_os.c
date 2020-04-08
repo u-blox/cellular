@@ -17,6 +17,8 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
+#include "cellular_cfg_sw.h"
+#include "cellular_port_debug.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_os.h"
@@ -263,6 +265,20 @@ int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle)
 CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandle_t mutexHandle)
 {
     return (CellularPortTaskHandle_t) xSemaphoreGetMutexHolder(mutexHandle);
+}
+
+
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS: HOOKS
+ * -------------------------------------------------------------- */
+
+// Stack overflow hook, employed when configCHECK_FOR_STACK_OVERFLOW is
+// set to 1 in FreeRTOSConfig.h.
+void vApplicationStackOverflowHook(TaskHandle_t taskHandle, char *pTaskName)
+{
+    cellularPortLog("CELLULAR_PORT: task handle 0x%08x, \"%s\", overflowed its stack.\n",
+                    (int32_t) taskHandle, pTaskName);
+    cellularPort_assert(false);
 }
 
 // End of file

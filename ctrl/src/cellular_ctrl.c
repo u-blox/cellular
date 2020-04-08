@@ -795,7 +795,8 @@ int32_t cellularCtrlPowerOn(const char *pPin)
             // the module off, check if it is already on.
             // Note: doing this even if there is an enable power
             // pin for safety sake
-            if (moduleIsAlive(1) == CELLULAR_CTRL_SUCCESS) {
+            if (((gPinVInt >= 0) && cellularPortGpioGet(gPinVInt)) ||
+                (moduleIsAlive(1) == CELLULAR_CTRL_SUCCESS)) {
                 cellularPortLog("CELLULAR_CTRL: powering on, module is already on.\n");
                 // Configure the module
                 errorCode = moduleConfigure(gUart);

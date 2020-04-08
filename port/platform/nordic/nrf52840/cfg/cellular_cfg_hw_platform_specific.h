@@ -62,8 +62,7 @@
 
 /* NRF52840 uses a port numbering scheme with 32 GPIO lines
  * on each port and two ports, so GPIO 0 you will see written as
- * 0.00, GPIO 31 0.31, GPIO 32 1.00 and GPIO 63 (if you have that
- * many, I think it depends on the chip package) 1.31.
+ * 0.00, GPIO 31 0.31, GPIO 32 1.00 and GPIO 48 1.15.
  * Also, if you are using the NRF52840 DK board a load of these
  * have pre-assigned functions so you have to read the back of
  * the PCB _very_ carefully to find any that are free.  In
