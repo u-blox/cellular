@@ -64,6 +64,7 @@ SRC_FILES += \
   ../../../src/cellular_port_gpio.c \
   ../../../src/cellular_port_os.c \
   ../../../src/cellular_port_uart.c \
+  ../../../src/cellular_port_private.c \
   ../../../../../../../ctrl/test/cellular_ctrl_test.c \
   ../../../../../../../sock/test/cellular_sock_test.c \
   ../../../../../../test/cellular_port_test.c \

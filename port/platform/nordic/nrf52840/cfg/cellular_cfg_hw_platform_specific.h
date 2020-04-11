@@ -50,10 +50,11 @@
  * COMPILE-TIME MACROS FOR NRF52840: TIMER
  * -------------------------------------------------------------- */
 
-/** The TIMER instance to use.
+/** The TIMER instance to use.  Chosing 1 so as not to conflict
+ * with SOFT_DEVICE where it is used.
  */
 #ifndef CELLULAR_PORT_TICK_TIMER_INSTANCE
-# define CELLULAR_PORT_TICK_TIMER_INSTANCE 0
+# define CELLULAR_PORT_TICK_TIMER_INSTANCE           1
 #endif
 
 /* ----------------------------------------------------------------

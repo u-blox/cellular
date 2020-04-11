@@ -150,7 +150,10 @@ typedef enum {
     CELLULAR_CTRL_NO_CONTEXT_ACTIVATED = -13,
     CELLULAR_CTRL_CONNECTED = -14, //!< This is an ERROR code used, for instance, to
                                    //! indicate that a disconnect attempt has failed.
-    CELLULAR_CTRL_NOT_FOUND = -15
+    CELLULAR_CTRL_NOT_FOUND = -15,
+    CELLULAR_CTRL_FORCE_32_BIT = 0x7FFFFFFF // Force this enum to be 32 bit
+                                            // as it can be used as a size
+                                            // also
 } CellularCtrlErrorCode_t;
 
 /** The possible radio access technologies.

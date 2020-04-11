@@ -212,11 +212,6 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
 
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 // Do a connect/disconnect test on the specified RAT.
@@ -407,11 +402,6 @@ static void connectDisconnect(CellularCtrlRat_t rat)
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 /* ----------------------------------------------------------------
@@ -445,11 +435,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 /** Get bandmasks.
@@ -494,11 +479,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestGetBandMask(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 /** Set bandmasks.
@@ -587,11 +567,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 /** Test power on/off and aliveness.
@@ -687,11 +662,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 #if CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS > 1
@@ -918,11 +888,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 #endif
@@ -1053,11 +1018,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 /** Test reading the radio parameters.
@@ -1182,11 +1142,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 /** Get IMEI etc.
@@ -1301,11 +1256,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadImeiEtc(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 // End of file

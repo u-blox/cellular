@@ -241,7 +241,7 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
 {
     CellularPortErrorCode_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
-    if ((pBuffer != NULL) &&
+    if ((pBuffer != NULL) && (sizeBytes > 0) &&
         (uart < sizeof(gMutex) / sizeof(gMutex[0]))) {
         sizeOrErrorCode = CELLULAR_PORT_NOT_INITIALISED;
         if (gMutex[uart] != NULL) {

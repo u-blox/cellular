@@ -47,7 +47,10 @@ typedef enum {
     CELLULAR_PORT_INVALID_PARAMETER = -4,
     CELLULAR_PORT_OUT_OF_MEMORY = -5,
     CELLULAR_PORT_TIMEOUT = -6,
-    CELLULAR_PORT_PLATFORM_ERROR = -7
+    CELLULAR_PORT_PLATFORM_ERROR = -7,
+    CELLULAR_PORT_FORCE_32_BIT = 0x7FFFFFFF // Force this enum to be 32 bit
+                                            // as it can be used as a size
+                                            // also
 } CellularPortErrorCode_t;
 
 /* ----------------------------------------------------------------

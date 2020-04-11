@@ -581,11 +581,6 @@ static void stdDataTestDeinit(CellularSockDescriptor_t sockDescriptor)
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 // Check a buffer of what was sent against
@@ -1112,11 +1107,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestInitialisation(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 /** Test conversion of address strings into structs and
@@ -1546,11 +1536,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 /** Test setting/getting socket options.
@@ -1913,11 +1898,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
-
-    // Allow idle task to run so that any deleted
-    // tasks are actually deleted, required by some
-    // operating systems (e.g. freeRTOS)
-    cellularPortTaskBlock(100);
 }
 
 /** UDP echo test that throws up multiple packets

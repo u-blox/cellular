@@ -826,6 +826,13 @@ int32_t cellularCtrlPowerOn(const char *pPin)
                         // it were going to
                         cellularPortGpioSet(gPinPwrOn, 1);
                         cellularPortTaskBlock(CELLULAR_CTRL_BOOT_WAIT_TIME_MS);
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+                        // SARA-R5 chucks out a load of stuff after
+                        // boot at the moment: flush it away
+                        char buffer[8];
+                        cellularPortTaskBlock(2000);
+                        while (cellularPortUartRead(gUart, buffer, sizeof(buffer)) > 0) {}
+#endif
                         // Cellular module should be up, see if it's there
                         // and, if so, configure it
                         errorCode = moduleIsAlive(CELLULAR_CTRL_IS_ALIVE_ATTEMPTS_POWER_ON);
@@ -984,6 +991,13 @@ int32_t cellularCtrlReboot()
         if (cellular_ctrl_at_unlock_return_error() == 0) {
             // Wait for the module to boot
             cellularPortTaskBlock(CELLULAR_CTRL_BOOT_WAIT_TIME_MS);
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+            // SARA-R5 chucks out a load of stuff after
+            // boot at the moment: flush it away
+            char buffer[8];
+            cellularPortTaskBlock(2000);
+            while (cellularPortUartRead(gUart, buffer, sizeof(buffer)) > 0) {}
+#endif
             // Wait for the module to return to life
             // and configure it
             errorCode = moduleIsAlive(CELLULAR_CTRL_IS_ALIVE_ATTEMPTS_POWER_ON);

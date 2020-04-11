@@ -22,6 +22,7 @@
 
 #include "cellular_cfg_hw_platform_specific.h"
 #include "cellular_cfg_sw.h"
+#include "cellular_cfg_module.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_debug.h"
@@ -40,7 +41,7 @@
 #define CELLULAR_PORT_TEST_QUEUE_ITEM_SIZE sizeof(int32_t)
 
 // The guard time for the OS test.
-#define CELLULAR_PORT_TEST_OS_GUARD_DURATION_MS 3000
+#define CELLULAR_PORT_TEST_OS_GUARD_DURATION_MS 4100
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -148,13 +149,15 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
 {
     int32_t errorCode;
     CellularPortTaskHandle_t taskHandle;
-    int32_t timeNowMs;
+    CellularPortQueueHandle_t queueHandle;
+    int64_t startTimeMs;
+    int64_t timeNowMs;
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
 
-    timeNowMs = cellularPortGetTickTimeMs();
-    cellularPortLog("CELLULAR_PORT_TEST: tick time now is %d.\n",
-                    timeNowMs);
+    startTimeMs = cellularPortGetTickTimeMs();
+    cellularPortLog("CELLULAR_PORT_TEST: tick time now is %lld.\n",
+                    startTimeMs);
 
     cellularPortLog("CELLULAR_PORT_TEST: creating a mutex...\n");
     errorCode = cellularPortMutexCreate(&gMutexHandle);
@@ -223,13 +226,44 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
 
     cellularPortLog("CELLULAR_PORT_TEST: deleting queue...\n");
     CELLULAR_PORT_TEST_ASSERT(cellularPortQueueDelete(gQueueHandle) == 0);
-
+#if 0
+    // Some ports, e.g. the Nordic one, use the timer tick somewhat
+    // differently when the UART is running so initialise that
+    // here and re-measure time
+    timeNowMs = cellularPortGetTickTimeMs();
+    cellularPortLog("CELLULAR_PORT_TEST: tick time now is %lld.\n",
+                    timeNowMs);
+    cellularPortLog("CELLULAR_PORT_TEST: initialising UART...\n");
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
+                                                   CELLULAR_CFG_BAUD_RATE,
+                                                   CELLULAR_CFG_RTS_THRESHOLD,
+                                                   CELLULAR_CFG_UART,
+                                                   &queueHandle) == 0);
+    cellularPortLog("CELLULAR_PORT_TEST: waiting one second...\n");
+    cellularPortTaskBlock(1000);
     timeNowMs = cellularPortGetTickTimeMs() - timeNowMs;
-    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() the test took %d ms.\n",
+    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() %lld ms have elapsed.\n",
+                    timeNowMs);
+    CELLULAR_PORT_TEST_ASSERT((timeNowMs > 950) && (timeNowMs < 1050));
+    cellularPortLog("CELLULAR_PORT_TEST: deinitialising UART...\n");
+    timeNowMs = cellularPortGetTickTimeMs();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
+    cellularPortLog("CELLULAR_PORT_TEST: waiting one second...\n");
+    cellularPortTaskBlock(1000);
+    timeNowMs = cellularPortGetTickTimeMs() - timeNowMs;
+    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() %lld ms have elapsed.\n",
+                    timeNowMs);
+    CELLULAR_PORT_TEST_ASSERT((timeNowMs > 950) && (timeNowMs < 1050));
+
+    timeNowMs = cellularPortGetTickTimeMs() - startTimeMs;
+    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() the test took %lld ms.\n",
                     timeNowMs);
     CELLULAR_PORT_TEST_ASSERT((timeNowMs > 0) &&
                               (timeNowMs < CELLULAR_PORT_TEST_OS_GUARD_DURATION_MS));
-
+#endif
     cellularPortDeinit();
 }
 

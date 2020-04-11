@@ -23,7 +23,8 @@
       gcc_debugging_level="Level 3"
       gcc_entry_point="Reset_Handler"
       linker_output_format="hex"
-      linker_printf_fmt_level="long"
+      linker_printf_fmt_level="long long"
+      linker_printf_fp_enabled="Double"
       linker_printf_width_precision_supported="Yes"
       linker_scanf_fmt_level="long"
       linker_section_placement_file="flash_placement.xml"
@@ -45,6 +46,7 @@
       <file file_name="../../../src/cellular_port_gpio.c" />
       <file file_name="../../../src/cellular_port_os.c" />
       <file file_name="../../../src/cellular_port_uart.c" />
+      <file file_name="../../../src/cellular_port_private.c" />
       <file file_name="../../../../../../../ctrl/test/cellular_ctrl_test.c" />
       <file file_name="../../../../../../../sock/test/cellular_sock_test.c" />
       <file file_name="../../../../../../test/cellular_port_test.c" />

@@ -240,7 +240,8 @@ int32_t cellularPortMutexTryLock(const CellularPortMutexHandle_t mutexHandle,
 
     if (mutexHandle != NULL) {
         errorCode = CELLULAR_PORT_TIMEOUT;
-        if (xSemaphoreTake((SemaphoreHandle_t) mutexHandle, delayMs) == pdTRUE) {
+        if (xSemaphoreTake((SemaphoreHandle_t) mutexHandle,
+                           delayMs) == pdTRUE) {
             errorCode = CELLULAR_PORT_SUCCESS;
         }
     }
@@ -278,6 +279,14 @@ void vApplicationStackOverflowHook(TaskHandle_t taskHandle, char *pTaskName)
 {
     cellularPortLog("CELLULAR_PORT: task handle 0x%08x, \"%s\", overflowed its stack.\n",
                     (int32_t) taskHandle, pTaskName);
+    cellularPort_assert(false);
+}
+
+// Malloc failed hook, employed when configUSE_MALLOC_FAILED_HOOK is
+// set to 1 in FreeRTOSConfig.h.
+void vApplicationMallocFailedHook( void )
+{
+    cellularPortLog("CELLULAR_PORT: freeRTOS doesn't have enough heap, increase configTOTAL_HEAP_SIZE in FreeRTOSConfig.h.\n");
     cellularPort_assert(false);
 }
 

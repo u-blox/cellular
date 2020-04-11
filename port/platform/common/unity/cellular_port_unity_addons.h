@@ -79,7 +79,7 @@ void cellularPortUnityTestRegister(CellularPortUnityTestDescription_t *pDescript
     /* Use constructor attribute so that this is run during C initialisation before anything else runs */    \
     static void __attribute__((constructor)) CELLULAR_PORT_UNITY_UID(testRegistrationHelper) ()              \
     {                                                                                                        \
-        /* Static pointer to the test function that follows */                                               \
+        /* Static pointer to the test function at the end of this macro */                                   \
         static const pCellularPortUnityTestFunction_t pFunction = &CELLULAR_PORT_UNITY_UID(testFunction);    \
         /* Static description of the tests to pass to the register function */                               \
         static CellularPortUnityTestDescription_t CELLULAR_PORT_UNITY_UID(testDescription) = {               \

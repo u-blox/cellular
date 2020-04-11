@@ -352,7 +352,10 @@ typedef enum {
     CELLULAR_SOCK_NO_MEMORY = -6,
     CELLULAR_SOCK_WOULD_BLOCK = -7, //<! Value matches LWIP.
     CELLULAR_SOCK_PLATFORM_ERROR = -8,
-    CELLULAR_SOCK_INVALID_ADDRESS = -9
+    CELLULAR_SOCK_INVALID_ADDRESS = -9,
+    CELLULAR_SOCK_FORCE_32_BIT = 0x7FFFFFFF // Force this enum to be 32 bit
+                                            // as it can be used as a size
+                                            // also
 } CellularSockErrorCode_t;
 
 /* ----------------------------------------------------------------
