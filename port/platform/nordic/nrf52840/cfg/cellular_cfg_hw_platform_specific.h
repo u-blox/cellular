@@ -89,21 +89,21 @@
  * cellular module.
  * -1 is used where there is no such connection.
  */
-# define CELLULAR_CFG_PIN_VINT              34 // AKA 1.02
+# define CELLULAR_CFG_PIN_VINT              -1
 #endif
 
 #ifndef CELLULAR_CFG_PIN_TXD
 /** The NRF52840 GPIO output pin that sends UART data to the cellular
  * module.
  */
-# define CELLULAR_CFG_PIN_TXD               35 // AKA 1.03
+# define CELLULAR_CFG_PIN_TXD               34 // AKA 1.02
 #endif
 
 #ifndef CELLULAR_CFG_PIN_RXD
 /** The NRF52840 GPIO input pin that receives UART data from the cellular
  * module.
  */
-# define CELLULAR_CFG_PIN_RXD               36 // AKA 1.04
+# define CELLULAR_CFG_PIN_RXD               35 // AKA 1.03
 #endif
 
 #ifndef CELLULAR_CFG_PIN_CTS

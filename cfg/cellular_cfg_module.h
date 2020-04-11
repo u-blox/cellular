@@ -52,16 +52,64 @@
  * -------------------------------------------------------------- */
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
-    // None yet
-#endif
+
+/** The delay between AT commands, allowing internal cellular module
+ * comms to complete before another is sent.
+ */
+# define CELLULAR_CTRL_COMMAND_DELAY_MS 20
+
+/** The minimum reponse time one can expect with cellular module.
+ * This is quite large since, if there is a URC about to come through,
+ * it can delay what are normally immediate responses.
+ */
+# define CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS 5000
+
+/** The time to wait before the cellular module is ready at boot.
+ */
+# define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 3000
+
+/** The time to wait for an organised power off.
+ */
+# define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 20
+
+/** The maximum number of simultaneous radio access technologies
+ *  supported by the cellular module.
+ */
+# define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 1
+
+#endif // CELLULAR_CFG_MODULE_SARA_R5
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS FOR SARA-R4
  * -------------------------------------------------------------- */
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
-    // None yet
-#endif
+
+/** The delay between AT commands, allowing internal cellular module
+ * comms to complete before another is sent.
+ */
+# define CELLULAR_CTRL_COMMAND_DELAY_MS 100
+
+/** The minimum reponse time one can expect with cellular module.
+ * This is quite large since, if there is a URC about to come through,
+ * it can delay what are normally immediate responses.
+ */
+# define CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS 2000
+
+/** The time to wait before the cellular module is ready at boot.
+ */
+# define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 5000
+
+/** The time to wait for an organised power off.
+ */
+# define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 10
+
+/** The maximum number of simultaneous radio access technologies
+ *  supported by the cellular module.
+ */
+# define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 2
+
+#endif // CELLULAR_CFG_MODULE_SARA_R4
 
 #endif // _CELLULAR_CFG_MODULE_H_
 

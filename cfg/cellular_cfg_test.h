@@ -33,11 +33,17 @@
 # define CELLULAR_CFG_TEST_RAT        CELLULAR_CTRL_RAT_CATM1
 #endif
 
-#ifndef CELLULAR_CFG_TEST_BANDMASK
-/** The bandmask to use during testing. 0x080092 is bands
+#ifndef CELLULAR_CFG_TEST_BANDMASK1
+/** The bandmask 1 to use during testing. 0x080092 is bands
  * 2, 5, 8 and 20.
  */
-# define CELLULAR_CFG_TEST_BANDMASK   0x080092
+# define CELLULAR_CFG_TEST_BANDMASK1   0x080092
+#endif
+
+#ifndef CELLULAR_CFG_TEST_BANDMASK2
+/** The bandmask 2 to use during testing.
+ */
+# define CELLULAR_CFG_TEST_BANDMASK2   0
 #endif
 
 #ifndef CELLULAR_CFG_TEST_APN

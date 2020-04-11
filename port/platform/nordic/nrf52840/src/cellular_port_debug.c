@@ -28,9 +28,6 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
-// The size of logging buffer.
-#define CELLULAR_PORT_LOG_BUFFER_SIZE 1024
-
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -39,8 +36,10 @@
  * VARIABLES
  * -------------------------------------------------------------- */
 
+#if NRF_LOG_ENABLED
 // The logging buffer.
-char gLogBuffer[CELLULAR_PORT_LOG_BUFFER_SIZE];
+char gLogBuffer[NRF_LOG_BUFSIZE];
+#endif
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS
@@ -58,10 +57,13 @@ void cellularPortLogF(const char *pFormat, ...)
     va_list args;
 
     va_start(args, pFormat);
+#if NRF_LOG_ENABLED
     vsnprintf(gLogBuffer, sizeof(gLogBuffer), pFormat, args);
-
     NRF_LOG_RAW_INFO("%s", gLogBuffer);
     NRF_LOG_FLUSH();
+#else
+    vprintf(pFormat, args);
+#endif
 
     va_end(args);
 }

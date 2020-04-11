@@ -102,7 +102,8 @@ static int64_t gStopTimeMS;
 static CellularCtrlRat_t gOriginalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
 
 // Place to store the original band mask settings of the module.
-static uint64_t gOriginalMask;
+static uint64_t gOriginalMask1;
+static uint64_t gOriginalMask2;
 
 // Array of inputs for address string testing.
 // TODO: random crap attack.
@@ -453,13 +454,15 @@ static void networkConnect(const char *pApn,
     for (size_t x = 0; x < sizeof (gOriginalRats) / sizeof (gOriginalRats[0]); x++) {
         gOriginalRats[x] = cellularCtrlGetRat(x);
     }
-    // Then read out the existing band mask
-    gOriginalMask = cellularCtrlGetBandMask(CELLULAR_CFG_TEST_RAT);
+    // Then read out the existing band masks
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CFG_TEST_RAT,
+                                                      &gOriginalMask1, &gOriginalMask2) == 0);
 
     cellularPortLog("CELLULAR_SOCK_TEST: setting sole RAT to %d...\n", CELLULAR_CFG_TEST_RAT);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRat(CELLULAR_CFG_TEST_RAT) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT,
-                                                      CELLULAR_CFG_TEST_BANDMASK) == 0);
+                                                      CELLULAR_CFG_TEST_BANDMASK1,
+                                                      CELLULAR_CFG_TEST_BANDMASK2) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlReboot() == 0);
 
     cellularPortLog("CELLULAR_SOCK_TEST: connecting...\n");
@@ -481,7 +484,8 @@ static void networkDisconnect()
 
     cellularPortLog("CELLULAR_SOCK_TEST: restoring saved settings...\n");
     // No asserts here, we need it to plough on and succeed
-    if (cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT, gOriginalMask) != 0) {
+    if (cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT, gOriginalMask1,
+                                                       gOriginalMask2) != 0) {
         cellularPortLog("CELLULAR_SOCK_TEST: !!! ATTENTION: the band mask for RAT %d on the module under test may have been left screwy, please check!!!\n", CELLULAR_CFG_TEST_RAT);
     }
     for (size_t x = 0; x < sizeof (gOriginalRats) / sizeof (gOriginalRats[0]); x++) {

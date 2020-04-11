@@ -245,7 +245,11 @@ static void CEREG_urc(void *pUnused)
 
     // Read status
     status = cellular_ctrl_at_read_int();
-    if (status >= 0) {
+    // Check that status was there AND there is no
+    // subsequent character: if there is this wasn't a URC
+    // it was the +CEREG:x,y response to an AT+CEREG?,
+    // which got into here by mistake
+    if ((status >= 0) && (cellular_ctrl_at_read_int() < 0)) {
         setNetworkStatus(status);
     }
 }
@@ -316,7 +320,10 @@ static CellularCtrlErrorCode_t moduleIsAlive(int32_t attempts)
     }
 
     if (cellularIsAlive) {
-        errorCode = CELLULAR_CTRL_SUCCESS;
+        // Sync the AT interface, just in case
+        if (cellular_ctrl_at_sync(CELLULAR_CTRL_COMMAND_TIMEOUT_MS)) {
+            errorCode = CELLULAR_CTRL_SUCCESS;
+        }
     }
 
     return errorCode;
@@ -492,7 +499,8 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
     cellular_ctrl_at_unlock();
     // Wait for registration to succeed
     errorCode = CELLULAR_CTRL_NOT_REGISTERED;
-    while (keepGoing && pKeepGoingCallback() && (cellularCtrlGetActiveRat() < 0)) {
+    while (keepGoing && pKeepGoingCallback() &&
+           (cellularCtrlGetNetworkStatus() != CELLULAR_CTRL_NETWORK_STATUS_REGISTERED)) {
         // Prod the modem anyway, we've nout much else to do
         cellular_ctrl_at_lock();
         cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
@@ -529,7 +537,7 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
     }
 
     if (keepGoing && pKeepGoingCallback()) {
-        if (cellularCtrlGetActiveRat() >= 0) {
+        if ((cellularCtrlGetNetworkStatus() == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED)) {
             if (cellularCtrlGetOperatorStr(buffer, sizeof(buffer)) >= 0) {
                 cellularPortLog("Registered on \"%s\".\n", buffer);
             }
@@ -700,7 +708,6 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
                     if (pinVInt >= 0) {
                         // Set pin that monitors VINT as input
                         gpioConfig.pin = pinVInt;
-                         // Input/output so we can read it as well
                         gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_INPUT;
                         platformError = cellularPortGpioConfig(&gpioConfig);
                         if (platformError != 0) {
@@ -781,6 +788,7 @@ int32_t cellularCtrlPowerOn(const char *pPin)
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t platformError = 0;
     int32_t enablePowerAtStart = 1;
+    char buffer[8];
 
     if (gInitialised) {
         if (gPinEnablePower >= 0) {
@@ -797,7 +805,7 @@ int32_t cellularCtrlPowerOn(const char *pPin)
             // pin for safety sake
             if (((gPinVInt >= 0) && cellularPortGpioGet(gPinVInt)) ||
                 (moduleIsAlive(1) == CELLULAR_CTRL_SUCCESS)) {
-                cellularPortLog("CELLULAR_CTRL: powering on, module is already on.\n");
+                cellularPortLog("CELLULAR_CTRL: powering on, module is already on, flushing...\n");
                 // Configure the module
                 errorCode = moduleConfigure(gUart);
             } else {
@@ -814,7 +822,7 @@ int32_t cellularCtrlPowerOn(const char *pPin)
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
                         // SARA-R412M is powered on by holding the PWR_ON pin low
                         // for more than 0.15 seconds
-                        cellularPortTaskBlock(300);
+                        cellularPortTaskBlock(300)
 #endif
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
                         // SARA-R5 is powered on by holding the PWR_ON pin low
@@ -829,14 +837,11 @@ int32_t cellularCtrlPowerOn(const char *pPin)
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
                         // SARA-R5 chucks out a load of stuff after
                         // boot at the moment: flush it away
-                        char buffer[8];
-                        cellularPortTaskBlock(2000);
                         while (cellularPortUartRead(gUart, buffer, sizeof(buffer)) > 0) {}
 #endif
                         // Cellular module should be up, see if it's there
                         // and, if so, configure it
                         errorCode = moduleIsAlive(CELLULAR_CTRL_IS_ALIVE_ATTEMPTS_POWER_ON);
-                        // Wait for things to settle
                         if (errorCode == CELLULAR_CTRL_SUCCESS) {
                             // Configure the module
                             errorCode = moduleConfigure(gUart);
@@ -995,7 +1000,6 @@ int32_t cellularCtrlReboot()
             // SARA-R5 chucks out a load of stuff after
             // boot at the moment: flush it away
             char buffer[8];
-            cellularPortTaskBlock(2000);
             while (cellularPortUartRead(gUart, buffer, sizeof(buffer)) > 0) {}
 #endif
             // Wait for the module to return to life
@@ -1014,7 +1018,8 @@ int32_t cellularCtrlReboot()
 
 // Set the bands to be used by the cellular module.
 int32_t cellularCtrlSetBandMask(CellularCtrlRat_t rat,
-                                uint64_t bandMask)
+                                uint64_t bandMask1,
+                                uint64_t bandMask2)
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
 
@@ -1023,16 +1028,18 @@ int32_t cellularCtrlSetBandMask(CellularCtrlRat_t rat,
         if ((rat == CELLULAR_CTRL_RAT_CATM1) ||
             (rat == CELLULAR_CTRL_RAT_NB1)) {
             errorCode = CELLULAR_CTRL_AT_ERROR;
-            cellularPortLog("CELLULAR_CTRL: setting band mask for RAT %d (in module terms %d) to 0x%016llx.\n",
+            cellularPortLog("CELLULAR_CTRL: setting band mask for RAT %d (in module terms %d) to 0x%016llx %016llx.\n",
                             rat, gCellularRatToLocalRat[rat] -
-                                 gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1], bandMask);
+                                 gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1],
+                                 bandMask2, bandMask1);
             cellular_ctrl_at_lock();
             // Note: the RAT numbering for this AT command is NOT the same
             // as the RAT numbering for all the other AT commands:
             // here CELLULAR_CTRL_RAT_CATM1 is 0 and CELLULAR_CTRL_RAT_NB1 is 1
             cellular_ctrl_at_cmd_start("AT+UBANDMASK=");
             cellular_ctrl_at_write_int(gCellularRatToLocalRat[rat] - gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1]);
-            cellular_ctrl_at_write_uint64(bandMask);
+            cellular_ctrl_at_write_uint64(bandMask1);
+            cellular_ctrl_at_write_uint64(bandMask2);
             cellular_ctrl_at_cmd_stop_read_resp();
             if (cellular_ctrl_at_unlock_return_error() == 0) {
                 errorCode = CELLULAR_CTRL_SUCCESS;
@@ -1044,16 +1051,35 @@ int32_t cellularCtrlSetBandMask(CellularCtrlRat_t rat,
 }
 
 // Get the bands being used by the cellular module.
-uint64_t cellularCtrlGetBandMask(CellularCtrlRat_t rat)
+int32_t cellularCtrlGetBandMask(CellularCtrlRat_t rat,
+                                uint64_t *pBandMask1,
+                                uint64_t *pBandMask2)
 {
-    uint64_t masks[2];
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    uint64_t i[6];
+    uint64_t masks[2][2];
     int32_t rats[2];
     bool success = true;
-    uint64_t mask = 0;
+    size_t count = 0;
 
     if (gInitialised) {
-        if ((rat == CELLULAR_CTRL_RAT_CATM1) ||
-            (rat == CELLULAR_CTRL_RAT_NB1)) {
+        errorCode = CELLULAR_CTRL_INVALID_PARAMETER;
+        if (((rat == CELLULAR_CTRL_RAT_CATM1) ||
+             (rat == CELLULAR_CTRL_RAT_NB1)) &&
+            (pBandMask1 != NULL) &&
+            (pBandMask2 != NULL)) {
+
+            errorCode = CELLULAR_CTRL_AT_ERROR;
+
+            // Initialise locals
+            for (size_t x = 0; x < sizeof(i) / sizeof(i[0]); x++) {
+                i[x] = -1;
+            }
+            pCellularPort_memset(masks, 0, sizeof(masks));
+            for (size_t x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
+                rats[x] = -1;
+            }
+
             cellularPortLog("CELLULAR_CTRL: getting band mask for RAT %d (in module terms %d).\n",
                              rat, gCellularRatToLocalRat[rat] -
                                   gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1]);
@@ -1061,14 +1087,80 @@ uint64_t cellularCtrlGetBandMask(CellularCtrlRat_t rat)
             cellular_ctrl_at_cmd_start("AT+UBANDMASK?");
             cellular_ctrl_at_cmd_stop();
             cellular_ctrl_at_resp_start("+UBANDMASK:", false);
-            // Read up to N integers and uint64_t representing the RATs
-            // and the band masks
+            // The AT response here can be any one of the following:
+            //    0        1             2             3           4                 5
+            // <rat_a>,<bandmask_a0>
+            // <rat_a>,<bandmask_a0>,<bandmask_a1>
+            // <rat_a>,<bandmask_a0>,<rat_b>,      <bandmask_b0>
+            // <rat_a>,<bandmask_a0>,<bandmask_a1>,<rat_b>,      <bandmask_b0>
+            // <rat_a>,<bandmask_a0>,<rat_b>,      <bandmask_b0>,<bandmask_b1>                  <-- ASSUMED THIS CANNOT HAPPEN!!!
+            // <rat_a>,<bandmask_a0>,<bandmask_a1>,<rat_b>,      <bandmask_b0>,  <bandmask_b1>
+            //
+            // Since each entry is just a decimal number, how to tell which format
+            // is being used?
+            //
+            // Here's my algorithm:
+            // i.   Read i0 and i1, <rat_a> and <bandmask_a0>.
+            // ii.  Attempt to read i2: if is present it could be
+            //      <bandmask_a1> or <rat_b>, if not FINISH.
+            // iii. Attempt to read i3: if it is present then it is
+            //      either <bandmask_b0> or <rat_b>, if it
+            //      is not present then the i2 was <bandmask_a1> FINISH.
+            // iv.  Attempt to read i4 : if it is present then i2
+            //      was <bandmask_a1>, i3 was <rat_b> and i4 is
+            //      <bandmask_b0>, if it is not present then i2 was
+            //      <rat_b> and i3 was <bandmask_b0> FINISH.
+            // v.   Attempt to read i5: if it is present then it is
+            //      <bandmask_b1>.
+
+            // Read all the numbers in
+            for (size_t x = 0; (x < sizeof(i) / sizeof(i[0])) && success; x++) {
+                success = (cellular_ctrl_at_read_uint64(&(i[x])) == 0);
+                if (success) {
+                    count++;
+                }
+            }
+            cellular_ctrl_at_resp_stop();
+            cellular_ctrl_at_unlock();
+
+            // Point i, nice and simple, <rat_a> and <bandmask_a0>.
+            if (count >= 2) {
+                rats[0] = i[0];
+                masks[0][0] = i[1];
+            }
+            if (count >= 3) {
+                // Point ii, the "present" part.
+                if (count >= 4) {
+                    // Point iii, the "present" part.
+                    if (count >= 5) {
+                        // Point iv, the "present" part, <bandmask_a1>,
+                        // <rat_b> and <bandmask_b1>.
+                        masks[0][1] = i[2];
+                        rats[1] = i[3];
+                        masks[1][0] = i[4];
+                        if (count >= 6) {
+                            // Point v, <bandmask_b1>.
+                            masks[1][1] = i[5];
+                        }
+                    } else {
+                        // Point iv, the "not present" part, <rat_b>
+                        // and <bandmask_b0>.
+                        rats[1] = i[2];
+                        masks[1][0] = i[3];
+                    }
+                } else {
+                    // Point iii, the "not present" part, <bandmask_a1>.
+                    masks[0][1] = i[2];
+                }
+            } else {
+                // Point ii, the "not present" part, FINISH.
+            }
+
             // Note: the RAT numbering for this AT command is NOT the same
             // as the RAT numbering for all the other AT commands:
             // here CELLULAR_CTRL_RAT_CATM1 is 0 and CELLULAR_CTRL_RAT_NB1 is 1
-            for (size_t x = 0; (x < sizeof(rats) / sizeof(rats[0])) && success; x++) {
-                rats[x] = cellular_ctrl_at_read_int();
-                success = (cellular_ctrl_at_read_uint64(&(masks[x])) == 0);
+            // Convert the RAT numbering to keep things simple on the brain
+            for (size_t x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
                 if ((rats[x] >= 0) &&
                     ((rats[x] + CELLULAR_CTRL_RAT_CATM1) < sizeof(gLocalRatToCellularRat) /
                                                            sizeof(gLocalRatToCellularRat[0]))) {
@@ -1076,22 +1168,22 @@ uint64_t cellularCtrlGetBandMask(CellularCtrlRat_t rat)
                                                      gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1]];
                 }
             }
-            cellular_ctrl_at_resp_stop();
-            cellular_ctrl_at_unlock();
-            success = false;
-            for (size_t x = 0; (x < sizeof(rats) / sizeof(rats[0])) && !success; x++) {
+
+            // Fill in the answers
+            for (size_t x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
                 if (rats[x] == rat) {
-                    mask = masks[x];
-                    success = true;
-                    cellularPortLog("CELLULAR_CTRL: band mask for RAT %d (in module terms %d) is 0x%016llx.\n",
-                                    rats[x], gCellularRatToLocalRat[rats[x]] -
-                                             gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1], masks[x]);
+                    *pBandMask1 = masks[x][0];
+                    *pBandMask2 = masks[x][1];
+                    cellularPortLog("CELLULAR_CTRL: band mask for RAT %d (in module terms %d) is 0x%016llx %016llx.\n",
+                                    rat, gCellularRatToLocalRat[rat] -
+                                         gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1], *pBandMask2, *pBandMask1);
+                    errorCode = CELLULAR_CTRL_SUCCESS;
                 }
             }
         }
     }
 
-    return mask;
+    return (int32_t) errorCode;
 }
 
 // Set the sole radio access technology.
@@ -1276,7 +1368,7 @@ int32_t cellularCtrlSetMnoProfile(int32_t mnoProfile)
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_CONNECTED;
-        if (cellularCtrlGetActiveRat() < 0) {
+        if (cellularCtrlGetNetworkStatus() != CELLULAR_CTRL_NETWORK_STATUS_REGISTERED) {
             errorCode = CELLULAR_CTRL_AT_ERROR;
             cellular_ctrl_at_lock();
             cellular_ctrl_at_cmd_start("AT+UMNOPROF=");
@@ -1409,7 +1501,10 @@ int32_t cellularCtrlDisconnect()
             cellular_ctrl_at_cmd_stop_read_resp();
             if (cellular_ctrl_at_unlock_return_error() == 0) {
                 errorCode = CELLULAR_CTRL_CONNECTED;
-                for (int32_t count = 10; (cellularCtrlGetActiveRat() >= 0) && (count > 0); count--) {
+                for (int32_t count = 10;
+                     (cellularCtrlGetNetworkStatus() == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED) &&
+                     (count > 0);
+                     count--) {
                     // Prod the modem to see if it's done
                     cellular_ctrl_at_lock();
                     cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
@@ -1427,7 +1522,7 @@ int32_t cellularCtrlDisconnect()
                     cellular_ctrl_at_unlock();
                     cellularPortTaskBlock(1000);
                 }
-                if (cellularCtrlGetActiveRat() < 0) {
+                if (cellularCtrlGetNetworkStatus() != CELLULAR_CTRL_NETWORK_STATUS_REGISTERED) {
                     cellular_ctrl_at_remove_urc_handler("+CEREG:");
                     errorCode = CELLULAR_CTRL_SUCCESS;
                     cellularPortLog("CELLULAR_CTRL: disconnected.\n");
@@ -1647,7 +1742,7 @@ int32_t cellularCtrlRefreshRadioParameters()
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_NOT_REGISTERED;
-        if (cellularCtrlGetActiveRat() >= 0) {
+        if (cellularCtrlGetNetworkStatus() == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED) {
             errorCode = CELLULAR_CTRL_AT_ERROR;
             gRssiDbm = 0;
             gRsrpDbm = 0;

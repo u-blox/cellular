@@ -226,7 +226,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
 
     cellularPortLog("CELLULAR_PORT_TEST: deleting queue...\n");
     CELLULAR_PORT_TEST_ASSERT(cellularPortQueueDelete(gQueueHandle) == 0);
-#if 0
+
     // Some ports, e.g. the Nordic one, use the timer tick somewhat
     // differently when the UART is running so initialise that
     // here and re-measure time
@@ -263,7 +263,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
                     timeNowMs);
     CELLULAR_PORT_TEST_ASSERT((timeNowMs > 0) &&
                               (timeNowMs < CELLULAR_PORT_TEST_OS_GUARD_DURATION_MS));
-#endif
+
     cellularPortDeinit();
 }
 

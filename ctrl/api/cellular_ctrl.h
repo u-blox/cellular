@@ -37,13 +37,21 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
-/** The North American bands, for cat-M1.
+/** The North American bands for cat-M1, band mask bits 1 to 64.
  */
-#define CELLULAR_CTRL_BAND_MASK_NORTH_AMERICA_CATM1_DEFAULT 0x000000400B0F189FLL
+#define CELLULAR_CTRL_BAND_MASK_1_NORTH_AMERICA_CATM1_DEFAULT 0x000000400B0F189FLL
 
-/** Bands 8 and 20, suitable for NB1 in Europe.
+/** The North American bands for cat-M1, badn mask bits 65 to 128.
  */
-#define CELLULAR_CTRL_BAND_MASK_EUROPE_NB1_DEFAULT 0x0000000000080080LL
+#define CELLULAR_CTRL_BAND_MASK_2_NORTH_AMERICA_CATM1_DEFAULT 0LL
+
+/** Bands 8 and 20, suitable for NB1 in Europe, band mask bits 1 to 64.
+ */
+#define CELLULAR_CTRL_BAND_MASK_1_EUROPE_NB1_DEFAULT 0x0000000000080080LL
+
+/** NB1 in Europe, band mask bits 65 to 128.
+ */
+#define CELLULAR_CTRL_BAND_MASK_2_EUROPE_NB1_DEFAULT 0LL
 
 /** The AT command time-out.
  */
@@ -52,40 +60,35 @@
 /** The delay between AT commands, allowing internal cellular module
  * comms to complete before another is sent.
  */
-#define CELLULAR_CTRL_COMMAND_DELAY_MS 100
+#ifndef CELLULAR_CTRL_COMMAND_DELAY_MS
+# error CELLULAR_CTRL_COMMAND_DELAY_MS must be defined in cellular_cfg_module.h.
+#endif
 
 /** The minimum reponse time one can expect with cellular module.
  * This is quite large since, if there is a URC about to come through,
  * it can delay what are normally immediate responses.
  */
-#define CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS 2000
+#ifndef CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS
+# error CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS must be defined in cellular_cfg_module.h.
+#endif
 
 /** The time to wait before the cellular module is ready at boot.
  */
-#ifdef CELLULAR_CFG_MODULE_SARA_R4
-# define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 5000
-#endif
-#ifdef CELLULAR_CFG_MODULE_SARA_R5
-# define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 3000
+#ifndef CELLULAR_CTRL_BOOT_WAIT_TIME_MS
+# error CELLULAR_CTRL_BOOT_WAIT_TIME_MS must be defined in cellular_cfg_module.h.
 #endif
 
 /** The time to wait for an organised power off.
  */
-#ifdef CELLULAR_CFG_MODULE_SARA_R4
-# define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 10
-#endif
-#ifdef CELLULAR_CFG_MODULE_SARA_R5
-# define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 90
+#ifndef CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS
+# error CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS must be defined in cellular_cfg_module.h.
 #endif
 
 /** The maximum number of simultaneous radio access technologies
  *  supported by the cellular module.
  */
-#ifdef CELLULAR_CFG_MODULE_SARA_R4
-# define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 2
-#endif
-#ifdef CELLULAR_CFG_MODULE_SARA_R5
-# define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 1
+#ifndef CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS
+# error CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS must be defined in cellular_cfg_module.h.
 #endif
 
 /** The PDP context ID to use.
@@ -360,27 +363,36 @@ int32_t cellularCtrlReboot();
  * module must be re-booted afterwards (with a call to
  * cellularReboot()) for it to take effect.
  *
- * @param rat      the radio access technology to obtain the
- *                 band mask for; only CELLULAR_CTRL_RAT_CATM1 and
- *                 CELLULAR_CTRL_RAT_NB1 are permitted.
- * @param bandMask the band mask where bit 0 is band 1 and
- *                 bit 63 is band 64.
- * @return         zero on success or negative error code
- *                 on failure.
+ * @param rat       the radio access technology to obtain the
+ *                  band mask for; only CELLULAR_CTRL_RAT_CATM1 and
+ *                  CELLULAR_CTRL_RAT_NB1 are permitted.
+ * @param bandMask1 the first band mask where bit 0 is band 1
+ *                  and bit 63 is band 64.
+ * @param bandMask2 the second band mask where bit 0 is band 65
+ *                  and bit 63 is band 128.
+ * @return          zero on success or negative error code
+ *                  on failure.
  */
 int32_t cellularCtrlSetBandMask(CellularCtrlRat_t rat,
-                                uint64_t bandMask);
+                                uint64_t bandMask1,
+                                uint64_t bandMask2);
 
 /** Get the bands being used by the cellular module.
  * The module must be powered on for this to work.
  *
- * @param rat the radio access technology to obtain the
- *            band mask for.
- * @return    the band mask where bit 0 is band 1 and bit 63
- *            is band 64, all zeros if the band mask cannot be
- *            determined.
+ * @param rat        the radio access technology to obtain the
+ *                   band mask for.
+ * @param pBandmask1 pointer to a place to store band mask 1,
+ *                   where bit 0 is band 1 and bit 63 is band 64,
+ *                   cannot be NULL.
+ * @param pBandmask2 pointer to a place to store band mask 2,
+ *                   where bit 0 is band 65 and bit 63 is
+ *                   band 128, cannot be NULL.
+ * @return           zero on succese else negative error code.
  */
-uint64_t cellularCtrlGetBandMask(CellularCtrlRat_t rat);
+int32_t cellularCtrlGetBandMask(CellularCtrlRat_t rat,
+                                uint64_t *pBandMask1,
+                                uint64_t *pBandMask2);
 
 /** Set the sole radio access technology to be used by the
  * cellular module.  The module is set to use this radio

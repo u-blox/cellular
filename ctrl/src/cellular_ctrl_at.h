@@ -52,6 +52,8 @@
 
 /** The stack size of the task in the context of which the callbacks
  * of URCs will be run.
+ * Note: the default size below worst case for unoptimised compilation 
+ * (so that a debugger can be used sensibly) under the worst compiler.
  */
 #ifndef CELLULAR_CTRL_AT_TASK_STACK_CALLBACK_SIZE_BYTES
 # ifdef CELLULAR_CTRL_CALLBACK_STACK_SIZE_BYTES
@@ -62,9 +64,11 @@
 #endif
 
 /** The stack size for the OOB task.
+ * Note: this size worst case for unoptimised compilation
+ * (so that a debugger can be used sensibly) under the worst compiler.
  */
 #ifndef CELLULAR_CTRL_OOB_TASK_STACK_CALLBACK_SIZE_BYTES
-# define CELLULAR_CTRL_OOB_TASK_STACK_CALLBACK_SIZE_BYTES (1024 * 3)
+# define CELLULAR_CTRL_OOB_TASK_STACK_CALLBACK_SIZE_BYTES (1024 * 5)
 #endif
 
 /* ----------------------------------------------------------------
