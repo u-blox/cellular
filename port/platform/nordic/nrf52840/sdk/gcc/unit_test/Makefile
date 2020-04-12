@@ -31,8 +31,6 @@ SRC_FILES += \
   $(NRF5_PATH)/external/fprintf/nrf_fprintf.c \
   $(NRF5_PATH)/external/fprintf/nrf_fprintf_format.c \
   $(NRF5_PATH)/integration/nrfx/legacy/nrf_drv_clock.c \
-  $(NRF5_PATH)/components/drivers_nrf/nrf_soc_nosd/nrf_nvic.c \
-  $(NRF5_PATH)/components/drivers_nrf/nrf_soc_nosd/nrf_soc.c \
   $(NRF5_PATH)/components/libraries/log/src/nrf_log_backend_rtt.c \
   $(NRF5_PATH)/components/libraries/log/src/nrf_log_backend_serial.c \
   $(NRF5_PATH)/components/libraries/log/src/nrf_log_backend_uart.c \

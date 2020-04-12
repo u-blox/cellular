@@ -7572,7 +7572,7 @@
 // <1024=> 1024 
 
 #ifndef NRF_LOG_STR_PUSH_BUFFER_SIZE
-#define NRF_LOG_STR_PUSH_BUFFER_SIZE 128
+#define NRF_LOG_STR_PUSH_BUFFER_SIZE 1024
 #endif
 
 // <o> NRF_LOG_STR_PUSH_BUFFER_SIZE  - Size of the buffer dedicated for strings stored using @ref NRF_LOG_PUSH.

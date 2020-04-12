@@ -686,17 +686,20 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
         originalRats[rank] = cellularCtrlGetRat(rank);
     }
     for (size_t rat = CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED + 1; rat < CELLULAR_CTRL_MAX_NUM_RATS; rat++) {
-        cellularPortLog("CELLULAR_CTRL_TEST: setting sole RAT to %d...\n", rat);
-        CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRat(rat) == 0);
-        CELLULAR_PORT_TEST_ASSERT(cellularCtrlReboot() == 0);
+        if ((rat != CELLULAR_CTRL_RAT_NB1) ||
+             CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED) {
+            cellularPortLog("CELLULAR_CTRL_TEST: setting sole RAT to %d...\n", rat);
+            CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRat(rat) == 0);
+            CELLULAR_PORT_TEST_ASSERT(cellularCtrlReboot() == 0);
 
-        for (size_t rank = 0; rank < CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS; rank++) {
-            if (rank == 0) {
-                cellularPortLog("CELLULAR_CTRL_TEST: checking that the RAT at rank 0 is %d...\n", rat);
-                CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRat(rank) == rat);
-            } else {
-                cellularPortLog("CELLULAR_CTRL_TEST: checking that the there is no RAT at rank %d...\n", rank);
-                CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRat(rank) == CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED);
+            for (size_t rank = 0; rank < CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS; rank++) {
+                if (rank == 0) {
+                    cellularPortLog("CELLULAR_CTRL_TEST: checking that the RAT at rank 0 is %d...\n", rat);
+                    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRat(rank) == rat);
+                } else {
+                    cellularPortLog("CELLULAR_CTRL_TEST: checking that the there is no RAT at rank %d...\n", rank);
+                    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRat(rank) == CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED);
+                }
             }
         }
     }

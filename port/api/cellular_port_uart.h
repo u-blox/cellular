@@ -29,6 +29,8 @@
 
 #ifndef CELLULAR_PORT_UART_RX_BUFFER_SIZE
 /** The size of ring buffer to use for receive.
+ * This is set to accommodate the maximum length of a single
+ * AT response from a cellular module.
  */
 # define CELLULAR_PORT_UART_RX_BUFFER_SIZE 1024
 #endif
