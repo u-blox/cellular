@@ -59,7 +59,7 @@ def fail_callback(match):
     global last_start_time
     tests_failed += 1
     end_time = time()
-    print "{}progress update - test {}() FAILED at {} after running for {:.0f} second(s).".\
+    print "{}progress update - test {}() FAILED on {} after running for {:.0f} second(s).".\
           format(prompt, match.group(1), ctime(end_time), ceil(end_time - last_start_time))
     record_test_outcome(match.group(1), int(ceil(end_time - last_start_time)), "FAIL")
 
