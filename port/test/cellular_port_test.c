@@ -41,7 +41,7 @@
 #define CELLULAR_PORT_TEST_QUEUE_ITEM_SIZE sizeof(int32_t)
 
 // The guard time for the OS test.
-#define CELLULAR_PORT_TEST_OS_GUARD_DURATION_MS 4100
+#define CELLULAR_PORT_TEST_OS_GUARD_DURATION_MS 4200
 
 /* ----------------------------------------------------------------
  * TYPES

@@ -636,6 +636,43 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
     return errorCode;
 }
 
+// Wait for power off to complete
+void waitForPowerOff(bool (*pKeepGoingCallback) (void),
+                     int32_t pinVInt,
+                     int32_t timeoutSeconds)
+{
+    bool moduleIsOff = false;
+    int64_t endTimeMs;
+
+    if (pinVInt >= 0) {
+        // If we have a VInt pin then wait until that
+        // goes low
+        for (size_t x = 0; (cellularPortGpioGet(pinVInt) != 0) &&
+                           (x < timeoutSeconds * 4) &&
+                           ((pKeepGoingCallback == NULL) ||
+                            pKeepGoingCallback()); x++) {
+            cellularPortTaskBlock(250);
+        }
+    } else {
+        endTimeMs = cellularPortGetTickTimeMs() + (timeoutSeconds * 1000);
+        // Wait for the module to stop responding at the AT interface
+        // by poking it with "AT"
+        while (!moduleIsOff &&
+               (cellularPortGetTickTimeMs() < endTimeMs) &&
+               ((pKeepGoingCallback == NULL) ||
+                pKeepGoingCallback())) {
+            cellular_ctrl_at_lock();
+            cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
+            cellular_ctrl_at_cmd_start("AT");
+            cellular_ctrl_at_cmd_stop_read_resp();
+            moduleIsOff = (cellular_ctrl_at_get_last_error() != 0);
+            cellular_ctrl_at_restore_at_timeout();
+            cellular_ctrl_at_unlock();
+            cellularPortTaskBlock(1000);
+        }
+    }
+}
+
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS
  * -------------------------------------------------------------- */
@@ -788,7 +825,6 @@ int32_t cellularCtrlPowerOn(const char *pPin)
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     int32_t platformError = 0;
     int32_t enablePowerAtStart = 1;
-    char buffer[8];
 
     if (gInitialised) {
         if (gPinEnablePower >= 0) {
@@ -822,7 +858,7 @@ int32_t cellularCtrlPowerOn(const char *pPin)
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
                         // SARA-R412M is powered on by holding the PWR_ON pin low
                         // for more than 0.15 seconds
-                        cellularPortTaskBlock(300)
+                        cellularPortTaskBlock(300);
 #endif
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
                         // SARA-R5 is powered on by holding the PWR_ON pin low
@@ -837,6 +873,7 @@ int32_t cellularCtrlPowerOn(const char *pPin)
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
                         // SARA-R5 chucks out a load of stuff after
                         // boot at the moment: flush it away
+                        char buffer[8];
                         while (cellularPortUartRead(gUart, buffer, sizeof(buffer)) > 0) {}
 #endif
                         // Cellular module should be up, see if it's there
@@ -871,46 +908,20 @@ int32_t cellularCtrlPowerOn(const char *pPin)
 // Power the cellular module off.
 void cellularCtrlPowerOff(bool (*pKeepGoingCallback) (void))
 {
-    bool moduleIsOff;
-
     if (gInitialised) {
-        cellularPortLog("CELLULAR_CTRL: powering off.\n");
+        cellularPortLog("CELLULAR_CTRL: powering off with AT command.\n");
         // Send the power off command and then pull the power
         // No error checking, we're going dowwwwwn...
         cellular_ctrl_at_lock();
-        moduleIsOff = false;
         // Clear out the old RF readings
         clearRadioParameters();
         cellular_ctrl_at_cmd_start("AT+CPWROFF");
         cellular_ctrl_at_cmd_stop_read_resp();
         cellular_ctrl_at_unlock();
-
-        if (gPinVInt >= 0) {
-            // If we have a VInt pin then wait until that
-            // goes low
-            for (size_t x = 0; (cellularPortGpioGet(gPinVInt) != 0) &&
-                               (x < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 4) &&
-                               ((pKeepGoingCallback == NULL) ||
-                                pKeepGoingCallback()); x++) {
-                cellularPortTaskBlock(250);
-            }
-        } else {
-            // Wait for the module to stop responding at the AT interface
-            // by poking it with "AT"
-            for (size_t x = 0; !moduleIsOff && (x < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 4) &&
-                               ((pKeepGoingCallback == NULL) ||
-                                pKeepGoingCallback()); x++) {
-                cellular_ctrl_at_lock();
-                cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
-                cellular_ctrl_at_cmd_start("AT");
-                cellular_ctrl_at_cmd_stop_read_resp();
-                moduleIsOff = (cellular_ctrl_at_get_last_error() != 0);
-                cellular_ctrl_at_restore_at_timeout();
-                cellular_ctrl_at_unlock();
-                cellularPortTaskBlock(250);
-            }
-        }
-
+        // Wait for the module to power down
+        waitForPowerOff(pKeepGoingCallback, gPinVInt,
+                        CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS);
+        // Now switch off power if possible
         if (gPinEnablePower >= 0) {
             cellularPortGpioSet(gPinEnablePower, 0);
         }
@@ -922,43 +933,24 @@ void cellularCtrlPowerOff(bool (*pKeepGoingCallback) (void))
 // Remove power to the cellular module.
 void cellularCtrlHardPowerOff(bool trulyHard, bool (*pKeepGoingCallback) (void))
 {
-    bool moduleIsOff = false;
-
     if (gInitialised) {
         // If we have control of power and the user
         // wants a truly hard power off then just do it.
         if (trulyHard && (gPinEnablePower > 0)) {
+           cellularPortLog("CELLULAR_CTRL: powering off by pulling the power.\n");
             cellularPortGpioSet(gPinEnablePower, 0);
         } else {
+            cellularPortLog("CELLULAR_CTRL: powering off using the PWR_ON pin.\n");
             cellularPortGpioSet(gPinPwrOn, 0);
             // Both SARA-R412M and SARA-R5 are powered off by
             // holding the PWR_ON pin low for more than 1.5 seconds
             cellularPortTaskBlock(2000);
             cellularPortGpioSet(gPinPwrOn, 1);
-            if (gPinVInt >= 0) {
-                // If we have a VInt pin then wait until that
-                // goes low
-                for (size_t x = 0; (cellularPortGpioGet(gPinVInt) != 0) &&
-                                   (x < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 4) &&
-                                   ((pKeepGoingCallback == NULL) ||
-                                    pKeepGoingCallback()); x++) {
-                    cellularPortTaskBlock(250);
-                }
-            } else {
-                // Wait for the module to stop responding at the AT interface
-                // by poking it with "AT"
-                for (size_t x = 0; !moduleIsOff && (x < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 4) &&
-                                   ((pKeepGoingCallback == NULL) ||
-                                    pKeepGoingCallback()); x++) {
-                    cellular_ctrl_at_lock();
-                    cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
-                    cellular_ctrl_at_cmd_start("AT");
-                    cellular_ctrl_at_cmd_stop_read_resp();
-                    cellular_ctrl_at_restore_at_timeout();
-                    moduleIsOff = (cellular_ctrl_at_unlock_return_error() != 0);
-                    cellularPortTaskBlock(250);
-                }
-            }
+            // Clear out the old RF readings
+            clearRadioParameters();
+            // Wait for the module to power down
+            waitForPowerOff(pKeepGoingCallback, gPinVInt,
+                            CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS);
             // Now switch off power if possible
             if (gPinEnablePower > 0) {
                 cellularPortGpioSet(gPinEnablePower, 0);
