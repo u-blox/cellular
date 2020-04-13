@@ -45,8 +45,22 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
-// The amount of time to allow for cellular power off in milliseconds.
-#define CELLULAR_CTRL_TEST_POWER_OFF_TIME_MS 10000
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+/** SARA-R4 doesn't react well to being powered
+ * off again repeatedly, as some of the tests here do.
+ * It can become unresponsive to AT commands, presumably as
+ * it is busy sorting things out internally.  The number
+ * below is advisory.
+ */
+# define CELLULAR_CTRL_TEST_MINIMUM_AWAKE_TIME_SECONDS 30
+#endif
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+/** The current version of SARA-R5 will not power
+ * off based on PWR_ON for 10 second after powering on
+ * TODO: review this numberwhen KM_SW-3250 is resolved.
+ */
+# define CELLULAR_CTRL_TEST_MINIMUM_AWAKE_TIME_SECONDS 10
+#endif
 
 // The number of consecutive AT timeouts that might
 // normally be expected from the module.
@@ -99,6 +113,9 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
     CellularPortQueueHandle_t queueHandle;
     bool (*pKeepGoingCallback) (void) = NULL;
     bool trulyHardPowerOff = false;
+#if CELLULAR_CFG_PIN_VINT < 0
+    int64_t timeMs;
+#endif
 
 #if CELLULAR_CFG_PIN_ENABLE_POWER >= 0
     trulyHardPowerOff = true;
@@ -123,7 +140,7 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
                                                    &queueHandle) == 0);
 
     cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls before initialisation...\n");
-#if CELLULAR_CFG_PIN_ENABLE_POWER< 0
+#if CELLULAR_CFG_PIN_ENABLE_POWER < 0
     // Should always return true if there isn't a power enable pin
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlIsPowered());
 #endif
@@ -148,7 +165,7 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
         cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls");
         if (x > 0) {
            cellularPortLog(" with a callback passed to cellularCtrlPowerOff() and a %d second power-off timer, iteration %d.\n",
-                           CELLULAR_CTRL_TEST_POWER_OFF_TIME_MS / 1000, x + 1);
+                           CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS, x + 1);
         } else {
            cellularPortLog(" with cellularCtrlPowerOff(NULL), iteration %d.\n",
                            x + 1);
@@ -162,19 +179,35 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
         // have power saving
         cellularPortLog("CELLULAR_CTRL_TEST: powering on...\n");
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
-        cellularPortLog("CELLULAR_CTRL_TEST: checking that modem is alive...\n");
+        cellularPortLog("CELLULAR_CTRL_TEST: checking that module is alive...\n");
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlIsAlive());
-        // Test with and without a keep going callback
+        // Test with and without a keep-going callback
         if (x > 0) {
             // Note: can't check if keepGoingCallback is being
             // called here as we've no control over how long the
             // module takes to power off.
             pKeepGoingCallback = keepGoingCallback;
-            gStopTimeMS = cellularPortGetTickTimeMs() + CELLULAR_CTRL_TEST_POWER_OFF_TIME_MS;
+            gStopTimeMS = cellularPortGetTickTimeMs() + (CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 1000);
         }
+        // Give the module time to sort itself out
+        cellularPortLog("CELLULAR_CTRL_TEST: waiting %d second(s) before powering off...\n",
+                        CELLULAR_CTRL_TEST_MINIMUM_AWAKE_TIME_SECONDS);
+        cellularPortTaskBlock(CELLULAR_CTRL_TEST_MINIMUM_AWAKE_TIME_SECONDS * 1000);
+#if CELLULAR_CFG_PIN_VINT < 0
+        timeMs = cellularPortGetTickTimeMs();
+#endif
         cellularPortLog("CELLULAR_CTRL_TEST: powering off...\n");
         cellularCtrlPowerOff(pKeepGoingCallback);
         cellularPortLog("CELLULAR_CTRL_TEST: power off completed.\n");
+#if CELLULAR_CFG_PIN_VINT < 0
+        timeMs = cellularPortGetTickTimeMs() - timeMs;
+        if (timeMs < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 1000) {
+            timeMs = (CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 1000) - timeMs;
+            cellularPortLog("CELLULAR_CTRL_TEST: waiting another %lld second(s) to be sure of a clean power off as there's no VInt pin to tell us...\n",
+                            (timeMs / 1000) + 1);
+            cellularPortTaskBlock(timeMs);
+        }
+#endif
     }
 
     // Do this twice so as to check transiting from
@@ -192,20 +225,27 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
 #endif
         cellularPortLog("CELLULAR_CTRL_TEST: powering on...\n");
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
-        cellularPortLog("CELLULAR_CTRL_TEST: checking that modem is alive...\n");
+        cellularPortLog("CELLULAR_CTRL_TEST: checking that module is alive...\n");
         CELLULAR_PORT_TEST_ASSERT(cellularCtrlIsAlive());
-#ifdef CELLULAR_CFG_MODULE_SARA_R5
-        if (!trulyHardPowerOff) {
-            cellularPortLog("CELLULAR_CTRL_TEST: waiting 10 seconds 'cos SARA-R5 needs that...\n");
-            // The current version of SARA-R5 will not power
-            // off based on PWR_ON for 10 second after powering on
-            // TODO: remove this when KM_SW-3250 is resolved
-            cellularPortTaskBlock(10000);
-        }
+        // Let the module sort itself out
+        cellularPortLog("CELLULAR_CTRL_TEST: waiting %d second(s) before powering off...\n",
+                        CELLULAR_CTRL_TEST_MINIMUM_AWAKE_TIME_SECONDS);
+        cellularPortTaskBlock(CELLULAR_CTRL_TEST_MINIMUM_AWAKE_TIME_SECONDS * 1000);
+#if CELLULAR_CFG_PIN_VINT < 0
+        timeMs = cellularPortGetTickTimeMs();
 #endif
         cellularPortLog("CELLULAR_CTRL_TEST: hard powering off...\n");
         cellularCtrlHardPowerOff(trulyHardPowerOff, NULL);
         cellularPortLog("CELLULAR_CTRL_TEST: hard power off completed.\n");
+#if CELLULAR_CFG_PIN_VINT < 0
+        timeMs = cellularPortGetTickTimeMs() - timeMs;
+        if (!trulyHardPowerOff && (timeMs < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 1000)) {
+            timeMs = (CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 1000) - timeMs;
+            cellularPortLog("CELLULAR_CTRL_TEST: waiting another %lld second(s) to be sure of a clean power off as there's no VInt pin to tell us...\n",
+                            (timeMs / 1000) + 1);
+            cellularPortTaskBlock(timeMs);
+        }
+#endif
     }
 
     cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls after hard power off.\n");
@@ -645,7 +685,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
 /** Test power on/off and aliveness.
  * Note: it may seem more logical to put this test early on, however
  * in that case that the previous test run failed, the
- * modem may be left on and this would cause these tests to
+ * module may be left on and this would cause these tests to
  * fail as a consequence (since they check that the module
  * is off at the start).  The bandmask tests, on the other hand,
  * are pretty solid so putting this test here produces fewer annoying

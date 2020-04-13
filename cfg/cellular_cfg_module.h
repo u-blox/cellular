@@ -69,6 +69,8 @@
 # define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 3000
 
 /** The time to wait for an organised power off.
+ * This should be used if the VInt pin is not connected:
+ * lack of a response on the AT interface is NOT sufficient.
  */
 # define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 20
 
@@ -101,8 +103,10 @@
 # define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 5000
 
 /** The time to wait for an organised power off.
+ * This should be used if the VInt pin is not connected:
+ * lack of a response on the AT interface is NOT sufficient.
  */
-# define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 10
+# define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 35
 
 /** The maximum number of simultaneous radio access technologies
  *  supported by the cellular module.

@@ -46,7 +46,7 @@
  */
 #define CELLULAR_PORT_TEST_TASK_PRIORITY 12
 
-/** The stack size to use for the test tasks created during testing.
+/** The stack size to use for the test task created during OS testing.
  */
 #define CELLULAR_PORT_TEST_TASK_STACK_SIZE_BYTES (1024 * 3)
 

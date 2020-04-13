@@ -320,10 +320,7 @@ static CellularCtrlErrorCode_t moduleIsAlive(int32_t attempts)
     }
 
     if (cellularIsAlive) {
-        // Sync the AT interface, just in case
-        if (cellular_ctrl_at_sync(CELLULAR_CTRL_COMMAND_TIMEOUT_MS)) {
-            errorCode = CELLULAR_CTRL_SUCCESS;
-        }
+        errorCode = CELLULAR_CTRL_SUCCESS;
     }
 
     return errorCode;

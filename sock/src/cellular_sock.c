@@ -100,7 +100,7 @@ typedef enum {
      CellularSockAddress_t remoteAddress;
      int64_t receiveTimeoutMs;
      bool nonBlocking;
-     size_t pendingBytes;
+     volatile int32_t pendingBytes;
      void (*pPendingDataCallback) (void *);
      void *pPendingDataCallbackParam;
      void (*pConnectionClosedCallback) (void *);
@@ -172,11 +172,7 @@ static void UUSORD_UUSORF_urc(void *pUnused)
         // Find the container
         pContainer = pContainerFindByModemHandle(modemHandle);
         if (pContainer != NULL) {
-            // Add to pending bytes (can't just overwrite the 
-            // value as the receive function may not have
-            // had chance to subtract what it has just read
-            // before this URC runs)
-            pContainer->socket.pendingBytes += dataSizeBytes;
+            pContainer->socket.pendingBytes = dataSizeBytes;
             CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
             if (pContainer->socket.pPendingDataCallback != NULL) {
                 cellular_ctrl_at_urc_callback(pContainer->socket.pPendingDataCallback,
@@ -1141,12 +1137,10 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
             cellular_ctrl_at_resp_stop();
             cellular_ctrl_at_set_default_delimiter();
             if (cellular_ctrl_at_unlock_return_error() == 0) {
-                // Must use what +USORF returns here as it may be less or more than we asked for
-                if (actualReceiveSize > pContainer->socket.pendingBytes) {
-                    pContainer->socket.pendingBytes = 0;
-                } else {
-                    pContainer->socket.pendingBytes -= actualReceiveSize;
-                }
+                // Must use what +USORF returns here as it may be less
+                // or more than we asked for and also may be
+                // more than pendingBytes, depending on how
+                // the URCs landed
                 if (actualReceiveSize >= 0) {
                     receivedSize = actualReceiveSize;
                     dataSizeBytes -= actualReceiveSize;
@@ -1236,12 +1230,10 @@ int32_t receive(CellularSockContainer_t *pContainer,
             cellular_ctrl_at_resp_stop();
             cellular_ctrl_at_set_default_delimiter();
             if (cellular_ctrl_at_unlock_return_error() == 0) {
-                // Must use what +USORF returns here as it may be less or more than we asked for
-                if (actualReceiveSize > pContainer->socket.pendingBytes) {
-                    pContainer->socket.pendingBytes = 0;
-                } else {
-                    pContainer->socket.pendingBytes -= actualReceiveSize;
-                }
+                // Must use what +USORF returns here as it may be less
+                // or more than we asked for and also may be
+                // more than pendingBytes, depending on how
+                // the URCs landed
                 if (actualReceiveSize > 0) {
                     receivedSize += actualReceiveSize;
                     dataSizeBytes -= actualReceiveSize;
@@ -1255,7 +1247,7 @@ int32_t receive(CellularSockContainer_t *pContainer,
         } else if (!pContainer->socket.nonBlocking &&
                    cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.receiveTimeoutMs) {
             // Yield to the AT parser task that is listening for URCs
-            // that indicated incoming data
+            // that indicate incoming data
             cellularPortTaskBlock(10);
         } else {
             if (receivedSize == 0) {
