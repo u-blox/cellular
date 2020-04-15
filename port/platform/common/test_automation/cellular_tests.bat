@@ -18,6 +18,13 @@ set com_port=
 set espidf_repo_root=
 set CELLULAR_FLAGS=
 set return_code=1
+rem the following three environment variables are exactly as dictated by the Nordic toolchain to locate the GCC ARM compiler
+rem Latest version of GCC for ARM installed from https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads
+set GNU_INSTALL_ROOT=C:/Program Files (x86)/GNU Tools ARM Embedded/9 2019-q4-major/bin/
+set GNU_VERSION=9.2.1
+set GNU_PREFIX=arm-none-eabi
+rem nRF5 tools path for Nordic, installed from from https://www.nordicsemi.com/Software-and-tools/Software/nRF5-SDK/Download#infotabs
+set NRF5_PATH=c:/nrf5
 
 rem Need to set this to avoid odd problems with code page cp65001
 rem and Python
@@ -29,9 +36,10 @@ rem see https://www.robvanderwoude.com/escapechars.php for a list of characters 
 set platform_1=unit tests under v4 Espressif SDK from u-blox clone of repo on NINA-W1 with a SARA-R4 module on a WHRE board
 set platform_2=unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R4 module
 set platform_3=unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R5 module
-set platform_4=Amazon-FreeRTOS SDK^, latest version^, on the ESP32 chipset ^(e.g. NINA-W1^)^, with a SARA-R4 module on a WHRE board
-set platform_5=v4 Espressif SDK on NINA-W1^, with a SARA-R4 module on a WHRE board talking to AWS
-set num_platforms=5
+set platform_4=unit tests on NRF52840 DK board with a SARA-R5 module
+set platform_5=Amazon-FreeRTOS SDK^, latest version^, on the ESP32 chipset ^(e.g. NINA-W1^)^, with a SARA-R4 module on a WHRE board
+set platform_6=v4 Espressif SDK on NINA-W1^, with a SARA-R4 module on a WHRE board talking to AWS
+set num_platforms=6
 
 rem Process command line parameters
 set pos=0
@@ -175,6 +183,7 @@ echo %~n0: checking out %branch% branch of cellular driver code...
 pushd cellular
 git checkout %branch%
 popd
+rem Now in %code_directory%
 goto build_platform_%platform_number%
 
 rem Build end
@@ -212,6 +221,7 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
 :build_platform_1_2_3
     if not "%fetch%"=="" (
         if exist esp-idf-%espidf_repo_root% (
+            pushd esp-idf-%espidf_repo_root%
             echo %~n0: updating ESP-IDF code...
             call git pull
             popd
@@ -272,8 +282,85 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
     )
     goto build_end
 
-rem Build Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
+rem Build unit tests on NRF52840 DK board with a SARA-R5 module
 :build_platform_4
+    rem Check if make is on the path
+    where /q make.exe
+    if not !ERRORLEVEL! EQU 0 (
+        echo %~n0: ERROR can^'t execute make^, please install it ^(e.g. from here: http://gnuwin32.sourceforge.net/packages/make.htm^) and ensure it is on the path.
+        echo %~n0:       hint: if you^'ve never run an NRF52840 build on this machine before take a look in here^, there are a few things you need to install.
+        goto build_end
+    )
+    rem Check for the GCC ARM compiler
+    echo "%GNU_INSTALL_ROOT%%GNU_PREFIX%"
+    where /q "%GNU_INSTALL_ROOT%:%GNU_PREFIX%-gcc.exe"
+    if not !ERRORLEVEL! EQU 0 (
+        echo %~n0: ERROR can^'t execute GCC ARM compiler version %GNU_VERSION%^, expected to be found in "%GNU_INSTALL_ROOT%"^, please EITHER install it ^(don^'t add it to the path^) or change the variable GNU_INSTALL_ROOT in this batch file to reflect where it is ^(and GNU_VERSION to reflect its version^).
+        goto build_end
+    )
+    rem Check for the nRF5 SDK
+    if not exist %NRF5_PATH% (
+        echo %~n0: ERROR couldn^'t find the nRF5 SDK at %NRF5_PATH%^, please install the latest version from https://www.nordicsemi.com/Software-and-tools/Software/nRF5-SDK/Download#infotabs ^(no need to install anything^, no need for Soft Device^, just unzip the nRF5_blah zip file^) or change the variable NRF5_PATH in this batch file to reflect where it is.
+        goto build_end
+    )
+    rem Check that the nRF5 command-line tools are on the path
+    where /q nrfjprog.exe
+    if not !ERRORLEVEL! EQU 0 (
+        echo %~n0: ERROR can^'t execute the nRF5 command-line tools ^(e.g. nrfjprog^)^, please install the latest version from https://www.nordicsemi.com/Software-and-tools/Development-Tools/nRF-Command-Line-Tools/Download#infotabs and add them to the path.
+        goto build_end
+    )
+    rem Check that the SEGGER JLink tool JLinkRTTLogger is on the path
+    where /q JLinkRTTLogger.exe
+    if not !ERRORLEVEL! EQU 0 (
+        echo %~n0: ERROR can^'t find the SEGGER tool JLinkRTTLogger^, please install the latest version of their tools JLink from https://www.segger.com/downloads/jlink/JLink_Windows.exe and add them to the path.
+        goto build_end
+    )
+    rem fetch Unity
+    if not "%fetch%"=="" (
+        if exist Unity (
+            pushd Unity
+            echo %~n0: updating Unity code...
+            call git pull
+            popd
+        ) else (
+            echo %~n0: cloning Unity from https://github.com/ThrowTheSwitch/Unity into %code_directory%/Unity...
+            call git clone https://github.com/ThrowTheSwitch/Unity
+        )
+    ) else (
+        echo %~n0: not fetching Unity, just building.
+    )   
+    echo %~n0: print version information start ^(though note that there appears to be no way to get jlink to report its version^)
+    "%GNU_INSTALL_ROOT%%GNU_PREFIX%-gcc" --version
+    make --version
+    nrfjprog --version
+    java -version
+    echo %~n0: print version information end
+    echo %~n0: building tests and then downloading them over %com_port%...
+    echo %~n0: building in %build_directory%
+    pushd %code_directory%\cellular\port\platform\nordic\nrf52840\sdk\gcc\unit_test
+    @echo on
+    make OUTPUT_DIRECTORY=%build_directory% GNU_INSTALL_ROOT="%GNU_INSTALL_ROOT%" GNU_VERSION=%GNU_VERSION% GNU_PREFIX=%GNU_PREFIX% CFLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 flash
+    @echo off
+    popd
+    if not !ERRORLEVEL! EQU 0 (
+        echo %~n0: ERROR build failed.
+        goto build_end
+    )
+    echo %~n0: halting target...
+    nrfjprog --halt
+    echo %~n0: starting JLinkRTTLogger to capture trace output...
+    start "JLinkRTTLogger" JLinkRTTLogger.exe -Device NRF52840_XXAA -If SWD -Speed 4000 -RTTChannel 0 %build_directory%\test_results.log
+    echo %~n0: waiting 10 seconds while JLinkRTTLogger connects to the target...
+    TIMEOUT /T 10 /NOBREAK
+    echo %~n0: resetting target...
+    nrfjprog --reset
+    echo %~n0: TODO find a way of monitoring execution
+    echo %~n0: stopping JLinkRTTLogger...
+    TASKKILL /im "JLinkRTTLogger"
+    goto build_end
+
+rem Build Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
+:build_platform_5
     if not "%fetch%"=="" (
         if exist amazon-freertos (
             pushd amazon-freertos
@@ -308,7 +395,7 @@ rem Build Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
     goto build_end
 
 rem Build Espressif SDK v4 on ESP32 with a SARA-R4 module on a WHRE board talking to AWS
-:build_platform_5
+:build_platform_6
     echo %~n0: ERROR: not yet implemented.
     popd
     goto build_end

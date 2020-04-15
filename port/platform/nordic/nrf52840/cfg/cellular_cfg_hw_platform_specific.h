@@ -84,8 +84,8 @@
 # define CELLULAR_CFG_PIN_PWR_ON            33 // AKA 1.01
 #endif
 
- #ifndef CELLULAR_CFG_PIN_VINT
-/** The NRF52840GPIO input that is connected to the VInt pin of the
+#ifndef CELLULAR_CFG_PIN_VINT
+/** The NRF52840 GPIO input that is connected to the VInt pin of the
  * cellular module.
  * -1 is used where there is no such connection.
  */
@@ -111,7 +111,7 @@
  * indicate that data can be sent to it.
  * -1 is used where there is no such connection.
  */
-# define CELLULAR_CFG_PIN_CTS              -1
+# define CELLULAR_CFG_PIN_CTS               -1
 #endif
 
 #ifndef CELLULAR_CFG_PIN_RTS
@@ -121,7 +121,7 @@
  * If this is *not* -1 then be sure to set up
  * CELLULAR_CFG_RTS_THRESHOLD also.
  */
-# define CELLULAR_CFG_PIN_RTS              -1
+# define CELLULAR_CFG_PIN_RTS               -1
 #endif
 
 #endif // _CELLULAR_CFG_HW_PLATFORM_SPECIFIC_H_

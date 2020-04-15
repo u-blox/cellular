@@ -1,6 +1,6 @@
 PROJECT_NAME     := cellular_pca10056
 TARGETS          := nrf52840_xxaa
-OUTPUT_DIRECTORY := _build
+override OUTPUT_DIRECTORY := _build
 
 override UNITY_PATH ?= ../../../../../../../../Unity
 override NRF5_PATH ?= ../../../../../../../../nrf5
@@ -165,8 +165,6 @@ LDFLAGS += -mcpu=cortex-m4
 LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # let linker dump unused sections
 LDFLAGS += -Wl,--gc-sections
-# use newlib in nano version
-LDFLAGS += --specs=nano.specs
 
 nrf52840_xxaa: CFLAGS += -D__HEAP_SIZE=8192
 nrf52840_xxaa: CFLAGS += -D__STACK_SIZE=8192
@@ -187,7 +185,6 @@ default: nrf52840_xxaa
 help:
 	@echo following targets are available:
 	@echo		nrf52840_xxaa
-	@echo		sdk_config - starting external tool for editing sdk_config.h
 	@echo		flash      - flashing binary
 
 TEMPLATE_PATH := $(NRF5_PATH)/components/toolchain/gcc
@@ -206,8 +203,3 @@ flash: default
 
 erase:
 	nrfjprog -f nrf52 --chiperase
-
-SDK_CONFIG_FILE := ../../../cfg/sdk_config.h
-CMSIS_CONFIG_TOOL := $(NRF5_PATH)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
-sdk_config:
-	java -jar $(CMSIS_CONFIG_TOOL) $(SDK_CONFIG_FILE)

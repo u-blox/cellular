@@ -17,21 +17,9 @@ Unity
 cellular
 ```
 
-Note: you may put this repo in a different location but if you do so you will need to either create an environment variable named `UNITY_PATH` and set it to the path of your `Unity` directory (using `/` instead of `\`), e.g.:
+Note: you may put this repo in a different location but if you do so you will need to add, for instance, `UNITY_PATH=c:/Unity` on the command-line to `make`.
 
-```
-set UNITY_PATH=c:/Unity
-```
-
-... or add `UNITY_PATH=c:/Unity` on the command-line to `make`.
-
-Likewise, if you haven't installed the NRF5 SDK at that same directory level and named it `nrf5` then you will need to either create an environment variable named `NRF5_PATH` and set it to the path of your NRF5 SDK installation, e.g.:
-
-```
-set NRF5_PATH=c:/nrf5
-```
-
-... or add `NRF5_PATH=c:/nrf5` on the command-line to `make`.
+Likewise, if you haven't installed the NRF5 SDK at that same directory level and named it `nrf5` then you will need to add, for instance, `NRF5_PATH=c:/nrf5` on the command-line to `make`.
 
 With that done `cd` to this directory and enter:
 

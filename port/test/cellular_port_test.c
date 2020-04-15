@@ -86,7 +86,7 @@ static void testTask(void *pParameters)
 
     cellularPortLog("CELLULAR_PORT_TEST_TASK: task trying to lock the mutex.\n");
     CELLULAR_PORT_TEST_ASSERT(gMutexHandle != NULL);
-    CELLULAR_PORT_TEST_ASSERT(cellularPortMutexTryLock(gMutexHandle, 10) == 0)
+    CELLULAR_PORT_TEST_ASSERT(cellularPortMutexTryLock(gMutexHandle, 10) == 0);
     cellularPortLog("CELLULAR_PORT_TEST_TASK: unlocking it again.\n");
     CELLULAR_PORT_TEST_ASSERT(cellularPortMutexUnlock(gMutexHandle) == 0);
 
@@ -203,7 +203,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
     CELLULAR_PORT_TEST_ASSERT(taskHandle == gTaskHandle);
 
     cellularPortLog("CELLULAR_PORT_TEST: trying to lock the mutex, should fail...\n");
-    CELLULAR_PORT_TEST_ASSERT(cellularPortMutexTryLock(gMutexHandle, 10) != 0)
+    CELLULAR_PORT_TEST_ASSERT(cellularPortMutexTryLock(gMutexHandle, 10) != 0);
 
     cellularPortLog("CELLULAR_PORT_TEST: sending stuff to task...\n");
     for (size_t x = 0; x < sizeof(gStuffToSend) / sizeof(gStuffToSend[0]); x++) {
