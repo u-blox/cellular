@@ -29,7 +29,7 @@ nrf5
 cellular
 ```
 
-...then the builds here will find it else you will need to set an environment variable `NRF5_PATH` to locate it, or add that on the command-line to `make` (more on this when you get to the sub-directories).
+...then the builds here will find it else you will need to tell `make` about its location (more on this when you get to the sub-directories).
 
 In the `components\toolchain\gcc` sub-directory of the NRF5 installation you will find two makefiles: if you are running on Linux or OS X you need to pay attention to the `.posix` one else pay attention to the `.windows` one.  Edit the appropriate makefile to set the `GNU_INSTALL_ROOT` variable to the location of the `bin` directory of your GCC installation, e.g.:
 
