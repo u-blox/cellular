@@ -105,9 +105,16 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
         // Actually do the configuration
         if (!badConfig) {
             errorCode = CELLULAR_PORT_PLATFORM_ERROR;
-            if ((gpio_config(&config) == ESP_OK) &&
-                (gpio_set_drive_capability(pConfig->pin, pConfig->driveCapability) == ESP_OK)) {
-                errorCode = CELLULAR_PORT_SUCCESS;
+            if (gpio_config(&config) == ESP_OK) {
+                // If it's an output pin, set the drive capability
+                if (((pConfig->direction == CELLULAR_PORT_GPIO_DIRECTION_INPUT) ||
+                     (pConfig->direction == CELLULAR_PORT_GPIO_DIRECTION_INPUT_OUTPUT)) &&
+                    (gpio_set_drive_capability(pConfig->pin, pConfig->driveCapability) == ESP_OK)) {
+                    errorCode = CELLULAR_PORT_SUCCESS;
+                } else {
+                    // It's not an output pin so we're done
+                    errorCode = CELLULAR_PORT_SUCCESS;
+                }
             }
         }
     }
