@@ -639,25 +639,19 @@ void waitForPowerOff(bool (*pKeepGoingCallback) (void),
                      int32_t timeoutSeconds)
 {
     bool moduleIsOff = false;
-    int64_t endTimeMs;
+    int64_t endTimeMs = cellularPortGetTickTimeMs() + (timeoutSeconds * 1000);
 
-    if (pinVInt >= 0) {
-        // If we have a VInt pin then wait until that
-        // goes low
-        for (size_t x = 0; (cellularPortGpioGet(pinVInt) != 0) &&
-                           (x < timeoutSeconds * 4) &&
-                           ((pKeepGoingCallback == NULL) ||
-                            pKeepGoingCallback()); x++) {
-            cellularPortTaskBlock(250);
-        }
-    } else {
-        endTimeMs = cellularPortGetTickTimeMs() + (timeoutSeconds * 1000);
-        // Wait for the module to stop responding at the AT interface
-        // by poking it with "AT"
-        while (!moduleIsOff &&
-               (cellularPortGetTickTimeMs() < endTimeMs) &&
-               ((pKeepGoingCallback == NULL) ||
-                pKeepGoingCallback())) {
+    while (!moduleIsOff &&
+           (cellularPortGetTickTimeMs() < endTimeMs) &&
+           ((pKeepGoingCallback == NULL) ||
+            pKeepGoingCallback())) {
+        if (pinVInt >= 0) {
+            // If we have a VInt pin then wait until that
+            // goes low
+            moduleIsOff = (cellularPortGpioGet(pinVInt) == 0);
+        } else {
+            // Wait for the module to stop responding at the AT interface
+            // by poking it with "AT"
             cellular_ctrl_at_lock();
             cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
             cellular_ctrl_at_cmd_start("AT");
@@ -665,8 +659,9 @@ void waitForPowerOff(bool (*pKeepGoingCallback) (void),
             moduleIsOff = (cellular_ctrl_at_get_last_error() != 0);
             cellular_ctrl_at_restore_at_timeout();
             cellular_ctrl_at_unlock();
-            cellularPortTaskBlock(1000);
         }
+        // Relax a bit
+        cellularPortTaskBlock(1000);
     }
 }
 

@@ -19,7 +19,7 @@ set espidf_repo_root=
 set CELLULAR_FLAGS=
 set return_code=1
 rem the following three environment variables are exactly as dictated by the Nordic toolchain to locate the GCC ARM compiler
-rem Latest version of GCC for ARM installed from https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads
+rem latest version of GCC for ARM installed from https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads
 set GNU_INSTALL_ROOT=C:/Program Files (x86)/GNU Tools ARM Embedded/9 2019-q4-major/bin/
 set GNU_VERSION=9.2.1
 set GNU_PREFIX=arm-none-eabi
@@ -132,26 +132,6 @@ if "%build_directory%"=="" (
     goto usage
 )
 echo %~n0: build_directory is "%build_directory%".
-if exist "%build_directory%" (
-    if not "%clean_build_dir%"=="" (
-        echo %~n0: cleaning build directory...
-        del /s /q /f "%build_directory%\*" 1>nul
-        for /f "delims=" %%f in ('dir /ad /b "%build_directory%"') do rd /s /q "%build_directory%\%%f" 1>nul
-    )
-)
-if not exist "%build_directory%" (
-    if not "%create_dir%"=="" (
-        echo %~n0: build_directory "%build_directory%" does not exist, creating it...
-        md "%build_directory%"
-        if not exist "%build_directory%" (
-            echo %~n0: ERROR unable to create build directory "%build_directory%" ^(you must use backslash \, not /^).
-            goto usage
-        )
-    ) else (
-        echo %~n0: ERROR build directory "%build_directory%" does not exist and command-line switch /c was not specified.
-        goto usage
-    )
-)
 
 rem Check COM port
 if "%com_port%"=="" (
@@ -159,6 +139,20 @@ if "%com_port%"=="" (
     goto usage
 )
 echo %~n0: COM port is %com_port%.
+
+rem To run installation processes and kill any launched executables we need
+rem administrator privileges, so check for that here, see:
+rem https://stackoverflow.com/questions/1894967/how-to-request-administrator-access-inside-a-batch-file/10052222#10052222
+if "%PROCESSOR_ARCHITECTURE%"=="amd64" (
+    >nul 2>&1 "%SYSTEMROOT%\SysWOW64\cacls.exe" "%SYSTEMROOT%\SysWOW64\config\system"
+) else (
+    >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+)
+rem If error flag is set, we do not have admin.
+if not !ERRORLEVEL! EQU 0 (
+    echo %~n0: ERROR administrator privileges are required, please run as administrator.
+    goto build_end
+)
 
 rem Build start
 echo.
@@ -183,7 +177,8 @@ echo %~n0: checking out %branch% branch of cellular driver code...
 pushd cellular
 git checkout %branch%
 popd
-rem Now in %code_directory%
+
+rem All "build_platform_x" labels start in %code_directory%
 goto build_platform_%platform_number%
 
 rem Build end
@@ -204,7 +199,7 @@ rem Build unit tests under v4 Espressif SDK from u-blox clone of repo on NINA-W1
 rem Build unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R4 module
 :build_platform_2
     set espidf_repo_root=espressif
-    echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf^, specify /b to avoid build collisions...
+    echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf...
     set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R4 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_RTS=22 -DCELLULAR_CFG_PIN_CTS=23 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
     echo %~n0: flags set for W-ROVER board to indicate SARA-R4^, RXD on D19^, TXD on D21^, RTS on D22^, CTS on D23^, no VINT or Enable Power pins connected.
     goto build_platform_1_2_3
@@ -212,13 +207,34 @@ rem Build unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a
 rem Build unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R5 module
 :build_platform_3
     set espidf_repo_root=espressif
-    echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf^, specify /b to avoid build collisions...
+    echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf...
     set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_PWR_ON=26 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
     echo %~n0: flags set for W-ROVER board to indicate SARA-R5^, RXD on D19^, TXD on D21^, PWR_ON on D26^, no VINT or Enable Power pins connected.
     goto build_platform_1_2_3
 
 rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipset with SARA-R4 or SARA-R5
 :build_platform_1_2_3
+    rem Deal with the build directory now as we know it has to be absolute for the Espressif platform
+    if exist "%build_directory%" (
+        if not "%clean_build_dir%"=="" (
+            echo %~n0: cleaning build directory "%build_directory%"...
+            del /s /q /f "%build_directory%\*" 1>nul
+            for /f "delims=" %%f in ('dir /ad /b "%build_directory%"') do rd /s /q "%build_directory%\%%f" 1>nul
+        )
+    )
+    if not exist "%build_directory%" (
+        if not "%create_dir%"=="" (
+            echo %~n0: build_directory "%build_directory%" does not exist, creating it...
+            md "%build_directory%"
+            if not exist "%build_directory%" (
+                echo %~n0: ERROR unable to create build directory "%build_directory%" ^(you must use backslash \, not /^).
+                goto usage
+            )
+        ) else (
+            echo %~n0: ERROR build directory "%build_directory%" does not exist and command-line switch /c was not specified.
+            goto usage
+        )
+    )
     if not "%fetch%"=="" (
         if exist esp-idf-%espidf_repo_root% (
             pushd esp-idf-%espidf_repo_root%
@@ -246,19 +262,6 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
     @echo on
     set IDF_TOOLS_PATH=C:\Program Files\Espressif\ESP-IDF Tools latest
     @echo off
-    rem To run the installation process we need to fiddle with files in ESP-IDF Tools, which is in Program Files and requires
-    rem administrator privilages, so check for that here, see:
-    rem https://stackoverflow.com/questions/1894967/how-to-request-administrator-access-inside-a-batch-file/10052222#10052222
-    if "%PROCESSOR_ARCHITECTURE%"=="amd64" (
-        >nul 2>&1 "%SYSTEMROOT%\SysWOW64\cacls.exe" "%SYSTEMROOT%\SysWOW64\config\system"
-    ) else (
-        >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
-    )
-    rem If error flag is set, we do not have admin.
-    if not !ERRORLEVEL! EQU 0 (
-        echo %~n0: ERROR administrator privileges are required to run the ESP-IDF installation batch file, please run as administrator.
-        goto build_end
-    )
     echo %~n0: calling ESP-IDF install.bat from ESP-IDF code_directory esp-idf-%espidf_repo_root%...
     pushd esp-idf-%espidf_repo_root%
     echo %~n0: %CD%
@@ -267,19 +270,19 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
     call export.bat
     popd
     echo %~n0: building tests and then downloading them over %com_port%...
-    echo %~n0: building in %build_directory%\esp-idf-%espidf_repo_root% to keep paths short
+    echo %~n0: building in %build_directory% to keep paths short
     @echo on
-    idf.py  -p %com_port% -C cellular\port\platform\espressif\esp32\sdk\esp-idf\unit_test -B %build_directory%\esp-idf-%espidf_repo_root% -D TEST_COMPONENTS="cellular_tests" size flash
+    idf.py  -p %com_port% -C cellular\port\platform\espressif\esp32\sdk\esp-idf\unit_test -B %build_directory% -D TEST_COMPONENTS="cellular_tests" size flash
     @echo off
     rem Back to where this batch file was called from to run the tests with the Python script there
     popd
-    if !ERRORLEVEL! EQU 0 (
-        python %~dp0esp-idf\run_unit_tests_and_detect_outcome.py %com_port% %build_directory%\test_results.log %build_directory%\test_results.xml
-        echo %~n0: return value from Python script is !ERRORLEVEL!.
-        set return_code=!ERRORLEVEL!
-    ) else (
+    if not !ERRORLEVEL! EQU 0 (
         echo %~n0: ERROR build or download failed.
+        goto build_end
     )
+    python %~dp0\run_unit_tests_and_detect_outcome.py %com_port% %build_directory%\test_results.log %build_directory%\test_results.xml
+    echo %~n0: return value from Python script is !ERRORLEVEL!.
+    set return_code=!ERRORLEVEL!
     goto build_end
 
 rem Build unit tests on NRF52840 DK board with a SARA-R5 module
@@ -309,10 +312,10 @@ rem Build unit tests on NRF52840 DK board with a SARA-R5 module
         echo %~n0: ERROR can^'t execute the nRF5 command-line tools ^(e.g. nrfjprog^)^, please install the latest version from https://www.nordicsemi.com/Software-and-tools/Development-Tools/nRF-Command-Line-Tools/Download#infotabs and add them to the path.
         goto build_end
     )
-    rem Check that the SEGGER JLink tool JLinkRTTLogger is on the path
-    where /q JLinkRTTLogger.exe
+    rem Check that the SEGGER JLink tools are on the path
+    where /q jlink.exe
     if not !ERRORLEVEL! EQU 0 (
-        echo %~n0: ERROR can^'t find the SEGGER tool JLinkRTTLogger^, please install the latest version of their tools JLink from https://www.segger.com/downloads/jlink/JLink_Windows.exe and add them to the path.
+        echo %~n0: ERROR can^'t find the SEGGER tools^, please install the latest version of their JLink tools from https://www.segger.com/downloads/jlink/JLink_Windows.exe and add them to the path.
         goto build_end
     )
     rem fetch Unity
@@ -329,34 +332,56 @@ rem Build unit tests on NRF52840 DK board with a SARA-R5 module
     ) else (
         echo %~n0: not fetching Unity, just building.
     )   
+    echo %~n0: setting up paths assuming Python 2.7 is in "C:\Python27"...
+    set path=C:\Python27;C:\Python27\Scripts;%path%
     echo %~n0: print version information start ^(though note that there appears to be no way to get jlink to report its version^)
+    python --version
     "%GNU_INSTALL_ROOT%%GNU_PREFIX%-gcc" --version
     make --version
     nrfjprog --version
-    java -version
     echo %~n0: print version information end
     echo %~n0: building tests and then downloading them over %com_port%...
-    echo %~n0: building in %build_directory%
-    pushd %code_directory%\cellular\port\platform\nordic\nrf52840\sdk\gcc\unit_test
+    rem Need to be in the Makefile directory for building to work
+    pushd cellular\port\platform\nordic\nrf52840\sdk\gcc\unit_test
+    if exist "%build_directory%" (
+        if not "%clean_build_dir%"=="" (
+            echo %~n0: cleaning build directory "%CD%\%build_directory%"...
+            del /s /q /f "%build_directory%\*" 1>nul
+            for /f "delims=" %%f in ('dir /ad /b "%build_directory%"') do rd /s /q "%build_directory%\%%f" 1>nul
+        )
+    )
     @echo on
-    make OUTPUT_DIRECTORY=%build_directory% GNU_INSTALL_ROOT="%GNU_INSTALL_ROOT%" GNU_VERSION=%GNU_VERSION% GNU_PREFIX=%GNU_PREFIX% CFLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 flash
+    echo %~n0: building in "%CD%\%build_directory%"
+    make NRF5_PATH=%NRF5_PATH% OUTPUT_DIRECTORY=%build_directory% GNU_INSTALL_ROOT="%GNU_INSTALL_ROOT%" GNU_VERSION=%GNU_VERSION% GNU_PREFIX=%GNU_PREFIX% CFLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 flash
     @echo off
+    rem Back to where this batch file was called from to run the tests with the Python script there
     popd
     if not !ERRORLEVEL! EQU 0 (
-        echo %~n0: ERROR build failed.
+        echo %~n0: ERROR build or download failed.
         goto build_end
     )
-    echo %~n0: halting target...
-    nrfjprog --halt
-    echo %~n0: starting JLinkRTTLogger to capture trace output...
-    start "JLinkRTTLogger" JLinkRTTLogger.exe -Device NRF52840_XXAA -If SWD -Speed 4000 -RTTChannel 0 %build_directory%\test_results.log
-    echo %~n0: waiting 10 seconds while JLinkRTTLogger connects to the target...
-    TIMEOUT /T 10 /NOBREAK
-    echo %~n0: resetting target...
-    nrfjprog --reset
-    echo %~n0: TODO find a way of monitoring execution
-    echo %~n0: stopping JLinkRTTLogger...
-    TASKKILL /im "JLinkRTTLogger"
+    rem Stop any previous instance of JLink, just in case...
+    TASKKILL /F /IM "JLink.exe" > nul 2>&1
+    rem Reset error level to zero in case JLink wasn't running and so the line above would have returned an error.
+    type nul>nul
+    echo %~n0: starting JLink to talk to the target...
+    start "Jlink.exe" "JLink.exe" -Device NRF52840_XXAA -If SWD -Speed 1000 -Autoconnect 1
+    if not !ERRORLEVEL! EQU 0 (
+        echo %~n0: ERROR unable to start JLink.
+        goto build_end
+    )
+    echo %~n0: starting Python script with telnet client on the port 19201 which should have been opened by the JLink server to capture trace output...
+    python %~dp0\run_unit_tests_and_detect_outcome.py 19201 %build_directory%\test_results.log %build_directory%\test_results.xml
+    echo %~n0: return value from Python script is !ERRORLEVEL!.
+    set return_code=!ERRORLEVEL!
+    echo %~n0: terminating JLink...
+    TASKKILL /F /IM "JLink.exe" > nul 2>&1
+    if not !ERRORLEVEL! EQU 0 (
+        echo %~n0: ERROR unable to terminate JLink.
+        set return_code=1
+    ) else (
+        echo %~n0: JLink terminated.
+    )
     goto build_end
 
 rem Build Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
@@ -416,9 +441,13 @@ rem Usage string
     for /L %%a in (1,1,!num_platforms!) do echo   %%a: !platform_%%a!
     echo - branch is the branch of the cellular driver code to check out from git, e.g. master.
     echo - code_directory is the directory into which to fetch code.
-    echo - build_directory is the directory in which to do building/testing; best to give the absolute path as some
-    echo   third party tools assume this goes under code_directory and hence the /b /d options may have
-    echo   no useful effect.
+    echo - build_directory is the directory in which to do building/testing; what you can
+    echo   specify is dependent on the third party build tools:
+    echo   - for Espressif you must give an absolute path as a relative path is assumed
+    echo     to be relative to code_directory.
+    echo   - for Nordic the path must be a single sub-directory name, no
+    echo     ^\ or / separators^, and will be off the directory in which the
+    echo     Makefile is stored.
     echo - comport is the port where the device under test is connected (e.g. COM1).
     echo.
     echo Note that the installation of various tools may require administrator privileges and so it is usually
