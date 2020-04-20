@@ -1,9 +1,15 @@
 PROJECT_NAME     := cellular_pca10056
 TARGETS          := nrf52840_xxaa
-override OUTPUT_DIRECTORY := _build
+OUTPUT_DIRECTORY := _build
+UNITY_PATH := ../../../../../../../../Unity
+NRF5_PATH := ../../../../../../../../nrf5
 
-override UNITY_PATH ?= ../../../../../../../../Unity
-override NRF5_PATH ?= ../../../../../../../../nrf5
+$(info    OUTPUT_DIRECTORY will be "$(OUTPUT_DIRECTORY)")
+$(info    UNITY_PATH will be "$(UNITY_PATH)")
+$(info    NRF5_PATH will be "$(NRF5_PATH)")
+ifneq ($(strip $(CFLAGS)),)
+$(info    CFLAGS will start with "$(CFLAGS)")
+endif
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
   LINKER_SCRIPT  := uart_gcc_nrf52.ld
@@ -203,3 +209,8 @@ flash: default
 
 erase:
 	nrfjprog -f nrf52 --chiperase
+
+SDK_CONFIG_FILE := ../../../cfg/sdk_config.h
+CMSIS_CONFIG_TOOL := $(NRF5_PATH)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
+sdk_config:
+	java -jar $(CMSIS_CONFIG_TOOL) $(SDK_CONFIG_FILE)
