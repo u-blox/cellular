@@ -19,7 +19,7 @@ set espidf_repo_root=
 set CELLULAR_FLAGS=
 set return_code=1
 rem the following three environment variables are exactly as dictated by the Nordic toolchain to locate the GCC ARM compiler
-rem latest version of GCC for ARM installed from https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads
+rem Latest version of GCC for ARM installed from https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads
 set GNU_INSTALL_ROOT=C:/Program Files (x86)/GNU Tools ARM Embedded/9 2019-q4-major/bin/
 set GNU_VERSION=9.2.1
 set GNU_PREFIX=arm-none-eabi
@@ -341,18 +341,38 @@ rem Build unit tests on NRF52840 DK board with a SARA-R5 module
     nrfjprog --version
     echo %~n0: print version information end
     echo %~n0: building tests and then downloading them over %com_port%...
-    rem Need to be in the Makefile directory for building to work
+    rem The Nordix Makefile can only handle a single sub-directory name which
+    rem must be off the directory that Makefile is located in, so need to be
+    rem in the Makefile directory for building to work
     pushd cellular\port\platform\nordic\nrf52840\sdk\gcc\unit_test
-    if exist "%build_directory%" (
+    if exist build (
         if not "%clean_build_dir%"=="" (
-            echo %~n0: cleaning build directory "%CD%\%build_directory%"...
-            del /s /q /f "%build_directory%\*" 1>nul
-            for /f "delims=" %%f in ('dir /ad /b "%build_directory%"') do rd /s /q "%build_directory%\%%f" 1>nul
+            echo %~n0: cleaning build directory "%CD%\build"...
+            del /s /q /f build\* 1>nul
+            for /f "delims=" %%f in ('dir /ad /b build') do rd /s /q "build\%%f" 1>nul
         )
     )
+    rem Note: it seems odd to start JLink all the way up here, why not once we've
+    rem downloaded the build?  Reason is to catch the debug output from the Nordic
+    rem target right from the start of target operation
+    rem Stop any previous instance of JLink, just in case...
+    TASKKILL /IM "JLink.exe" > nul 2>&1
+    if !ERRORLEVEL! EQU 0 (
+        rem If it had been running, wait a moment for it to exit properly.
+        TIMEOUT /T 1 /NOBREAK > nul 2>&1
+    ) else (
+        rem It wasn't running, reset error level.
+        type nul>nul
+    )
+    echo %~n0: starting JLink to talk to the target...
+    start "Jlink.exe" "JLink.exe" -Device NRF52840_XXAA -If SWD -Speed 4000 -Autoconnect 1
+    if not !ERRORLEVEL! EQU 0 (
+        echo %~n0: ERROR unable to start JLink.
+        goto build_end
+    )
     @echo on
-    echo %~n0: building in "%CD%\%build_directory%"
-    make NRF5_PATH=%NRF5_PATH% OUTPUT_DIRECTORY=%build_directory% GNU_INSTALL_ROOT="%GNU_INSTALL_ROOT%" GNU_VERSION=%GNU_VERSION% GNU_PREFIX=%GNU_PREFIX% CFLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 flash
+    echo %~n0: building in "%CD%\build"
+    make NRF5_PATH=%NRF5_PATH% OUTPUT_DIRECTORY=build GNU_INSTALL_ROOT="%GNU_INSTALL_ROOT%" GNU_VERSION=%GNU_VERSION% GNU_PREFIX=%GNU_PREFIX% CFLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 flash
     @echo off
     rem Back to where this batch file was called from to run the tests with the Python script there
     popd
@@ -360,22 +380,12 @@ rem Build unit tests on NRF52840 DK board with a SARA-R5 module
         echo %~n0: ERROR build or download failed.
         goto build_end
     )
-    rem Stop any previous instance of JLink, just in case...
-    TASKKILL /F /IM "JLink.exe" > nul 2>&1
-    rem Reset error level to zero in case JLink wasn't running and so the line above would have returned an error.
-    type nul>nul
-    echo %~n0: starting JLink to talk to the target...
-    start "Jlink.exe" "JLink.exe" -Device NRF52840_XXAA -If SWD -Speed 1000 -Autoconnect 1
-    if not !ERRORLEVEL! EQU 0 (
-        echo %~n0: ERROR unable to start JLink.
-        goto build_end
-    )
-    echo %~n0: starting Python script with telnet client on the port 19201 which should have been opened by the JLink server to capture trace output...
-    python %~dp0\run_unit_tests_and_detect_outcome.py 19201 %build_directory%\test_results.log %build_directory%\test_results.xml
+    echo %~n0: starting Python script with telnet client on the port 19021 which should have been opened by the JLink server to capture trace output...
+    python %~dp0\run_unit_tests_and_detect_outcome.py 19021 %build_directory%\test_results.log %build_directory%\test_results.xml
     echo %~n0: return value from Python script is !ERRORLEVEL!.
     set return_code=!ERRORLEVEL!
     echo %~n0: terminating JLink...
-    TASKKILL /F /IM "JLink.exe" > nul 2>&1
+    TASKKILL /IM "JLink.exe" > nul 2>&1
     if not !ERRORLEVEL! EQU 0 (
         echo %~n0: ERROR unable to terminate JLink.
         set return_code=1
@@ -441,13 +451,15 @@ rem Usage string
     for /L %%a in (1,1,!num_platforms!) do echo   %%a: !platform_%%a!
     echo - branch is the branch of the cellular driver code to check out from git, e.g. master.
     echo - code_directory is the directory into which to fetch code.
-    echo - build_directory is the directory in which to do building/testing; what you can
-    echo   specify is dependent on the third party build tools:
-    echo   - for Espressif you must give an absolute path as a relative path is assumed
-    echo     to be relative to code_directory.
-    echo   - for Nordic the path must be a single sub-directory name, no
-    echo     ^\ or / separators^, and will be off the directory in which the
-    echo     Makefile is stored.
+    echo - build_directory is the directory in which to do building/testing; you MUST
+    echo   enter a full path however what happens is dependent upon how each third party
+    echo   build tool works^, exceptions being:
+    echo   - for Nordic you MUST still specify a full path^, however their Makefile can
+    echo     only handle a single sub-directory name^, no drive prefix ^\ or /
+    echo     separators^, and will be off the directory where the Makefile is located^,
+    echo     so the actual build will always be done in a directory named
+    echo     cellular^\port^\platform^\nordic^\nrf52840^\sdk^\gcc^\unit_test\^build^,
+    echo     cleaned correctly if requested^, irrespective of what you specify.
     echo - comport is the port where the device under test is connected (e.g. COM1).
     echo.
     echo Note that the installation of various tools may require administrator privileges and so it is usually

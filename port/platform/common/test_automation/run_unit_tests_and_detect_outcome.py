@@ -17,6 +17,12 @@ prompt = "RunEspIdfTests: "
 # Flag indicating test completion
 finished = False
 
+# The connection types
+CONNECTION_NONE = 0
+CONNECTION_SERIAL = 1
+CONNECTION_TELNET = 2
+CONNECTION_EXE = 3
+
 # Various counters
 reboots = 0
 tests_run = 0
@@ -100,49 +106,77 @@ interesting = [[r"abort()", reboot_callback],
                # Match, for example "22 Tests 1 Failures 0 Ignored" capturing the numbers
                [r"(^[0-9]+) Test(?:s*) ([0-9]+) Failure(?:s*) ([0-9]+) Ignored", finish_callback]]
 
-# Read lines from port, returns the line as
+# Read lines from input, returns the line as
 # a string when terminator or '\n' is encountered.
 # Does NOT return the terminating character
 # If a read timeout occurs then None is returned.
-def pwar_readline(in_handle, terminator=None):
+def pwar_readline(in_handle, connection_type, terminator = None):
     '''RunEspIdfTests: Phil Ware's marvellous readline function'''
-    eol = False
     line = ""
-    try:
-        while not eol and line != None:
-            buf = in_handle.read(1)
-            if buf:
-                character = buf.decode('ascii')
-                eol = character == '\n'
-                if not eol and terminator:
-                    eol = character == terminator
-                if not eol:
-                    line = line + character
-            else:
-                line = None
-    except serial.SerialException as ex:
-        print prompt + str(type(ex).__name__) + " while accessing " \
-              "port" + in_handle.name + ": " + str(ex.message) + "."
-    except UnicodeDecodeError as ex:
-        print prompt + str(type(ex).__name__) + " while decoding " \
-              "data from " + in_handle.name + ": " + str(ex.message) + \
-              "this probably means the thing at the other end has crashed."
-    return line
+    if connection_type == CONNECTION_TELNET:
+        # I was hoping that all sources of data
+        # would have a read() function but it turns
+        # out that Telnet does not, it has read_until()
+        # which returns a whole line with a timeout
+        # Note: deliberately don't handle the exception that
+        # the Telnet port has been closed here, allow it
+        # to stop us entirely
+        if terminator == None:
+            terminator = '\n'
+        # Long time-out as we don't want partial lines
+        buf = in_handle.read_until(terminator, 1)
+        if buf != "":
+            line = buf.decode('ascii')
+            # To make this work the same was as the
+            # serial and exe cases, need to remove the terminator
+            # and remove any dangling \n left on the front
+            line = line.rstrip(terminator)
+            line = line.lstrip('\n')
+        else:
+            line = None
+        return line
+        # Serial ports and exe's just use read()
+    else:
+        if (connection_type == CONNECTION_SERIAL) or \
+           (connection_type == CONNECTION_EXE):
+            eol = False
+            try:
+                while not eol and line != None:
+                    buf = in_handle.read(1)
+                    if buf:
+                        character = buf.decode('ascii')
+                        eol = character == '\n'
+                        if not eol and terminator:
+                            eol = character == terminator
+                        if not eol:
+                            line = line + character
+                    else:
+                        line = None
+            except serial.SerialException as ex:
+                print prompt + str(type(ex).__name__) + " while accessing " \
+                      "port" + in_handle.name + ": " + str(ex.message) + "."
+            except UnicodeDecodeError as ex:
+                print prompt + str(type(ex).__name__) + " while decoding " \
+                      "data from " + in_handle.name + ": " + str(ex.message) + \
+                      "this probably means the thing at the other end has crashed."
+            return line
+        else:
+            return None
 
-# Open the required COM port.
-def open_com(port_name):
+# Open the required serial port.
+def open_serial(serial_name):
     '''RunEspIdfTests: open serial port'''
-    port_handle = None
-    print prompt + "trying to open \"" + port_name + "\" as a serial port...",
+    serial_handle = None
+    print prompt + "trying to open \"" + serial_name + "\" as a serial port...",
     try:
-        return_value = serial.Serial(port_name,
+        return_value = serial.Serial(serial_name,
                                      115200,
-                                     timeout=0.05)
-        port_handle = return_value
+                                     timeout = 0.05)
+        serial_handle = return_value
         print " opened."
     except (ValueError, serial.SerialException) as ex:
         print " failed."
-    return port_handle
+    return serial_handle
 
 # Open the required telnet port.
 def open_telnet(port_number):
@@ -153,7 +187,7 @@ def open_telnet(port_number):
     try:
         telnet_handle = Telnet('localhost',
                                int(port_number),
-                               timeout=1)
+                               timeout = 1)
         if telnet_handle != None:
             print " opened."
         else:
@@ -172,8 +206,8 @@ def start_exe(exe_name):
         return_value = subprocess.Popen(exe_name,
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE,
-                                        shell=True,
-                                        bufsize=-1)
+                                        shell = True,
+                                        bufsize = -1)
         sleep(5)
         # A return value of any sort indicates that the process exited
         if return_value.poll() != None:
@@ -190,33 +224,32 @@ def start_exe(exe_name):
     return return_value, stdout_handle
 
 # Run all the tests.
-def run_all_tests(port_handle, log_file_handle):
+def run_all_tests(in_handle, connection_type, log_file_handle):
     '''RunEspIdfTests: run all of the tests'''
     global overall_start_time
     success = False
     try:
-        # First, flush any rubbish out of the COM port
-        # otherwise we may get unicode decoding errors
-        port_handle.read(128)
         line = ""
         # Read the opening splurge from the target
         # if there is any
+        print prompt + "reading initial text from input..."
         while line != None and \
               line.find("Press ENTER to see the list of tests.") < 0:
-            line = pwar_readline(port_handle, '\r')
+            line = pwar_readline(in_handle, connection_type, '\r')
             if log_file_handle != None and line != None:
                 log_file_handle.write(line + "\n")
         # For debug purposes, send a newline to the unit
         # test app to get it to list the tests
-        print prompt + "listing tests."
-        port_handle.write("\r\n".encode("ascii"))
+        print prompt + "listing tests..."
+        in_handle.write("\r\n".encode("ascii"))
         line = ""
         while line != None:
-            line = pwar_readline(port_handle, '\r')
+            line = pwar_readline(in_handle, connection_type, '\r')
             if log_file_handle != None and line != None:
                 log_file_handle.write(line + "\n")
         # Now send a * in to run all of the tests
-        port_handle.write("*\r\n".encode("ascii"))
+        print prompt + "sending command to run all tests..."
+        in_handle.write("*\r\n".encode("ascii"))
         overall_start_time = time()
         print prompt + "run of all tests started on " + ctime(overall_start_time) + "."
         success = True
@@ -227,14 +260,15 @@ def run_all_tests(port_handle, log_file_handle):
 
 # Watch the output from the tests being run
 # looking for interesting things.
-def watch_tests(in_handle, log_file_handle):
+def watch_tests(in_handle, connection_type, log_file_handle):
     '''RunEspIdfTests: watch test output'''
     print prompt + "watching test output until test run completes."
     while not finished:
-        line = pwar_readline(in_handle, '\r')
+        line = pwar_readline(in_handle, connection_type, '\r')
         if line != None:
             if log_file_handle != None:
                 log_file_handle.write(line + "\n")
+                log_file_handle.flush()
             for entry in interesting:
                 match = re.match(entry[0], line)
                 if match:
@@ -245,6 +279,7 @@ if __name__ == "__main__":
     success = True
     exe_handle = None
     return_value = 1
+    connection_type = CONNECTION_NONE
 
     # Switch off traceback to stop the horrid developmenty prints
     #sys.tracebacklimit = 0
@@ -276,30 +311,37 @@ if __name__ == "__main__":
 
     # Do the work
     if args.input_name:
-        in_handle = open_com(args.input_name)
+        connection_type = CONNECTION_SERIAL
+        in_handle = open_serial(args.input_name)
         if in_handle == None:
+            connection_type = CONNECTION_TELNET
             in_handle = open_telnet(args.input_name)
         if in_handle == None:
+            connection_type = CONNECTION_EXE
             exe_handle, in_handle = start_exe(args.input_name)
         if in_handle != None:
             if args.log_file_name:
                 log_file_handle = open(args.log_file_name, "w")
-                if not log_file_handle:
+                if log_file_handle:
+                    print prompt + "writing log output to \"" + args.log_file_name + "\"."
+                else:
                     success = False
-                    print prompt + "unable to open file " + args.log_file_name + " for writing."
+                    print prompt + "unable to open log file \"" + args.log_file_name + "\" for writing."
             if args.report_file_name:
                 report_file_handle = open(args.report_file_name, "w")
-                if not report_file_handle:
+                if report_file_handle:
+                    print prompt + "writing report to \"" + args.report_file_name + "\"."
+                else:
                     success = False
-                    print prompt + "unable to open file " + args.report_file_name + " for writing."
+                    print prompt + "unable to open report file \"" + args.report_file_name + "\" for writing."
             if success:
                 # Run the tests
-                # If we have a serial port the we have
+                # If we have a serial or telnet the we have
                 # bi-directional comms and need to chose
                 # which tests to run, else the lot will
                 # just run
-                if exe_handle or run_all_tests(in_handle, log_file_handle):
-                    watch_tests(in_handle, log_file_handle)
+                if exe_handle or run_all_tests(in_handle, connection_type, log_file_handle):
+                    watch_tests(in_handle, connection_type, log_file_handle)
                     return_value = tests_failed
                 # Write the report
                 if report_file_handle:
