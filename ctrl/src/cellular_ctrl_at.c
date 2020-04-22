@@ -41,9 +41,6 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
-// Default AT command timeout.
-#define CELLULAR_CTRL_AT_CMD_TIMEOUT      8000
-
 // URCs should be handled fast, if you add debug traces within URC
 // processing then you also need to increase this time.
 #define CELLULAR_CTRL_AT_URC_TIMEOUT_MS   100
@@ -680,15 +677,16 @@ static bool match_error()
 
 // Checks if receiving buffer contains OK, ERROR,
 // URC or given prefix.
-static void resp(const char *prefix, bool check_urc)
+static void resp(const char *prefix, bool crLfFirst, bool check_urc)
 {
     _prefix_matched = false;
     _urc_matched = false;
     _error_found = false;
 
     while (cellular_ctrl_at_get_last_error() == CELLULAR_CTRL_AT_SUCCESS) {
-
-        match(CELLULAR_CTRL_AT_CRLF, CELLULAR_CTRL_AT_CRLF_LENGTH);
+        if (crLfFirst) {
+            match(CELLULAR_CTRL_AT_CRLF, CELLULAR_CTRL_AT_CRLF_LENGTH);
+        }
 
         if (match(CELLULAR_CTRL_AT_OK, CELLULAR_CTRL_AT_OK_LENGTH)) {
             set_scope(CELLULAR_CTRL_AT_SCOPE_TYPE_RESP);
@@ -948,7 +946,7 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
     }
 
     _queue_uart = queue_uart;
-    _at_timeout_ms = CELLULAR_CTRL_AT_CMD_TIMEOUT;
+    _at_timeout_ms = CELLULAR_CTRL_AT_COMMAND_DEFAULT_TIMEOUT_MS;
     _at_timeout_callback = NULL;
     _at_num_consecutive_timeouts = 0;
     _at_send_delay_ms = CELLULAR_CTRL_AT_SEND_DELAY,
@@ -1595,7 +1593,7 @@ void cellular_ctrl_at_resp_start(const char *prefix, bool stop)
 
     set_scope(CELLULAR_CTRL_AT_SCOPE_TYPE_RESP);
 
-    resp(prefix, true);
+    resp(prefix, true, true);
 
     if (!stop && prefix && _prefix_matched) {
         set_scope(CELLULAR_CTRL_AT_SCOPE_TYPE_INFO);
@@ -1623,7 +1621,7 @@ bool cellular_ctrl_at_info_resp()
         information_response_stop();
     }
 
-    resp(_info_resp_prefix, false);
+    resp(_info_resp_prefix, true, false);
 
     if (_prefix_matched) {
         set_scope(CELLULAR_CTRL_AT_SCOPE_TYPE_INFO);
@@ -1864,10 +1862,23 @@ bool cellular_ctrl_at_wait_char(char chr)
 {
     int32_t c;
 
+    _error_found = false;
+
     if (_uart >= 0) {
-        c = get_char();
-        if (c == chr) {
-            return true;
+        while (cellular_ctrl_at_get_last_error() == CELLULAR_CTRL_AT_SUCCESS) {
+            c = get_char();
+            // Continue to look for URCs,
+            // you never know when the sneaky
+            // buggers might turn up
+            match_urc();
+            if (match_error()) {
+                _error_found = true;
+                return false;
+            }
+
+            if (c == chr) {
+                return true;
+            }
         }
     }
 

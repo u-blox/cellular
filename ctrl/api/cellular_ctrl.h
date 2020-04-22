@@ -53,10 +53,6 @@
  */
 #define CELLULAR_CTRL_BAND_MASK_2_EUROPE_NB1_DEFAULT 0LL
 
-/** The AT command time-out.
- */
-#define CELLULAR_CTRL_COMMAND_TIMEOUT_MS 8000
-
 /** The delay between AT commands, allowing internal cellular module
  * comms to complete before another is sent.
  */
@@ -94,6 +90,10 @@
 /** The PDP context ID to use.
  */
 #define CELLULAR_CTRL_CONTEXT_ID 1
+
+/** The module profile ID to use.
+ */
+#define CELLULAR_CTRL_PROFILE_ID 1
 
 /** The number of digits in an IP address, including room for a
  * NULL terminator, i.e. "255.255.255.255\x00" .
@@ -630,10 +630,10 @@ int32_t cellularCtrlGetRsrpDbm();
  * available unless the module has successfully registered with the
  * cellular network.
  *
- * @return the RSRQ in dBm, or zero if no RSRQ measurement
+ * @return the RSRQ in dB, or zero if no RSRQ measurement
  *         is currently available.
  */
-int32_t cellularCtrlGetRsrqDbm();
+int32_t cellularCtrlGetRsrqDb();
 
 /** Get the RxQual that pertained after the last call to
  * cellularRefreshRadioParameters().  This is a number

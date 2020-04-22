@@ -124,9 +124,8 @@ def pwar_readline(in_handle, connection_type, terminator = None):
         if terminator == None:
             terminator = '\n'
         # Long time-out as we don't want partial lines
-        buf = in_handle.read_until(terminator, 1)
-        if buf != "":
-            line = buf.decode('ascii')
+        line = in_handle.read_until(terminator, 1)
+        if line != "":
             # To make this work the same was as the
             # serial and exe cases, need to remove the terminator
             # and remove any dangling \n left on the front
@@ -250,8 +249,7 @@ def run_all_tests(in_handle, connection_type, log_file_handle):
         # Now send a * in to run all of the tests
         print prompt + "sending command to run all tests..."
         in_handle.write("*\r\n".encode("ascii"))
-        overall_start_time = time()
-        print prompt + "run of all tests started on " + ctime(overall_start_time) + "."
+        print prompt + "run of all tests started on " + ctime(time()) + "."
         success = True
     except serial.SerialException as ex:
         print prompt + str(type(ex).__name__) + " while accessing " \
@@ -330,17 +328,18 @@ if __name__ == "__main__":
             if args.report_file_name:
                 report_file_handle = open(args.report_file_name, "w")
                 if report_file_handle:
-                    print prompt + "writing report to \"" + args.report_file_name + "\"."
+                    print prompt + "writing test report to \"" + args.report_file_name + "\"."
                 else:
                     success = False
-                    print prompt + "unable to open report file \"" + args.report_file_name + "\" for writing."
+                    print prompt + "unable to open test report file \"" + args.report_file_name + "\" for writing."
             if success:
                 # Run the tests
-                # If we have a serial or telnet the we have
-                # bi-directional comms and need to chose
+                # If we have a serial we have can chose
                 # which tests to run, else the lot will
                 # just run
-                if exe_handle or run_all_tests(in_handle, connection_type, log_file_handle):
+                if (connection_type != CONNECTION_SERIAL) or \
+                   run_all_tests(in_handle, connection_type, log_file_handle):
+                    overall_start_time = time()
                     watch_tests(in_handle, connection_type, log_file_handle)
                     return_value = tests_failed
                 # Write the report

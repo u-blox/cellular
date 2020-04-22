@@ -29,6 +29,12 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
+/** The default AT command time-out.
+ */
+#ifndef CELLULAR_CTRL_AT_COMMAND_DEFAULT_TIMEOUT_MS
+# define CELLULAR_CTRL_AT_COMMAND_DEFAULT_TIMEOUT_MS 8000
+#endif
+
 /** The task priority for the URC handler.
  */
 #ifndef CELLULAR_CTRL_AT_TASK_URC_HANDLER_PRIORITY
@@ -377,7 +383,8 @@ int32_t cellular_ctrl_at_read_bytes(uint8_t *buf, size_t len);
  * @param size               maximum number of chars to output
  *                           including NULL.
  * @param read_even_stop_tag if true then try to read even if
- *                           the stop tag was found previously.
+ *                           the stop tag was found previously;
+ *                           set this to read a multi-line response.
  * @return                   length of output string (as in
  *                           the value that strlen() would
  *                           return) or -1 in case of read

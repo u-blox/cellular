@@ -125,6 +125,13 @@ char *pCellularPort_strchr(const char *pStr, int32_t c)
     return strchr(pStr, c);
 }
 
+// strtok_r().
+char *pCellularPort_strtok_r(char *pStr, const char *pDelimiters,
+                             char **ppSave)
+{
+    return strtok_r(pStr, pDelimiters, ppSave);
+}
+
 // sscanf().
 int32_t cellularPort_sscanf(const char *pStr, const char *pFormat,
                             ...)

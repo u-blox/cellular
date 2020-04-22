@@ -17,10 +17,20 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
+#include "cellular_cfg_hw_platform_specific.h"
+#include "cellular_cfg_module.h"
 #include "cellular_port_test_platform_specific.h"
+#include "cellular_port_clib.h"
+#include "cellular_port.h"
+#include "cellular_port_os.h"
+#include "cellular_port_uart.h"
+#include "cellular_ctrl.h"
+#include "cellular_sock.h"
+
 #include "assert.h"
 #include "FreeRTOS.h"
 #include "task.h"
+
 #include "nrf_drv_clock.h"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -58,12 +68,15 @@ void setUp(void)
 // Unity tearDown() function.
 void tearDown(void)
 {
-    // Nothing to do
 }
 
 void testFail(void)
 {
-    
+    // Attempt a clean-up
+    cellularSockDeinit();
+    cellularCtrlDeinit();
+    cellularPortUartDeinit(CELLULAR_CFG_UART);
+    cellularPortDeinit();
 }
 
 // The task within which testing runs.

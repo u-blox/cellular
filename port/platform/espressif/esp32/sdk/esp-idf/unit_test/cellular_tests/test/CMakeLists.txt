@@ -9,7 +9,8 @@ set(COMPONENT_ADD_INCLUDEDIRS "."
                               "../../../../../../../../../sock/api"
                               "../../../../../../../../../cfg"
                               "../../../../../../../../api"
-                              "../../../../../cfg")
+                              "../../../../../cfg"
+                              "../../../../../src")
 set(COMPONENT_REQUIRES "esp32" "esptool_py" "unity")
 
 register_component()

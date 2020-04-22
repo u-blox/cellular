@@ -180,11 +180,11 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
     CELLULAR_PORT_TEST_ASSERT(gQueueHandle != NULL);
 
     cellularPortLog("CELLULAR_PORT_TEST: creating a test task with stack %d byte(s) and priority %d, passing it the pointer 0x%08x containing the string \"%s\"...\n",
-                    CELLULAR_PORT_TEST_TASK_STACK_SIZE_BYTES,
+                    CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES,
                     CELLULAR_PORT_TEST_TASK_PRIORITY,
                     &gpTaskParameter, gpTaskParameter);
     errorCode = cellularPortTaskCreate(testTask, "test_task",
-                                       CELLULAR_PORT_TEST_TASK_STACK_SIZE_BYTES,
+                                       CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES,
                                        (void **) &gpTaskParameter,
                                        CELLULAR_PORT_TEST_TASK_PRIORITY,
                                        &gTaskHandle);

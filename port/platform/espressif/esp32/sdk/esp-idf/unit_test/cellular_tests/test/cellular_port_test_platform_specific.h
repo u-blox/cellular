@@ -49,7 +49,11 @@
 
 /** The stack size to use for the test task created during OS testing.
  */
-#define CELLULAR_PORT_TEST_TASK_STACK_SIZE_BYTES 2048
+#define CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES 2048
+
+/** The stack size to use for the test task created during sockets testing.
+ */
+#define CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES (1024 * 5)
 
 /* ----------------------------------------------------------------
  * TYPES

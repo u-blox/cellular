@@ -1203,7 +1203,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
     cellularPortLog("CELLULAR_CTRL_TEST: checking values before a refresh (should return errors)...\n");
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRssiDbm() == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrpDbm() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrqDbm() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrqDb() == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetSnrDb(&snrDb) != 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetCellId() == -1);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetEarfcn() == -1);
@@ -1212,7 +1212,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlRefreshRadioParameters() != 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRssiDbm() == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrpDbm() == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrqDbm() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrqDb() == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetSnrDb(&snrDb) != 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetCellId() == -1);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetEarfcn() == -1);
@@ -1230,7 +1230,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
     CELLULAR_PORT_TEST_ASSERT(count > 0);
     // Should now have everything
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrpDbm() < 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrqDbm() < 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetRsrqDb() < 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetCellId() >= 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetEarfcn() >= 0);
     // ...however RSSI can take a long time to
