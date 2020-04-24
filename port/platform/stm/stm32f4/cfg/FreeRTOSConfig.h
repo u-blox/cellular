@@ -56,7 +56,7 @@
 #define configUSE_PREEMPTION              1
 #define configUSE_IDLE_HOOK               0
 #define configUSE_TICK_HOOK               0
-#define configMAX_PRIORITIES              (7)
+#define configMAX_PRIORITIES              (8)
 #define configSUPPORT_STATIC_ALLOCATION   0
 #define configCPU_CLOCK_HZ                (SystemCoreClock)
 #define configTICK_RATE_HZ                ((TickType_t)1000)
@@ -90,13 +90,14 @@ to exclude the API function. */
 #define INCLUDE_vTaskPrioritySet       1
 #define INCLUDE_uxTaskPriorityGet      1
 #define INCLUDE_vTaskDelete            1
-#define INCLUDE_vTaskCleanUpResources  0
+#define INCLUDE_vTaskCleanUpResources  1
 #define INCLUDE_vTaskSuspend           1
 #define INCLUDE_vTaskDelayUntil        0
 #define INCLUDE_vTaskDelay             1
 #define INCLUDE_xTaskGetSchedulerState 1
+#define INCLUDE_xQueueGetMutexHolder   1
 
-/*------------- CMSIS-RTOS V2 specific defines -----------*/
+ /*------------- CMSIS-RTOS V2 specific defines -----------*/
 /* When using CMSIS-RTOSv2 set configSUPPORT_STATIC_ALLOCATION to 1
  * is mandatory to avoid compile errors.
  * CMSIS-RTOS V2 implmentation requires the following defines
@@ -156,7 +157,7 @@ header file. */
 /* IMPORTANT: FreeRTOS is using the SysTick as internal time base, thus make sure the system and peripherials are
               using a different time base (TIM based for example).
  */
-#define xPortSysTickHandler SysTick_Handler
+/* #define xPortSysTickHandler SysTick_Handler */
 
 #endif /* FREERTOS_CONFIG_H */
 

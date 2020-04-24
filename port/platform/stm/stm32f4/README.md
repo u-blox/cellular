@@ -1,8 +1,8 @@
 #Introduction
 These directories provide the implementation of the porting layer on the STM32F4 platform plus the associated build and board configuration information:
 
-- `cfg`: contains the single file `cellular_cfg_hw.h` which provides default configuration for a u-blox C030-R412M board that includes a SARA-R412M cellular module.  Note that in order to retain the flexibility to use the same STM32F4 code with other u-blox cellular modules the module type is NOT specified in this configuration file, you must do that when you perform your build.
-- `sdk/cube`: contains the files to build/test for the STM32F4 platform using the STM32 Cube IDE.
+- `cfg`: contains the file `cellular_cfg_hw_platform_specific.h` which provides default configuration for a u-blox C030-R412M board that includes a SARA-R412M cellular module.  Note that in order to retain the flexibility to use the same STM32F4 code with other u-blox cellular modules the module type is NOT specified in this configuration file, you must do that when you perform your build.  Also in here you will find the FreeRTOS configuration header file.
+- `sdk/cube`: contains the files to build/test for the STM32F4 platform using the STM32Cube IDE.
 - `src`: contains the implementation of the porting layers for STM32F4.
 
 #Hardware Requirements
@@ -12,16 +12,18 @@ This code was developed to run on the u-blox C030-R412M board, which includes an
 TBD.
 
 #Downloading To The Board
-When the C030-R412M board is plugged into a USB port a mapped drive should appear, e.g. `D:`.  Builds are downloaded by copying your compiled `.bin` file to this drive.  Builds can also be downloaded using ST's (ST-Link utility)[https://www.st.com/en/development-tools/stsw-link004.html].
+When the C030-R412M board is plugged into a USB port a mapped drive should appear, e.g. `D:`.  Builds are downloaded by copying your compiled `.bin` file to this drive.  Builds can also be downloaded using ST's (ST-Link utility)[https://www.st.com/en/development-tools/stsw-link004.html] and through the STM32Cube IDE.
 
-#Debugging And Trace Output
-The trace output from this build is sent over SWD.  To view it in the STM32 Cube IDE, setup up the debugger as normal by pulling down the arrow beside the little button on the toolbar with the "bug" image on it, selecting "STM-Cortex-M C/C++ Application", create a new configuration and then, on the "Debugger" tab, tick the box that enables SWD and click "Apply".
+#Trace Output
+The trace output from this build is sent over SWD.  Instructions for how to view the trace output in the STM32Cube IDE can be found in the `cube` sub-directory below.
 
-You should then be able to run this debug configuration and the IDE should download the code and launch you into the debugger.  To see the SWD trace output, click on "Window" -> "Show View" -> "SWV" -> "SWV ITM Data Console".  The docked window that appears should have a little "spanner" icon on the far right: click on that icon and, on the set of "ITM Stimulus Ports", tick channel 0 and then press "OK".  Beside the "spanner" icon is a small red button: press that to allow trace output to appear; unfortuantely it seems that this latter step has to be performed every debug session, it is not possible to automate it.
+Alternatively, if you just want to run the target without the debugger and simply view the SWO output, the (ST-Link utility)[https://www.st.com/en/development-tools/stsw-link004.html] utility includes a "Printf via SWO Viewer" option under its "ST-LINK" menu.  Set the clock to the same value as that used in the configuration above (by default 16 MHz), press "Start" and your debug printf()s will appear in that window.  You can also run this from the command line with something like:
+
+```
+"C:\Program Files (x86)\STMicroelectronics\STM32 ST-LINK Utility\ST-LINK Utility\ST-LINK_CLI.exe" SWD Freq=2 UR
+```
 
 *** THE REST OF THIS A WORK IN PROGRESS ***
-
-
 
 https://arm-stm.blogspot.com/2014/12/debug-mcu-configuration-register.html
 
@@ -70,10 +72,3 @@ Set trace control: set {int}0xE0000E80={int}0xE0000E80 | 1
 
 
 0xE0000FB0	ITM_LAR
-
-Alternatively, if you just want to run the target without the debugger and simply view the SWO output, the (ST-Link utility)[https://www.st.com/en/development-tools/stsw-link004.html] utility includes a "Printf via SWO Viewer" option under its "ST-LINK" menu.  Set the clock to the same value as that used in the configuration above (by default 16 MHz), press "Start" and your debug printf()s will appear in that window.  You can also run this from the command line with something like:
-
-```
-"C:\Program Files (x86)\STMicroelectronics\STM32 ST-LINK Utility\ST-LINK Utility\ST-LINK_CLI.exe" SWD Freq=2 UR
-```
-

@@ -58,11 +58,18 @@
 // The timer handle structure
 static TIM_HandleTypeDef gTimerHandle;
 
+// Counter to keep track of RTOS ticks
+static int32_t gTickTimerRtosCount;
+
 // Overflow counter that allows us to keep 64 bit time.
 static int64_t gTickTimerOverflowCount;
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS
+ * -------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS SPECIFIC TO THIS PORT
  * -------------------------------------------------------------- */
 
 // IRQ handler for the tick timer.
@@ -72,18 +79,58 @@ void CELLULAR_PORT_TIM_IRQ_HANDLER(CELLULAR_PORT_TICK_TIMER_INSTANCE)
     HAL_TIM_IRQHandler(&gTimerHandle);
 }
 
-// This will be called from the HAL's generic timer IRQ handler
-// if the cause of the interrupt was that the timer period had
-// elapsed.
+// Suspend Tick increment.
+void HAL_SuspendTick(void)
+{
+    // Disable TIM update interrupt
+    __HAL_TIM_DISABLE_IT(&gTimerHandle, TIM_IT_UPDATE);
+}
+
+// Resume Tick increment.
+void HAL_ResumeTick(void)
+{
+    // Enable TIM Update interrupt
+    __HAL_TIM_ENABLE_IT(&gTimerHandle, TIM_IT_UPDATE);
+}
+
+// Called when the timer period interrupt occurs.
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *pTimerHandle)
 {
-    gTickTimerOverflowCount++;
+    (void) pTimerHandle;
+
+    // Call into the HAL to increment
+    // a global variable "uwTick" used as the RTOS
+    // time-base.
+    HAL_IncTick();
+
+    // Increment the local count and check for
+    // overflow of the longer term overflow counter
+    // that allows us to keep 64 bit time
+    gTickTimerRtosCount++;
+    if (gTickTimerRtosCount > CELLULAR_PORT_TICK_TIMER_OVERFLOW_PERIOD_MS) {
+        gTickTimerOverflowCount++;
+        gTickTimerRtosCount = 0;
+    }
 }
 
 // Start the tick timer.
-static int32_t tickTimerStart()
+// This function is called automagically by HAL_Init()
+// at start of day.
+HAL_StatusTypeDef HAL_InitTick(uint32_t tickPriority)
 {
-    CellularPortErrorCode_t errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+    HAL_StatusTypeDef errorCode = HAL_ERROR;
+
+    // Set interrupt priority
+    HAL_NVIC_SetPriority(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE),
+                         tickPriority, 0);
+
+    // Set the global uwTickPrio based on this so that when
+    // HAL_RCC_ClockConfig() is called later it uses the
+    // correct value
+    uwTickPrio = tickPriority;
+
+    // Enable interrupt
+    HAL_NVIC_EnableIRQ(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE));
 
     // Enable the clock
     CELLULAR_PORT_TIM_CLK_ENABLE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
@@ -92,25 +139,32 @@ static int32_t tickTimerStart()
     gTimerHandle.Instance = CELLULAR_PORT_TIM_BASE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
     gTimerHandle.Init.Prescaler = CELLULAR_PORT_TICK_TIMER_PRESCALER;
     gTimerHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
-    gTimerHandle.Init.Period = CELLULAR_PORT_TICK_TIMER_PERIOD;
+    gTimerHandle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    gTimerHandle.Init.Period = CELLULAR_PORT_TICK_TIMER_PERIOD_US - 1;
     gTimerHandle.Init.ClockDivision = CELLULAR_PORT_TICK_TIMER_DIVIDER;
     gTimerHandle.Init.RepetitionCounter = 0;
 
     // Initialise and start the timer
-    if ((HAL_TIM_Base_Init(&gTimerHandle) == HAL_OK) &&
-        (HAL_TIM_Base_Start(&gTimerHandle) == HAL_OK)) {
-        // Enable interruptsf
-        HAL_NVIC_SetPriority(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE),
-                             0, 0);
-        HAL_NVIC_EnableIRQ(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE));
-        errorCode = CELLULAR_PORT_SUCCESS;
+    errorCode = HAL_TIM_Base_Init(&gTimerHandle);
+    if (errorCode == HAL_OK) {
+        gTickTimerRtosCount = 0;
+        gTickTimerOverflowCount = 0;
+        errorCode = HAL_TIM_Base_Start_IT(&gTimerHandle);
     }
 
     return errorCode;
 }
 
-// Stop the tick timer.
-static void tickTimerStop()
+// Initalise the private stuff.
+int32_t cellularPortPrivateInit()
+{
+    // Nothing to do, all done when
+    // HAL_InitTick() is called from HAL_Init()
+    return CELLULAR_PORT_SUCCESS;
+}
+
+// Deinitialise the private stuff.
+void cellularPortPrivateDeinit()
 {
     // Disable interrupts
     HAL_NVIC_DisableIRQ(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE));
@@ -119,35 +173,17 @@ static void tickTimerStop()
     CELLULAR_PORT_TIM_CLK_DISABLE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
 }
 
-/* ----------------------------------------------------------------
- * PUBLIC FUNCTIONS SPECIFIC TO THIS PORT
- * -------------------------------------------------------------- */
-
-// Initalise the private stuff.
-int32_t cellularPortPrivateInit()
-{
-    gTickTimerOverflowCount = 0;
-
-    return tickTimerStart();
-}
-
-// Deinitialise the private stuff.
-void cellularPortPrivateDeinit()
-{
-    tickTimerStop();
-}
-
 // Get the current tick converted to a time in milliseconds.
 int64_t cellularPortPrivateGetTickTimeMs()
 {
-    int64_t tickTimerValue = 0;
+    int64_t tickTimerValue;
 
     // Read the timer
     tickTimerValue = __HAL_TIM_GET_COUNTER(&gTimerHandle);
 
     // Add the overflow count.
     tickTimerValue += gTickTimerOverflowCount *
-                      CELLULAR_PORT_TICK_TIMER_PERIOD;
+                      CELLULAR_PORT_TICK_TIMER_OVERFLOW_PERIOD_MS;
 
     return tickTimerValue;
 }

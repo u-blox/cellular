@@ -18,12 +18,15 @@
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
 #include "cellular_port_test_platform_specific.h"
+#include "cellular_port_clib.h"
 
 #include "stdio.h"
 #include "stdbool.h"
 #include "assert.h"
 #include "FreeRTOS.h"
 #include "task.h"
+
+#include "stm32f4xx_hal.h"
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -43,6 +46,49 @@
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS
  * -------------------------------------------------------------- */
+
+// System Clock Configuration
+static void systemClockConfig(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    // Configure the main internal regulator output voltage
+    __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+
+    // Initialize the CPU, AHB and APB bus clocks
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM = 12;
+    RCC_OscInitStruct.PLL.PLLN = 336;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ = 7;
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+        assert(false);
+    }
+
+    // Initialize the CPU, AHB and APB bus clocks
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 |
+                                  RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) {
+        assert(false);
+    }
+}
+
+#ifdef USE_FULL_ASSERT
+void assert_failed(uint8_t *pFile, uint32_t line)
+{
+    _cellularPort_assert((char *) pFile, line, false);
+}
+#endif /* USE_FULL_ASSERT */
+
 
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS
@@ -90,6 +136,12 @@ void testTask(void *pParam)
 int main(void)
 {
     TaskHandle_t taskHandle = NULL;
+
+    // Reset all peripherals, initialize the Flash interface and the Systick
+    HAL_Init();
+
+    // Configure the system clock
+    systemClockConfig();
 
    // Create the test task and have it running
    // at a low priority
