@@ -13,8 +13,8 @@
 <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.launch.startuptab.haltonexception" value="true"/>
 <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.launch.swd_mode" value="true"/>
 <stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.swv_port" value="61235"/>
-<stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.swv_trace_div" value="8"/>
-<stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.swv_trace_hclk" value="16000000"/>
+<stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.swv_trace_div" value="84"/>
+<stringAttribute key="com.st.stm32cube.ide.mcu.debug.launch.swv_trace_hclk" value="168000000"/>
 <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.launch.swv_wait_for_sync" value="true"/>
 <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.launch.useRemoteTarget" value="true"/>
 <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.launch.verify_flash_download" value="true"/>

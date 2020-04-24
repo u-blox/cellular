@@ -111,6 +111,7 @@ void testFail(void)
     
 }
 
+
 // The task within which testing runs.
 void testTask(void *pParam)
 {
@@ -142,6 +143,11 @@ int main(void)
 
     // Configure the system clock
     systemClockConfig();
+
+    // TODO: if I put a printf() here then all is fine.
+    // If I don't then any attempt to print later
+    // results in a hard fault.  Need to find out why.
+    printf("\n\nCELLULAR_TEST: starting RTOS...\n");
 
    // Create the test task and have it running
    // at a low priority

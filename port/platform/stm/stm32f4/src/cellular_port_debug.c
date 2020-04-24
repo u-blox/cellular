@@ -49,6 +49,8 @@
 // syscalls.c and will send output to the RTT trace port.
 int _write(int file, char *pStr, int len)
 {
+    (void) file;
+
     for (size_t x = 0 ; x < len ; x++) {
         ITM_SendChar(*pStr);
         pStr++;

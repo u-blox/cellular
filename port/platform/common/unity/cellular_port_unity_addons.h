@@ -79,18 +79,16 @@ void cellularPortUnityTestRegister(CellularPortUnityTestDescription_t *pDescript
     /* Use constructor attribute so that this is run during C initialisation before anything else runs */    \
     static void __attribute__((constructor)) CELLULAR_PORT_UNITY_UID(testRegistrationHelper) ()              \
     {                                                                                                        \
-        /* Static pointer to the test function at the end of this macro */                                   \
-        static const pCellularPortUnityTestFunction_t pFunction = &CELLULAR_PORT_UNITY_UID(testFunction);    \
         /* Static description of the tests to pass to the register function */                               \
         static CellularPortUnityTestDescription_t CELLULAR_PORT_UNITY_UID(testDescription) = {               \
             .pName = name,                                                                                   \
             .pGroup = group,                                                                                 \
-            .pFunction = pFunction,                                                                          \
+            .pFunction = &CELLULAR_PORT_UNITY_UID(testFunction),                                             \
             .pFile = __FILE__,                                                                               \
             .line = __LINE__,                                                                                \
             .pNext = NULL                                                                                    \
         };                                                                                                   \
-        /* Call the register function with the description so it can keep a list of the tests */             \
+        /* Call the register function with the description so it can keep a list of the tests     */         \
         cellularPortUnityTestRegister(&CELLULAR_PORT_UNITY_UID(testDescription));                            \
     }                                                                                                        \
     /* Actual start of test function */                                                                      \

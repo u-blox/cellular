@@ -55,7 +55,7 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
     nrf_gpio_pin_drive_t driveMode = GPIO_PIN_CNF_DRIVE_S0S1;
 
     if (pConfig != NULL) {
-        // Set the direction and drive mode
+        // Set the direction
         switch (pConfig->direction) {
             case CELLULAR_PORT_GPIO_DIRECTION_NONE:
                 // Do nothing here, disconnect is later

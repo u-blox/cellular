@@ -1,11 +1,12 @@
 #Introduction
 These directories provide the implementation of the porting layer on the Nordic NRF52840 platform plus the associated build and board configuration information:
 
-- `cfg`: contains the single file `cellular_cfg_hw.h` which provides default configuration for an NRF52840 board connecting to a cellular module.  Note that the type of cellular module is NOT specified, you must do that when you perform your build.
+- `cfg`: contains the file `cellular_cfg_hw_platform_specific.h` which provides default configuration for an NRF52840 board connecting to a cellular module.  Note that the type of cellular module is NOT specified, you must do that when you perform your build.  Also in here you will find the FreeRTOS configuration header file and the `sdk_config.h` for this build.
 - `sdk`: contains the files to build/test for the Nordic NRF52840 platform:
   - `gcc`: contains the build and test files for the Nordic SDK, nRF5 under GCC.
   - `ses`: contains the build and test files for the Nordic SDK, nRF5 under Segger Embedded Studio.
 - `src`: contains the implementation of the porting layers for NRF52840.
+- `test`: contains the code that runs the unit tests for the cellular code on NRF52840.
 
 #Hardware Requirements
 This code may be run on either a Nordic NRF52840 development board or a u-blox NINA-B1 module.  In either case the NRF52840 chip itself is somewhat challenged in the UART department, having only two.  This code needs one to talk to the cellular module leaving one other which might already be required by a customer application.  Hence this code is configured by default to send trace output over the SWDIO (AKA RTT) port which a Segger J-Link debugger can interpret (see the #Debugging section below).

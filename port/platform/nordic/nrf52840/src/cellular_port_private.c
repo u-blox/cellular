@@ -59,7 +59,7 @@ static void *gpCbParameter;
  * -------------------------------------------------------------- */
 
 // The tick handler.
-static void timerTickHandler(nrf_timer_event_t eventType, void *pContext)
+static void tickTimerHandler(nrf_timer_event_t eventType, void *pContext)
 {
     (void) pContext;
 
@@ -80,7 +80,7 @@ static int32_t tickTimerStart(nrfx_timer_config_t *pTimerCfg,
 
     if (nrfx_timer_init(&gTickTimer,
                         pTimerCfg,
-                        timerTickHandler) == NRFX_SUCCESS) {
+                        tickTimerHandler) == NRFX_SUCCESS) {
         // Set the compare interrupt on CC zero comparing
         // with limit, and enable the interrupt
         nrfx_timer_compare(&gTickTimer, 0, limit, true);
