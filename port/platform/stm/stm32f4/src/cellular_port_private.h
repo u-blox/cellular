@@ -24,6 +24,12 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
+// Get the port number of a pin, which is the upper nibble.
+#define CELLULAR_PORT_STM32F4_GPIO_PORT(x) ((uint16_t ) (((uint32_t) x) >> 4))
+
+// Get the pin number of a pin, which is the lower nibble.
+#define CELLULAR_PORT_STM32F4_GPIO_PIN(x) ((uint16_t ) (x & 0x0f))
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */

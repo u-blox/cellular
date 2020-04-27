@@ -24,13 +24,31 @@
  */
 
 /* ----------------------------------------------------------------
- * COMPILE-TIME MACROS FOR STM32F4: UART
+ * COMPILE-TIME MACROS FOR STM32F4: UART/USART
  * -------------------------------------------------------------- */
 
 #ifndef CELLULAR_CFG_UART
-/** TBD.
+/** The UART/USART HW block use, a number between 1 and 8.
  */
-# define CELLULAR_CFG_UART                           0
+# define CELLULAR_CFG_UART                           1
+#endif
+
+#ifndef CELLULAR_CFG_DMA
+/** The DMA to use with the UART, 1 or 2.
+ */
+# define CELLULAR_CFG_DMA                            1
+#endif
+
+#ifndef CELLULAR_CFG_DMA_STREAM
+/** The stream of the given DMA to use, a number between 0 and 7.
+ */
+# define CELLULAR_CFG_DMA_STREAM                     0
+#endif
+
+#ifndef CELLULAR_CFG_DMA_CHANNEL
+/** The channel of the given DMA to use, a number between 0 and 7.
+ */
+# define CELLULAR_CFG_DMA_CHANNEL                    0
 #endif
 
 #ifndef CELLULAR_CFG_RTS_THRESHOLD
@@ -59,18 +77,18 @@
 /** The ST32F437VG processor on the C030-R412M board is 
  * driven from an external 8 MHz clock which PLL_HSE_XTAL
  * is assumed to multiply up to a SYSCLK value of 168 MHz.
- * The APBx clock is assumed to divide by 4, so
- * APBxCLK is 42 MHz (noting that timers 1 and 8 to 11 are on
+ * The APBx clock is assumed to divide by 1, so
+ * APBxCLK is 168 MHz (noting that timers 1 and 8 to 11 are on
  * APB2, the rest on APB1).  The prescaler for the APB timer
  * clocks (a 16 bit value) is then adjusted to give a 1 us
  * tick, so with a CELLULAR_PORT_TICK_TIMER_DIVIDER value of
- * 1 this is 42.  If your clocks are different then the
+ * 1 this is 168.  If your clocks are different then the
  * value of CELLULAR_PORT_TICK_TIMER_PRESCALER (and, if
  * necessary CELLULAR_PORT_TICK_TIMER_DIVIDER) should be
  * adjusted to obtain a 1 us tick.
  */
 #ifndef CELLULAR_PORT_TICK_TIMER_PRESCALER
-# define CELLULAR_PORT_TICK_TIMER_PRESCALER          42
+# define CELLULAR_PORT_TICK_TIMER_PRESCALER          168
 #endif
 
 /** If it is not possible to get enough range out of the

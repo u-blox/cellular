@@ -12,7 +12,7 @@ This code was developed to run on the u-blox C030-R412M board, which includes an
 #Chip Resource Requirements
 One HW timer is required to provide the RTOS tick and a source of time for `cellularPortGetTickTimeMs()`: see `cellular_cfg_hw_platform_specific.h` in the `cfg` directory for which timer is used and how it is configured.
 
-One UART is also required.  TODO: more on this.
+One UART is also required and, to go with it, a single stream from one of the two DMA channels: see `cellular_cfg_hw_platform_specific.h` in the `cfg` directory for the defaults if nothing else is specified.
 
 #Downloading To The Board
 When the C030-R412M board is plugged into a USB port a mapped drive should appear, e.g. `D:`.  Builds are downloaded by copying your compiled `.bin` file to this drive.  Builds can also be downloaded using ST's (ST-Link utility)[https://www.st.com/en/development-tools/stsw-link004.html] and through the STM32Cube IDE.

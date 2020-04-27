@@ -14,4 +14,9 @@ In this repository you will find the implementation of a cellular transport in C
 The C API for `ctrl`, `sock` and `port` can be found in their respective `api` sub-directories and are documented in the header files there.  Information on how to build run tests on a given target platform can be found in the `README.md` files of the relevant platform sub-directory of `port`.
 
 # License
-The software in this repository is Apache 2.0 licensed.  The AT parsing code in `ctrl` is derived from the Apache 2.0 licensed AT parser of mbed-os; copyright (and our thanks) remain with the original authors.
+The software in this repository is Apache 2.0 licensed and copyright u-blox with the following exceptions:
+
+- the AT parsing code in `ctrl` is derived from the Apache 2.0 licensed AT parser of mbed-os,
+- the heap management code for the STM32 platform (`heap_useNewlib.c`), required because the native ST implementation does not allocate memory correctly when used with FreeRTOS, is copyright Dave Nadler.
+
+In all cases copyright (and our thanks) remain with the original authors.

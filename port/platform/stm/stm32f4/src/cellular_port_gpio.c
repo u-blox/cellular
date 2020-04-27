@@ -19,6 +19,7 @@
 #endif
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
+#include "cellular_port_private.h"
 #include "cellular_port_gpio.h"
 
 #include "stm32f4xx_hal.h"
@@ -27,12 +28,6 @@
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
-
-// Get the port number of a pin, which is the upper nibble.
-#define CELLULAR_PORT_STM32F4_GPIO_PORT(x) ((uint16_t ) (((uint32_t) x) >> 4))
-
-// Get the pin number of a pin, which is the lower nibble.
-#define CELLULAR_PORT_STM32F4_GPIO_PIN(x) ((uint16_t ) (x & 0x0f))
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -112,7 +107,7 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
             // to the port register, the index for which is the upper
             // nibble of pin (they are in banks of 16), and then
             // the configuration structure which has the pin number
-            // within the port.
+            // within that port.
             HAL_GPIO_Init(((GPIO_TypeDef *) GPIOA_BASE) +
                           CELLULAR_PORT_STM32F4_GPIO_PORT(pConfig->pin),
                           &config);
