@@ -112,6 +112,36 @@
 			<locationURI>$%7BUBX_PATH%7D/sock/test/cellular_sock_test.c</locationURI>
 		</link>
 		<link>
+			<name>Cellular/U-Blox/heap_useNewlib.c</name>
+			<type>1</type>
+			<locationURI>$%7BPLATFORM_PATH%7D/src/heap_useNewlib.c</locationURI>
+		</link>
+		<link>
+			<name>Cellular/U-Blox/startup_stm32f437vgtx.s</name>
+			<type>1</type>
+			<locationURI>$%7BPLATFORM_PATH%7D/src/startup_stm32f437vgtx.s</locationURI>
+		</link>
+		<link>
+			<name>Cellular/U-Blox/stm32f4xx_hal_msp.c</name>
+			<type>1</type>
+			<locationURI>$%7BPLATFORM_PATH%7D/src/stm32f4xx_hal_msp.c</locationURI>
+		</link>
+		<link>
+			<name>Cellular/U-Blox/stm32f4xx_it.c</name>
+			<type>1</type>
+			<locationURI>$%7BPLATFORM_PATH%7D/src/stm32f4xx_it.c</locationURI>
+		</link>
+		<link>
+			<name>Cellular/U-Blox/syscalls.c</name>
+			<type>1</type>
+			<locationURI>$%7BPLATFORM_PATH%7D/src/syscalls.c</locationURI>
+		</link>
+		<link>
+			<name>Cellular/U-Blox/system_stm32f4xx.c</name>
+			<type>1</type>
+			<locationURI>$%7BPLATFORM_PATH%7D/src/system_stm32f4xx.c</locationURI>
+		</link>
+		<link>
 			<name>Drivers/STM32F4xx_HAL_Driver/stm32f4xx_hal.c</name>
 			<type>1</type>
 			<locationURI>$%7BSTM32CUBE_FW_PATH%7D/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c</locationURI>
