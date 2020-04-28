@@ -52,6 +52,13 @@ void cellularPortPrivateDeinit();
  */
 int64_t cellularPortPrivateGetTickTimeMs();
 
+/** Return the address of the port register for a given GPIO pin.
+ *
+ * @param pin the pin number.
+ * @return    the GPIO port address.
+ * */
+GPIO_TypeDef *pCellularPortPrivateGpioGetReg(int32_t pin);
+
 #endif // _CELLULAR_PORT_PRIVATE_H_
 
 // End of file

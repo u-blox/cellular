@@ -28,13 +28,15 @@
  * -------------------------------------------------------------- */
 
 #ifndef CELLULAR_CFG_UART
-/** The UART/USART HW block use, a number between 1 and 8.
+/** The UART/USART HW block to use, a number between 1 and 8,
+ * though only the USARTs (1, 2, 3 and 6) are capable of HW flow
+ * control.
  */
 # define CELLULAR_CFG_UART                           1
 #endif
 
 #ifndef CELLULAR_CFG_DMA
-/** The DMA to use with the UART, 1 or 2.
+/** The DMA to use with the UART, either 1 or 2.
  */
 # define CELLULAR_CFG_DMA                            1
 #endif
@@ -67,8 +69,11 @@
 /** The TIMx TIMER instance to use.  Values can be 2, 3, 4, 5
  * or 7, others if you fiddle with the macro expansion of
  * CELLULAR_PORT_TIM_IRQ_N() in cellular_port_private.c
- * (because not all interrupts follow the same naming
- * convention).
+ * (because not all timer interrupts follow the same naming
+ * convention).  Note that timers 1 and timers 8 to 11 are on
+ * APB2, the rest on APB1, so if you have different clock
+ * dividers on the two buses you will need to revisit
+ * the numbers lower down.
  */
 #ifndef CELLULAR_PORT_TICK_TIMER_INSTANCE
 # define CELLULAR_PORT_TICK_TIMER_INSTANCE           2
@@ -77,18 +82,18 @@
 /** The ST32F437VG processor on the C030-R412M board is 
  * driven from an external 8 MHz clock which PLL_HSE_XTAL
  * is assumed to multiply up to a SYSCLK value of 168 MHz.
- * The APBx clock is assumed to divide by 1, so
- * APBxCLK is 168 MHz (noting that timers 1 and 8 to 11 are on
+ * The APBx clock is assumed to divide by 4, so
+ * APBxCLK is 42 MHz (noting that timers 1 and 8 to 11 are on
  * APB2, the rest on APB1).  The prescaler for the APB timer
  * clocks (a 16 bit value) is then adjusted to give a 1 us
- * tick, so with a CELLULAR_PORT_TICK_TIMER_DIVIDER value of
- * 1 this is 168.  If your clocks are different then the
- * value of CELLULAR_PORT_TICK_TIMER_PRESCALER (and, if
- * necessary CELLULAR_PORT_TICK_TIMER_DIVIDER) should be
+ * tick, so with a CELLULAR_PORT_TICK_TIMER_DIVIDER of
+ * TIM_CLOCKDIVISION_DIV1 this is 42.  If your clocks are
+ * different then the value of CELLULAR_PORT_TICK_TIMER_PRESCALER
+ * (and, if necessary CELLULAR_PORT_TICK_TIMER_DIVIDER) should be
  * adjusted to obtain a 1 us tick.
  */
 #ifndef CELLULAR_PORT_TICK_TIMER_PRESCALER
-# define CELLULAR_PORT_TICK_TIMER_PRESCALER          168
+# define CELLULAR_PORT_TICK_TIMER_PRESCALER          42
 #endif
 
 /** If it is not possible to get enough range out of the

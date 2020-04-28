@@ -19,11 +19,12 @@
 #endif
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
-#include "cellular_port_private.h"
 #include "cellular_port_gpio.h"
 
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_gpio.h"
+
+#include "cellular_port_private.h" // Down here 'cos it needs GPIO_TypeDef
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -108,8 +109,7 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
             // nibble of pin (they are in banks of 16), and then
             // the configuration structure which has the pin number
             // within that port.
-            HAL_GPIO_Init(((GPIO_TypeDef *) GPIOA_BASE) +
-                          CELLULAR_PORT_STM32F4_GPIO_PORT(pConfig->pin),
+            HAL_GPIO_Init(pCellularPortPrivateGpioGetReg(pConfig->pin),
                           &config);
             errorCode = CELLULAR_PORT_SUCCESS;
         }
@@ -121,8 +121,7 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
 // Set the state of a GPIO.
 int32_t cellularPortGpioSet(int32_t pin, int32_t level)
 {
-    HAL_GPIO_WritePin(((GPIO_TypeDef *) GPIOA_BASE) +
-                      CELLULAR_PORT_STM32F4_GPIO_PORT(pin),
+    HAL_GPIO_WritePin(pCellularPortPrivateGpioGetReg(pin),
                       CELLULAR_PORT_STM32F4_GPIO_PIN(pin),
                       level);
 
@@ -132,8 +131,7 @@ int32_t cellularPortGpioSet(int32_t pin, int32_t level)
 // Get the state of a GPIO.
 int32_t cellularPortGpioGet(int32_t pin)
 {
-    return HAL_GPIO_ReadPin(((GPIO_TypeDef *) GPIOA_BASE) +
-                            CELLULAR_PORT_STM32F4_GPIO_PORT(pin),
+    return HAL_GPIO_ReadPin(pCellularPortPrivateGpioGetReg(pin),
                             CELLULAR_PORT_STM32F4_GPIO_PIN(pin));
 }
 

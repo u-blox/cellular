@@ -24,7 +24,6 @@
 #include "cellular_port.h"
 #include "cellular_port_os.h"
 #include "cellular_port_uart.h"
-#include "cellular_port_private.h"
 
 #include "FreeRTOS.h"
 #include "queue.h"
@@ -34,6 +33,8 @@
 #include "stm32f4xx_ll_gpio.h"
 #include "stm32f4xx_ll_dma.h"
 #include "stm32f4xx_ll_usart.h"
+
+#include "cellular_port_private.h"  // Down here 'cos it needs GPIO_TypeDef
 
 /* The code here was written using the really useful information
  * here:
@@ -98,6 +99,17 @@ typedef struct CellularPortUartData_t {
 
 // Root of the UART linked list.
 static CellularPortUartData_t *gpUartDataHead = NULL;
+
+// Get the bus enable function for the given UART/USART.
+static const void (*gLlApbClkEnable[])(uint32_t) = {0, // This to avoid having to -1 all the time
+                                                    LL_APB2_GRP1_EnableClock,
+                                                    LL_APB1_GRP1_EnableClock,
+                                                    LL_APB1_GRP1_EnableClock,
+                                                    LL_APB1_GRP1_EnableClock,
+                                                    LL_APB1_GRP1_EnableClock,
+                                                    LL_APB2_GRP1_EnableClock,
+                                                    LL_APB1_GRP1_EnableClock,
+                                                    LL_APB1_GRP1_EnableClock};
 
 // Get the LL driver peripheral number for a given UART/USART.
 static const int32_t gLlApbGrpPeriphUsart[] = {0, // This to avoid having to -1 all the time
@@ -278,6 +290,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
 
                 errorCode = CELLULAR_PORT_OUT_OF_MEMORY;
 
+                uartData.number = uart;
                 // Malloc memory for the read buffer
                 uartData.pRxBufferStart = (char *) pCellularPort_malloc(CELLULAR_PORT_UART_RX_BUFFER_SIZE);
                 if (uartData.pRxBufferStart != NULL) {
@@ -297,12 +310,12 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                         errorCode = CELLULAR_PORT_PLATFORM_ERROR;
 
                         // Enable UART clock
-                        LL_APB1_GRP1_EnableClock(gLlApbGrpPeriphUsart[uart]);
+                        gLlApbClkEnable[uart](gLlApbGrpPeriphUsart[uart]);
 
-                        // Enable DMA clock
+                        // Enable DMA clock (all DMAs are on bus 1)
                         LL_AHB1_GRP1_EnableClock(gLlApbGrpPeriphDma[CELLULAR_CFG_DMA]);
 
-                        // Enable GPIO clocks: note, using the LL driver rather
+                        // Enable GPIO clocks (all on bus 1): note, using the LL driver rather
                         // than our driver or the HAL driver here partly because the
                         // example code does that and also because lower down
                         // we need to enable the UART alternate function for
@@ -325,31 +338,27 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                         gpioInitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
                         gpioInitStruct.Pull = LL_GPIO_PULL_UP;
                         gpioInitStruct.Alternate = gGpioAf[uart - 1];
-                        platformError = LL_GPIO_Init(((GPIO_TypeDef *) GPIOA_BASE) +
-                                                     CELLULAR_PORT_STM32F4_GPIO_PORT(pinTx),
+                        platformError = LL_GPIO_Init(pCellularPortPrivateGpioGetReg(pinTx),
                                                      &gpioInitStruct);
 
                         //  Configure Rx
                         if (platformError == SUCCESS) {
                             gpioInitStruct.Pin = CELLULAR_PORT_STM32F4_GPIO_PIN(pinRx);
-                            platformError = LL_GPIO_Init(((GPIO_TypeDef *) GPIOA_BASE) +
-                                                         CELLULAR_PORT_STM32F4_GPIO_PORT(pinRx),
+                            platformError = LL_GPIO_Init(pCellularPortPrivateGpioGetReg(pinRx),
                                                          &gpioInitStruct);
                         }
 
                         //  Configure RTS if present
                         if ((pinRts >= 0) && (platformError == SUCCESS)) {
                             gpioInitStruct.Pin = CELLULAR_PORT_STM32F4_GPIO_PIN(pinRts);
-                            platformError = LL_GPIO_Init(((GPIO_TypeDef *) GPIOA_BASE) +
-                                                         CELLULAR_PORT_STM32F4_GPIO_PORT(pinRts),
+                            platformError = LL_GPIO_Init(pCellularPortPrivateGpioGetReg(pinRts),
                                                          &gpioInitStruct);
                         }
 
                         //  Configure CTS if present
                         if ((pinCts >= 0) && (platformError == SUCCESS)) {
                             gpioInitStruct.Pin = CELLULAR_PORT_STM32F4_GPIO_PIN(pinCts);
-                            platformError = LL_GPIO_Init(((GPIO_TypeDef *) GPIOA_BASE) +
-                                                         CELLULAR_PORT_STM32F4_GPIO_PORT(pinCts),
+                            platformError = LL_GPIO_Init(pCellularPortPrivateGpioGetReg(pinCts),
                                                          &gpioInitStruct);
                         }
 

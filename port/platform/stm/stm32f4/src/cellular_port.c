@@ -19,7 +19,10 @@
 #endif
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
-#include "cellular_port_private.h"
+
+#include "stm32f437xx.h"
+
+#include "cellular_port_private.h" // Down here 'cos it needs GPIO_TypeDef
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS

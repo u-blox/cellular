@@ -20,10 +20,11 @@
 #include "cellular_cfg_hw_platform_specific.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
-#include "cellular_port_private.h"
 
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_tim.h"
+
+#include "cellular_port_private.h"  // Down here 'cos it needs GPIO_TypeDef
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -64,12 +65,25 @@ static int32_t gTickTimerRtosCount;
 // Overflow counter that allows us to keep 64 bit time.
 static int64_t gTickTimerOverflowCount;
 
+// Get the GPIOx address for a given GPIO port.
+static GPIO_TypeDef * const gpGpioReg[] = {GPIOA,
+                                           GPIOB,
+                                           GPIOC,
+                                           GPIOD,
+                                           GPIOE,
+                                           GPIOF,
+                                           GPIOG,
+                                           GPIOH,
+                                           GPIOI,
+                                           GPIOJ,
+                                           GPIOK};
+
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS
  * -------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------
- * PUBLIC FUNCTIONS SPECIFIC TO THIS PORT
+ * PUBLIC FUNCTIONS SPECIFIC TO THIS PORT: HAL FUNCTIONS
  * -------------------------------------------------------------- */
 
 // IRQ handler for the tick timer.
@@ -77,20 +91,6 @@ void CELLULAR_PORT_TIM_IRQ_HANDLER(CELLULAR_PORT_TICK_TIMER_INSTANCE)
 {
     // Call the HAL's generic timer IRQ handler
     HAL_TIM_IRQHandler(&gTimerHandle);
-}
-
-// Suspend Tick increment.
-void HAL_SuspendTick(void)
-{
-    // Disable TIM update interrupt
-    __HAL_TIM_DISABLE_IT(&gTimerHandle, TIM_IT_UPDATE);
-}
-
-// Resume Tick increment.
-void HAL_ResumeTick(void)
-{
-    // Enable TIM Update interrupt
-    __HAL_TIM_ENABLE_IT(&gTimerHandle, TIM_IT_UPDATE);
 }
 
 // Called when the timer period interrupt occurs.
@@ -155,6 +155,24 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t tickPriority)
     return errorCode;
 }
 
+// Suspend Tick increment.
+void HAL_SuspendTick(void)
+{
+    // Disable TIM update interrupt
+    __HAL_TIM_DISABLE_IT(&gTimerHandle, TIM_IT_UPDATE);
+}
+
+// Resume Tick increment.
+void HAL_ResumeTick(void)
+{
+    // Enable TIM Update interrupt
+    __HAL_TIM_ENABLE_IT(&gTimerHandle, TIM_IT_UPDATE);
+}
+
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS SPECIFIC TO THIS PORT: INIT FUNCTIONS
+ * -------------------------------------------------------------- */
+
 // Initalise the private stuff.
 int32_t cellularPortPrivateInit()
 {
@@ -173,6 +191,10 @@ void cellularPortPrivateDeinit()
     CELLULAR_PORT_TIM_CLK_DISABLE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
 }
 
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS SPECIFIC TO THIS PORT: GET TIME TICK
+ * -------------------------------------------------------------- */
+
 // Get the current tick converted to a time in milliseconds.
 int64_t cellularPortPrivateGetTickTimeMs()
 {
@@ -186,6 +208,19 @@ int64_t cellularPortPrivateGetTickTimeMs()
                       CELLULAR_PORT_TICK_TIMER_OVERFLOW_PERIOD_MS;
 
     return tickTimerValue;
+}
+
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS SPECIFIC TO THIS PORT: MISC
+ * -------------------------------------------------------------- */
+
+// Return the base address for a given GPIO pin.
+GPIO_TypeDef * const pCellularPortPrivateGpioGetReg(int32_t pin)
+{
+    int32_t port = CELLULAR_PORT_STM32F4_GPIO_PORT(pin);
+    cellularPort_assert(port >= 0);
+    cellularPort_assert(port < sizeof(gpGpioReg) / sizeof(gpGpioReg[0]));
+    return gpGpioReg[port];
 }
 
 // End of file
