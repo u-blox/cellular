@@ -55,7 +55,7 @@
 #define CELLULAR_PORT_UART_MELD5(v, w, x, y, z) v ## w ## x ## y ## z
 
 // Make DMAx
-#define CELLULAR_PORT_DMA_N(x) CELLULAR_PORT_UART_MELD2(DMA, x)
+#define CELLULAR_PORT_DMA(x) CELLULAR_PORT_UART_MELD2(DMA, x)
 
 // Make LL_DMA_STREAM_x
 #define CELLULAR_PORT_DMA_STREAM(x) CELLULAR_PORT_UART_MELD2(LL_DMA_STREAM_, x)
@@ -65,6 +65,21 @@
 
 // Make DMAx_Streamy_IRQn
 #define CELLULAR_DMA_STREAM_IRQ_N(x, y) CELLULAR_PORT_UART_MELD5(DMA, x, _Stream, y, _IRQn)
+
+// Make LL_DMA_ClearFlag_HTx
+#define CELLULAR_DMA_CLEAR_FLAG_HT(x) CELLULAR_PORT_UART_MELD2(LL_DMA_ClearFlag_HT, x)
+
+// Make LL_DMA_ClearFlag_TCx
+#define CELLULAR_DMA_CLEAR_FLAG_TC(x) CELLULAR_PORT_UART_MELD2(LL_DMA_ClearFlag_TC, x)
+
+// Make LL_DMA_ClearFlag_TEx
+#define CELLULAR_DMA_CLEAR_FLAG_TE(x) CELLULAR_PORT_UART_MELD2(LL_DMA_ClearFlag_TE, x)
+
+// Make LL_DMA_ClearFlag_DMEx
+#define CELLULAR_DMA_CLEAR_FLAG_DME(x) CELLULAR_PORT_UART_MELD2(LL_DMA_ClearFlag_DME, x)
+
+// Make LL_DMA_ClearFlag_FEx
+#define CELLULAR_DMA_CLEAR_FLAG_FE(x) CELLULAR_PORT_UART_MELD2(LL_DMA_ClearFlag_FE, x)
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -337,7 +352,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                         // the alternate function
                         gpioInitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
                         gpioInitStruct.Pull = LL_GPIO_PULL_UP;
-                        gpioInitStruct.Alternate = gGpioAf[uart - 1];
+                        gpioInitStruct.Alternate = gGpioAf[uart];
                         platformError = LL_GPIO_Init(pCellularPortPrivateGpioGetReg(pinTx),
                                                      &gpioInitStruct);
 
@@ -365,60 +380,70 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                         // Configure DMA
                         if (platformError == SUCCESS) {
                             // Channel CELLULAR_CFG_DMA_CHANNEL on our DMA/Stream
-                            LL_DMA_SetChannelSelection(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetChannelSelection(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                        CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                                        CELLULAR_PORT_DMA_CHANNEL(CELLULAR_CFG_DMA_CHANNEL));
                             // Towards RAM
-                            LL_DMA_SetDataTransferDirection(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetDataTransferDirection(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                             CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                                             LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
                             // Low priority
-                            LL_DMA_SetStreamPriorityLevel(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetStreamPriorityLevel(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                           CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                                           LL_DMA_PRIORITY_LOW);
                             // Circular
-                            LL_DMA_SetMode(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetMode(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                            CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                            LL_DMA_MODE_CIRCULAR);
                             // Byte-wise transfers
-                            LL_DMA_SetPeriphIncMode(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetPeriphIncMode(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                     CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                                     LL_DMA_PERIPH_NOINCREMENT);
-                            LL_DMA_SetMemoryIncMode(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetMemoryIncMode(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                     CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                                     LL_DMA_MEMORY_INCREMENT);
-                            LL_DMA_SetPeriphSize(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetPeriphSize(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                  CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                                  LL_DMA_PDATAALIGN_BYTE);
-                            LL_DMA_SetMemorySize(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetMemorySize(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                  CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                                  LL_DMA_MDATAALIGN_BYTE);
                             // Not FIFO mode, whatever that is
-                            LL_DMA_DisableFifoMode(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_DisableFifoMode(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                    CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM));
 
                             // Attach the DMA to the UART at one end
-                            LL_DMA_SetPeriphAddress(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetPeriphAddress(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                     CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                                     (uint32_t) &((gpUsart[uart])->DR));
 
                             // ...and to the RAM buffer at the other end
-                            LL_DMA_SetMemoryAddress(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetMemoryAddress(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                     CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                                     (uint32_t) (uartData.pRxBufferStart));
-                            LL_DMA_SetDataLength(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_SetDataLength(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                  CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM),
                                                  CELLULAR_PORT_UART_RX_BUFFER_SIZE);
 
-                            // Enable half full and transmit complete interrupts
-                            LL_DMA_EnableIT_HT(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
-                                               CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM));
-                            LL_DMA_EnableIT_TC(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
-                                               CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM));
-
-                            // Set DMA running
+                            // Set DMA priority
                             NVIC_SetPriority(CELLULAR_DMA_STREAM_IRQ_N(CELLULAR_CFG_DMA, CELLULAR_CFG_DMA_STREAM),
                                              NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+                            // Clear all the DMA flags and DMA pending IRQ first
+                            CELLULAR_DMA_CLEAR_FLAG_HT(CELLULAR_CFG_DMA_STREAM)(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA));
+                            CELLULAR_DMA_CLEAR_FLAG_TC(CELLULAR_CFG_DMA_STREAM)(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA));
+                            CELLULAR_DMA_CLEAR_FLAG_TE(CELLULAR_CFG_DMA_STREAM)(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA));
+                            CELLULAR_DMA_CLEAR_FLAG_DME(CELLULAR_CFG_DMA_STREAM)(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA));
+                            CELLULAR_DMA_CLEAR_FLAG_FE(CELLULAR_CFG_DMA_STREAM)(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA));
+                            NVIC_ClearPendingIRQ(CELLULAR_DMA_STREAM_IRQ_N(CELLULAR_CFG_DMA,
+                                                                           CELLULAR_CFG_DMA_STREAM));
+
+                            // Enable half full and transmit complete interrupts
+                            LL_DMA_EnableIT_HT(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
+                                               CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM));
+                            LL_DMA_EnableIT_TC(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
+                                               CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM));
+
+                            // Go!
                             NVIC_EnableIRQ(CELLULAR_DMA_STREAM_IRQ_N(CELLULAR_CFG_DMA, CELLULAR_CFG_DMA_STREAM));
 
                             // Initialise the USART
@@ -452,10 +477,11 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                             NVIC_SetPriority(gUsartIrqN[uart],
                                              NVIC_EncodePriority(NVIC_GetPriorityGrouping(),
                                                                  5, 1));
+                            NVIC_ClearPendingIRQ(gUsartIrqN[uart]);
                             NVIC_EnableIRQ(gUsartIrqN[uart]);
 
                             // Enable USART and DMA
-                            LL_DMA_EnableStream(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
+                            LL_DMA_EnableStream(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
                                                 CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM));
                             LL_USART_Enable(gpUsart[uart]);
                         }
@@ -514,11 +540,11 @@ int32_t cellularPortUartDeinit(int32_t uart)
 
             // Disable USART interrupt
             NVIC_DisableIRQ(gUsartIrqN[uart]);
-
-            // Disable USART and DMA
+            // Disable DMA and USART
+            LL_DMA_DisableStream(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA),
+                                 CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM));
             LL_USART_Disable(gpUsart[uart]);
-            LL_DMA_DisableStream(CELLULAR_PORT_DMA_N(CELLULAR_CFG_DMA),
-                                CELLULAR_PORT_DMA_STREAM(CELLULAR_CFG_DMA_STREAM));
+            LL_USART_DeInit(gpUsart[uart]);
 
             // Delete the queue
             cellularPortQueueDelete(pUart->queue);
