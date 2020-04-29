@@ -193,12 +193,13 @@ typedef enum {
                                              //< always be false and you
                                              //< might not be warned of this.
     CELLULAR_CTRL_NETWORK_STATUS_UNKNOWN,
-    CELLULAR_CTRL_NETWORK_STATUS_NOT_REGISTERED,
-    CELLULAR_CTRL_NETWORK_STATUS_SEARCHING,
-    CELLULAR_CTRL_NETWORK_STATUS_REGISTRATION_DENIED,
-    CELLULAR_CTRL_NETWORK_STATUS_OUT_OF_COVERAGE,
-    CELLULAR_CTRL_NETWORK_STATUS_EMERGENCY_ONLY,
-    CELLULAR_CTRL_NETWORK_STATUS_REGISTERED,
+    CELLULAR_CTRL_NETWORK_STATUS_NOT_REGISTERED,            // +CEREG: 0
+    CELLULAR_CTRL_NETWORK_STATUS_REGISTERED_HOME,           // +CEREG: 1
+    CELLULAR_CTRL_NETWORK_STATUS_SEARCHING,                 // +CEREG: 2
+    CELLULAR_CTRL_NETWORK_STATUS_REGISTRATION_DENIED,       // +CEREG: 3
+    CELLULAR_CTRL_NETWORK_STATUS_OUT_OF_COVERAGE,           // +CEREG: 4
+    CELLULAR_CTRL_NETWORK_STATUS_REGISTERED_ROAMING,        // +CEREG: 5
+    CELLULAR_CTRL_NETWORK_STATUS_EMERGENCY_ONLY,            // +CEREG: 8
     CELLULAR_CTRL_NETWORK_STATUS_TEMPORARY_NETWORK_BARRING,
     CELLULAR_CTRL_MAX_NUM_NETWORK_STATUS
 } CellularCtrlNetworkStatus_t;
@@ -481,8 +482,10 @@ int32_t cellularCtrlSetMnoProfile(int32_t mnoProfile);
  */
 int32_t cellularCtrlGetMnoProfile();
 
-/** Register with the cellular network and obtain a PDP
- * context.
+/** Register with the cellular network and activate a PDP
+ * context. This function provides the Registration and Activation 
+ * of the PDP context in one call. If needed to be split, use
+ * the cellularCtrlRegister() and cellularCtrlActivte() functions. 
  *
  * @param pKeepGoingCallback a callback function that governs how
  *                           long registration will continue for.
@@ -495,6 +498,9 @@ int32_t cellularCtrlGetMnoProfile();
  *                           any watchdog timer that might be running
  *                           during longer cat-M1/NB1 network search
  *                           periods.
+ * @param pPlmn              pointer to a string giving the PLMN to
+ *                           use in manual connection; set to NULL if
+ *                           automatic PLMN is required (+COPS=0)
  * @param pApn               pointer to a string giving the APN to
  *                           use; set to NULL if no APN is required
  *                           by the service provider.
@@ -509,20 +515,113 @@ int32_t cellularCtrlGetMnoProfile();
  *                           failure.
  */
 int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
+                            const char *pPlmn,
                             const char *pApn, const char *pUsername,
                             const char *pPassword);
 
-/** Disconnect the cellular module from the network.
+/** Register with the cellular network.
  *
- * @return zero on success or negative error code on failure.
+ * @param pKeepGoingCallback a callback function that governs how
+ *                           long registration will continue for.
+ *                           This function is called while waiting
+ *                           for registration to finish; registration
+ *                           will only continue while it returns true.
+ *                           This allows the caller to terminate
+ *                           registration at their convenience.
+ *                           This function may also be used to feed
+ *                           any watchdog timer that might be running
+ *                           during longer cat-M1/NB1 network search
+ *                           periods.
+ * @param pPlmn              pointer to a string giving the PLMN to
+ *                           use in manual connection; set to NULL if
+ *                           automatic PLMN is required.
+ * @return                   zero on success or negative error code on
+ *                           failure.
  */
-int32_t cellularCtrlDisconnect();
+int32_t cellularCtrlRegister(bool (*pKeepGoingCallback) (void),
+                            const char *pPlmn);
+
+/** Activate the PDP context. 
+ *
+ * @param pApn               pointer to a string giving the APN to
+ *                           use; set to NULL if no APN is required
+ *                           by the service provider.
+ * @param pUsername          pointer to a string giving the user name
+ *                           for PPP authentication; may be set to
+ *                           NULL if no user name or password is
+ *                           required.
+ * @param pPassword          pointer to a string giving the password
+ *                           for PPP authentication; ignored must be
+ *                           non-NULL if pUsername is non-NULL.
+ * @return                   zero on success or negative error code on
+ *                           failure.
+ */
+int32_t cellularCtrlActivate(const char *pApn, const char *pUsername,
+                            const char *pPassword);
+
+/** Deactivate the PDP context. 
+ *
+ * @return                   zero on success or negative error code on
+ *                           failure.
+ */
+int32_t cellularCtrlDeActivate()
+
+/** Disconnect from the network. If there is an active PDP Context it 
+ * will be deactivated.  
+ * 
+ * @param pKeepGoingCallback a callback function that governs how
+ *                           long deregistration will continue for.
+ *                           This function is called while waiting
+ *                           for deregistration to finish; Deregistration
+ *                           will only continue while it returns true.
+ *                           This allows the caller to terminate
+ *                           registration at their convenience.
+ * @return                   zero on success or negative error code on
+ *                           failure.
+ */
+int32_t cellularCtrlDisconnect(bool (*pKeepGoingCallback) (void))
+
+/** Enable or disable the Registration status callback. This 
+ * callback will allow the application to know the various states of
+ * the network scanning, registration and rejections from the networks. 
+ * 
+ * @param pRegistrationCallback pointer to the function to handle 
+ *                              any registration state changes.   
+ * @param pParam                Any pointer to be included when calling
+ *                              the callback function, can be NULL. 
+ * @return                      zero on success or negative error code on
+ *                              failure. 
+ */
+int32_t cellularCtrlSetRegistrationStatusCallback(
+    void (*pRegistrationCallback) (void *, CellularCtrlNetworkStatus_t), 
+    void *pParam)
+
+/** Enable or disable the Radio connection callback. This
+ * callback will allow the application to know when the module has
+ * a connection to a base station. 
+ * 
+ * @param pRegistrationCallback pointer to the function to handle 
+ *                              any registration state changes.   
+ * @param pParam                Any pointer to be included when calling
+ *                              the callback function, can be NULL. 
+ * @return                      zero on success or negative error code on
+ *                              failure. 
+ */
+int32_t cellularCtrlSetRadioConnectionStatusCallback(
+    void (*pRadioConnectionStatusCallback) (void *, bool), 
+    void *pParam)
 
 /** Get the current network registration status.
  *
  * @return the current status.
  */
 CellularCtrlNetworkStatus_t cellularCtrlGetNetworkStatus();
+
+/** Get the current radio connection status.
+ *
+ * @return the current status. True for connected, false otherwise.
+ */
+bool cellularCtrlGetRadioConnectionStatus();
 
 /** Return the RAT that is currently in use.
  *
@@ -577,6 +676,31 @@ int32_t cellularCtrlGetMccMnc(int32_t *pMcc, int32_t *pMnc);
  *                would return), on failure negative error code.
  */
 int32_t cellularCtrlGetIpAddressStr(char *pStr);
+
+/** Return the IP addresses of the first and second DNS assigned
+ * by the network. Without a DNS set the module is unable to 
+ * use hostnames in other functions, only IP addreses.
+ *
+ * @param pStrDNS_first    should point to storage of length at least 
+ *                CELLULAR_CTRL_IP_ADDRESS_SIZE bytes in size.
+ *                On return the IP address will be written to
+ *                pStr as a string and a NULL terminator will
+ *                be added.
+ *                May be set to NULL for a simple test as to
+ *                whether an IP address has been allocated or not.
+ * @param pStrDNS_second    should point to storage of length at least 
+ *                CELLULAR_CTRL_IP_ADDRESS_SIZE bytes in size.
+ *                On return the IP address will be written to
+ *                pStr as a string and a NULL terminator will
+ *                be added.
+ *                May be set to NULL for a simple test as to
+ *                whether an IP address has been allocated or not.
+ * @return        on success, the number of characters that would
+ *                be copied into into pStrDNS_first if it is not NULL,
+ *                NOT including the terminator (i.e. as strlen()
+ *                would return), on failure negative error code.
+ */
+int32_t cellularCtrlGetDNSStr(char *pStrDNS_first, char *pStrDNS_second)
 
 /** Get the APN currently in use.
  *
