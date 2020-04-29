@@ -564,7 +564,7 @@ int32_t cellularCtrlActivate(const char *pApn, const char *pUsername,
  * @return                   zero on success or negative error code on
  *                           failure.
  */
-int32_t cellularCtrlDeActivate()
+int32_t cellularCtrlDeActivate();
 
 /** Disconnect from the network. If there is an active PDP Context it 
  * will be deactivated.  
@@ -579,7 +579,7 @@ int32_t cellularCtrlDeActivate()
  * @return                   zero on success or negative error code on
  *                           failure.
  */
-int32_t cellularCtrlDisconnect(bool (*pKeepGoingCallback) (void))
+int32_t cellularCtrlDisconnect(bool (*pKeepGoingCallback) (void));
 
 /** Enable or disable the Registration status callback. This 
  * callback will allow the application to know the various states of
@@ -594,7 +594,7 @@ int32_t cellularCtrlDisconnect(bool (*pKeepGoingCallback) (void))
  */
 int32_t cellularCtrlSetRegistrationStatusCallback(
     void (*pRegistrationCallback) (void *, CellularCtrlNetworkStatus_t), 
-    void *pParam)
+    void *pParam);
 
 /** Enable or disable the Radio connection callback. This
  * callback will allow the application to know when the module has
@@ -609,7 +609,7 @@ int32_t cellularCtrlSetRegistrationStatusCallback(
  */
 int32_t cellularCtrlSetRadioConnectionStatusCallback(
     void (*pRadioConnectionStatusCallback) (void *, bool), 
-    void *pParam)
+    void *pParam);
 
 /** Get the current network registration status.
  *
@@ -700,7 +700,7 @@ int32_t cellularCtrlGetIpAddressStr(char *pStr);
  *                NOT including the terminator (i.e. as strlen()
  *                would return), on failure negative error code.
  */
-int32_t cellularCtrlGetDNSStr(char *pStrDNS_first, char *pStrDNS_second)
+int32_t cellularCtrlGetDNSStr(char *pStrDNS_first, char *pStrDNS_second);
 
 /** Get the APN currently in use.
  *
