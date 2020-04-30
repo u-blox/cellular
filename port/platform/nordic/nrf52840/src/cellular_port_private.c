@@ -194,7 +194,7 @@ int64_t cellularPortPrivateGetTickTimeMs()
         // The timer is 12 bits wide so each overflow represents
         // ((1 / 31250) * 4096) seconds, 131.072 milliseconds
         // or x * 131072 / 1000
-        tickTimerValue += (((uint64_t) gTickTimerOverflowCount) << 18) / 1000;
+        tickTimerValue += (((uint64_t) gTickTimerOverflowCount) << 17) / 1000;
     } else {
         // The timer is 24 bits wide so each overflow represents
         // ((1 / 31250) * (2 ^ 24)) seconds, about very 537 seconds.

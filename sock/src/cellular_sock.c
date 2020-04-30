@@ -166,7 +166,7 @@ static void UUSORD_UUSORF_urc(void *pUnused)
     if (modemHandle >= 0) {
 
         // Don't lock the container mutex here as this
-        // needs to be called while a send or receive is
+        // needs to be callable while a send or receive is
         // in progress and that already has the mutex
 
         // Find the container
@@ -196,7 +196,7 @@ static void UUSOCL_urc(void *pUnused)
     if (modemHandle >= 0) {
 
         // Don't lock the container mutex here as this
-        // needs to be called while a send or receive is
+        // needs to be callable while a send or receive is
         // in progress and that already has the mutex
         pContainer = pContainerFindByModemHandle(modemHandle);
         if (pContainer != NULL) {
@@ -209,7 +209,6 @@ static void UUSOCL_urc(void *pUnused)
             }
             CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
         }
-
     }
 }
 
@@ -961,25 +960,28 @@ int32_t sendTo(CellularSockContainer_t *pContainer,
                 cellular_ctrl_at_write_int(dataSizeBytes);
                 cellular_ctrl_at_cmd_stop();
                 // Wait for the prompt
-                cellular_ctrl_at_wait_char('@');
-                // Wait for it...
-                cellularPortTaskBlock(50);
-                // Go!
-                cellular_ctrl_at_write_bytes((uint8_t *) pData,
-                                             dataSizeBytes);
-                // Grab the response
-                cellular_ctrl_at_resp_start("+USOST:", false);
-                // Skip the socket ID
-                cellular_ctrl_at_skip_param(1);
-                // Bytes sent
-                sentSize = cellular_ctrl_at_read_int();
-                cellular_ctrl_at_resp_stop();
-                if (cellular_ctrl_at_unlock_return_error() == 0) {
-                    // All is good, probably
-                    errorCodeOrSize = sentSize;
+                if (cellular_ctrl_at_wait_char('@')) {
+                    // Wait for it...
+                    cellularPortTaskBlock(50);
+                    // Go!
+                    cellular_ctrl_at_write_bytes((uint8_t *) pData,
+                                                 dataSizeBytes);
+                    // Grab the response
+                    cellular_ctrl_at_resp_start("+USOST:", false);
+                    // Skip the socket ID
+                    cellular_ctrl_at_skip_param(1);
+                    // Bytes sent
+                    sentSize = cellular_ctrl_at_read_int();
+                    cellular_ctrl_at_resp_stop();
+                    if (cellular_ctrl_at_unlock_return_error() == 0) {
+                        // All is good, probably
+                        errorCodeOrSize = sentSize;
+                    } else {
+                        // No route to host
+                        errno = CELLULAR_SOCK_EHOSTUNREACH;
+                    }
                 } else {
-                    // No route to host
-                    errno = CELLULAR_SOCK_EHOSTUNREACH;
+                    cellular_ctrl_at_unlock();
                 }
             } else {
                 // Indicate that the message was too long
@@ -1027,33 +1029,37 @@ int32_t send(CellularSockContainer_t *pContainer,
         cellular_ctrl_at_write_int(thisSendSize);
         cellular_ctrl_at_cmd_stop();
         // Wait for the prompt
-        cellular_ctrl_at_wait_char('@');
-        // Wait for it...
-        cellularPortTaskBlock(50);
-        // Go!
-        cellular_ctrl_at_write_bytes((uint8_t *) pData,
-                                     dataSizeBytes);
-        // Grab the response
-        cellular_ctrl_at_resp_start("+USOWR:", false);
-        // Skip the socket ID
-        cellular_ctrl_at_skip_param(1);
-        // Bytes sent
-        sentSize = cellular_ctrl_at_read_int();
-        cellular_ctrl_at_resp_stop();
-        if (cellular_ctrl_at_unlock_return_error() == 0) {
-            pData += sentSize;
-            leftToSendSize -= sentSize;
-            // Technically, it should be OK to
-            // send fewer bytes than asked for,
-            // however if this happens a lot we'll
-            // get stuck, which isn't desirable,
-            // so use the loop counter to avoid that
-            if ((sentSize < thisSendSize) &&
-                (loopCounter >= CELLULAR_SOCK_TCP_RETRY_LIMIT)) {
+        success = cellular_ctrl_at_wait_char('@');
+        if (success) {
+            // Wait for it...
+            cellularPortTaskBlock(50);
+            // Go!
+            cellular_ctrl_at_write_bytes((uint8_t *) pData,
+                                         dataSizeBytes);
+            // Grab the response
+            cellular_ctrl_at_resp_start("+USOWR:", false);
+            // Skip the socket ID
+            cellular_ctrl_at_skip_param(1);
+            // Bytes sent
+            sentSize = cellular_ctrl_at_read_int();
+            cellular_ctrl_at_resp_stop();
+            if (cellular_ctrl_at_unlock_return_error() == 0) {
+                pData += sentSize;
+                leftToSendSize -= sentSize;
+                // Technically, it should be OK to
+                // send fewer bytes than asked for,
+                // however if this happens a lot we'll
+                // get stuck, which isn't desirable,
+                // so use the loop counter to avoid that
+                if ((sentSize < thisSendSize) &&
+                    (loopCounter >= CELLULAR_SOCK_TCP_RETRY_LIMIT)) {
+                    success = false;
+                }
+            } else {
                 success = false;
             }
         } else {
-            success = false;
+            cellular_ctrl_at_unlock();
         }
     }
 
@@ -1136,11 +1142,24 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
                                         actualReceiveSize);
             cellular_ctrl_at_resp_stop();
             cellular_ctrl_at_set_default_delimiter();
-            if (cellular_ctrl_at_unlock_return_error() == 0) {
+            // BEFORE unlocking, work out what's happened
+            // this is to prevent a URC being processed that
+            // may indicate data left, over-write pendingBytes
+            // while we're also writing to it.
+            if (cellular_ctrl_at_get_last_error() == 0) {
                 // Must use what +USORF returns here as it may be less
                 // or more than we asked for and also may be
                 // more than pendingBytes, depending on how
                 // the URCs landed
+                // This update of pendingBytes will be overwritten
+                // by the URC but we have to do something here
+                // 'cos we don't get a URC to tell us when pendingBytes
+                // has gone to zero.
+                if (actualReceiveSize > pContainer->socket.pendingBytes) {
+                    pContainer->socket.pendingBytes = 0;
+                } else {
+                    pContainer->socket.pendingBytes -= actualReceiveSize;
+                }
                 if (actualReceiveSize >= 0) {
                     receivedSize = actualReceiveSize;
                     dataSizeBytes -= actualReceiveSize;
@@ -1151,6 +1170,7 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
             } else {
                 success = false;
             }
+            cellular_ctrl_at_unlock();
         } else if (!pContainer->socket.nonBlocking &&
                    (cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.receiveTimeoutMs)) {
             // Yield to the AT parser task that is listening for URCs
@@ -1229,11 +1249,24 @@ int32_t receive(CellularSockContainer_t *pContainer,
                                         actualReceiveSize);
             cellular_ctrl_at_resp_stop();
             cellular_ctrl_at_set_default_delimiter();
-            if (cellular_ctrl_at_unlock_return_error() == 0) {
+            // BEFORE unlocking, work out what's happened
+            // this is to prevent a URC being processed that
+            // may indicate data left, over-write pendingBytes
+            // while we're also writing to it.
+            if (cellular_ctrl_at_get_last_error() == 0) {
                 // Must use what +USORF returns here as it may be less
                 // or more than we asked for and also may be
                 // more than pendingBytes, depending on how
                 // the URCs landed
+                // This update of pendingBytes will be overwritten
+                // by the URC but we have to do something here
+                // 'cos we don't get a URC to tell us when pendingBytes
+                // has gone to zero.
+                if (actualReceiveSize > pContainer->socket.pendingBytes) {
+                    pContainer->socket.pendingBytes = 0;
+                } else {
+                    pContainer->socket.pendingBytes -= actualReceiveSize;
+                }
                 if (actualReceiveSize > 0) {
                     receivedSize += actualReceiveSize;
                     dataSizeBytes -= actualReceiveSize;
@@ -1244,6 +1277,7 @@ int32_t receive(CellularSockContainer_t *pContainer,
             } else {
                 success = false;
             }
+            cellular_ctrl_at_unlock();
         } else if (!pContainer->socket.nonBlocking &&
                    cellularPortGetTickTimeMs() - startTimeMs < pContainer->socket.receiveTimeoutMs) {
             // Yield to the AT parser task that is listening for URCs

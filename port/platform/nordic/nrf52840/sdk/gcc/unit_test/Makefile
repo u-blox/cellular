@@ -63,6 +63,7 @@ SRC_FILES += \
   ../../../../../../../ctrl/src/cellular_ctrl_at.c \
   ../../../../../../../sock/src/cellular_sock.c \
   ../../../../../../clib/cellular_port_clib.c \
+  ../../../../../../clib/cellular_port_clib_strtok_r.c \
   ../../../src/cellular_port.c \
   ../../../src/cellular_port_debug.c \
   ../../../src/cellular_port_gpio.c \

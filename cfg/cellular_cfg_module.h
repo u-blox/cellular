@@ -53,6 +53,10 @@
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
 
+/** The time within which an AT command should complete.
+ */
+# define CELLULAR_CTRL_COMMAND_TIMEOUT_MS 8000
+
 /** The delay between AT commands, allowing internal cellular module
  * comms to complete before another is sent.
  */
@@ -74,6 +78,10 @@
  */
 # define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 20
 
+/** The time to wait for an OK when the module is asked to re-boot.
+ */
+# define CELLULAR_CTRL_REBOOT_COMMAND_WAIT_TIME_MS 15000
+
 /** The maximum number of simultaneous radio access technologies
  *  supported by the cellular module.
  */
@@ -86,6 +94,10 @@
  * -------------------------------------------------------------- */
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
+
+/** The time within which an AT command should complete.
+ */
+# define CELLULAR_CTRL_COMMAND_TIMEOUT_MS 80000
 
 /** The delay between AT commands, allowing internal cellular module
  * comms to complete before another is sent.
@@ -107,6 +119,10 @@
  * lack of a response on the AT interface is NOT sufficient.
  */
 # define CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS 35
+
+/** The time to wait for an OK when the module is asked to re-boot.
+ */
+# define CELLULAR_CTRL_REBOOT_COMMAND_WAIT_TIME_MS CELLULAR_CTRL_COMMAND_TIMEOUT_MS
 
 /** The maximum number of simultaneous radio access technologies
  *  supported by the cellular module.

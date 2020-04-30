@@ -51,20 +51,24 @@
  * number unread transitioned from 0 to 1 but the load of sending the
  * event was too high and interrupts were missed, leading to losing
  * count. So the timer already in use for cellularPortGetTickTimeMs()
- * was modified to generate interrupts more quickly (130 ms interval)
- * when the UART is operating and take a callback which could be
- * used to stop the free-running DMA and query it for the number
- * of characters received.  This worked well except that it was
- * still pouring characters directly into the destination buffer
- * and this caused a problem towards the end of the buffer where
- * the space for DMA would be getting close to zero and the load of
- * setup etc. for the next DMA became too much.  So instead the
- * buffer space was split into separately managed sub-buffers, at
- * least two in number, and then advantage could be taken of the
- * hardware's ability to set up a second buffer in advance
- * of the first completing ('cos the buffer pointer register is
- * itself buffered).  Finally, no character loss, though some buffer
+ * was modified to generate interrupts more quickly (130 ms interval,
+ * about 1000 bytes at 115,200 baud) when the UART is operating
+ * and take a callback which could be used to stop the free-running
+ * DMA and query it for the number of characters received.  This
+ * worked well except that it was still pouring characters directly
+ * into the destination buffer and this caused a problem towards
+ * the end of the buffer where the space for DMA would be getting
+ * close to zero and the load of setup etc. for the next DMA became
+ * too much.  So instead the buffer space was split into separately
+ * managed sub-buffers, at least two in number, and then advantage
+ * could be taken of the hardware's ability to set up a second buffer
+ * in advance of the first completing ('cos the buffer pointer register
+ * is itself buffered).  Finally, no character loss, though some buffer
  * management is required at setup and when reading the data out again.
+ * To be able to follow the implementation it is important to understand
+ * figure 4 in the UARTE Reception section of the nRF52840 Product
+ * Specification, which is reproduced as an ASCII diagram just above
+ * the interrupt handler below.
  */
 
 /* ----------------------------------------------------------------
@@ -90,26 +94,43 @@
 # endif
 #endif
 
-// Maximum length of DMA on NRF52840 HW.
+// Length of DMA on NRF52840 HW.
+// Note that the maximum length is 256 however
+// the cost of starting a new DMA buffer is
+// neglibile (since the pointer is double-buffered
+// buffered in HW) and there's a load of buggering
+// around one needs to do to make the flow of data
+// responsive which is easier to code with multiple
+// buffers so it is actually better to have
+// more smaller buffers.
 #ifndef CELLULAR_PORT_UART_SUB_BUFFER_SIZE
-# define CELLULAR_PORT_UART_SUB_BUFFER_SIZE 256
+# define CELLULAR_PORT_UART_SUB_BUFFER_SIZE 128
 #endif
 
 // The number of sub-buffers.
 // We want at least two buffers and beyond that a number of buffers
 // that brings the size of each under the maximum DMA length.
 // IMPORTANT: this means that for this platform it is best if
-// CELLULAR_PORT_UART_RX_BUFFER_SIZE is a multiple of 256,
-// which it is with the default of 1024.
-#define CELLULAR_PORT_UART_NUM_SUB_BUFFERS ((CELLULAR_PORT_UART_RX_BUFFER_SIZE / 2) / CELLULAR_PORT_UART_SUB_BUFFER_SIZE)
+// CELLULAR_PORT_UART_RX_BUFFER_SIZE is a multiple of
+// CELLULAR_PORT_UART_SUB_BUFFER_SIZE, which it is with the 
+// default of 1024.
+#define CELLULAR_PORT_UART_NUM_SUB_BUFFERS (CELLULAR_PORT_UART_RX_BUFFER_SIZE / CELLULAR_PORT_UART_SUB_BUFFER_SIZE)
 
-#if CELLULAR_PORT_UART_NUM_SUB_BUFFERS < 2
-# error Cannot accommodate even two sub-buffers, either increase CELLULAR_PORT_UART_RX_BUFFER_SIZE to a larger multiple of CELLULAR_PORT_UART_SUB_BUFFER_SIZE or reduce CELLULAR_PORT_UART_SUB_BUFFER_SIZE.
+#if CELLULAR_PORT_UART_NUM_SUB_BUFFERS < 4
+# error Cannot accommodate four sub-buffers, either increase CELLULAR_PORT_UART_RX_BUFFER_SIZE to a larger multiple of CELLULAR_PORT_UART_SUB_BUFFER_SIZE or reduce CELLULAR_PORT_UART_SUB_BUFFER_SIZE.
 #endif
 
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
+
+/** State enum to keep track of what's happening during
+ * a STOPRX/FLUSH */
+ typedef enum {
+     CELLULAR_PORT_UART_STATE_RECEIVING,
+     CELLULAR_PORT_UART_STATE_STOPPING,
+     CELLULAR_PORT_UART_STATE_FLUSHING
+ } CellularPortUartState_t;
 
 /** Structure to hold a UART event.
  */
@@ -122,6 +143,7 @@ typedef struct {
  */
 typedef struct CellularPortUartBuffer_t {
     char *pStart;
+    char *pRead;
     volatile size_t toRead;
     struct CellularPortUartBuffer_t *pNext;
 } CellularPortUartBuffer_t;
@@ -132,9 +154,8 @@ typedef struct {
     NRF_UARTE_Type *pReg;
     CellularPortMutexHandle_t mutex;
     CellularPortQueueHandle_t queue;
-    volatile size_t toRead;
-    CellularPortUartBuffer_t *pReadBuffer;
-    volatile CellularPortUartBuffer_t *pWriteBuffer;
+    CellularPortUartBuffer_t *pRxBufferRead;
+    volatile CellularPortUartBuffer_t *pRxBufferWrite;
     bool userNeedsNotify; //!< set this if toRead has hit zero and
                           // hence the user would like a notification
                           // when new data arrives.
@@ -161,14 +182,60 @@ static CellularPortUartData_t gUartData[] = {NRF_UARTE1, };
  * STATIC FUNCTIONS
  * -------------------------------------------------------------- */
 
+// Figure 4 in the UARTE Reception section of the nRF52840
+// Product Specification is critical here!  Because
+// we are continuously in receive we don't need to do the,
+// flush stage though. Here's a full description in an ASCII
+// version of the fiture
+//
+// Ref.  Timeline                                         UART RX bytes    DMA destination   DMA bytes
+// 1:  we set SHORT_ENDRX_STARTRX = true
+// 2:  we set RXD.PTR = a
+// 3:  we set RXD.MAXCOUNT = 10
+// 4:  we trigger TASK_STARTRX
+// 5:                                                            1
+// 6:  event EVENT_RXSTARTED                                     2                  a             1 
+// 7:  we set RXD.PTR = b                                        3                  a             2
+// 8:                                                            4                  a             3
+// 9:                                                            5                  a             4
+// 10:                                                           6                  a             5
+// 11:                                                           7                  a             6
+// 12:                                                           8                  a             7
+// 13:                                                           9                  a             8
+// 14:                                                           10                 a             9
+// 15:                                                           11                 a             10
+// 16: event EVENT_ENDRX ('cos DMA hit 10) triggers TASK_STARTRX 12                 b             11
+// 17: event EVENT_RXSTARTED                                     13                 b             12 
+// 18: we set RXD.PTR = c                                        14                 b             13
+// 19:                                                           15                 b             14
+// 20: our timer goes off                                        16                 b             15
+// 21: we set SHORT_ENDRX_STARTRX = false                        17                 b             16
+// 22: we trigger TASK_STOPRX                                    18                 b             17
+// 23: event EVENT_ENDRX ('cos DMA has stopped)                  19
+// 24:    ...                                                    20
+// 25:    ...                                                    21
+// 26: event EVENT_RXTO
+// 27: to continue:
+// 28:   we set SHORT_ENDRX_STARTRX = true
+// 29:   we trigger TASK_STARTRX                                                    c             18, 19, 20, 21
+// 30:                                                           22
+// 31: event EVENT_RXSTARTED                                     23                 c             22
+// 32: we set RXD.PTR = d                                        34                 c             23
+// etc.
+
 // Callback to be called when the receive check timer has expired.
 // pParameter must be a pointer to CellularPortUartData_t.
 static void rxCb(void *pParameter)
 {
     CellularPortUartData_t *pUartData = (CellularPortUartData_t *) pParameter;
+    NRF_UARTE_Type *pReg = pUartData->pReg;
 
-    nrf_uarte_task_trigger(pUartData->pReg,
-                           NRF_UARTE_TASK_STOPRX);
+    // We are now at reference line 20 in the diagram.
+    // We will get an ENDRX event as a result of this
+    // STOPRX task, then an RXTO event at which point
+    // we can kick things off again.
+    nrf_uarte_shorts_disable(pReg, NRF_UARTE_SHORT_ENDRX_STARTRX);
+    nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STOPRX);
 }
 
 // The interrupt handler: only handles Rx events as Tx is blocking.
@@ -178,43 +245,50 @@ static void rxIrqHandler(CellularPortUartData_t *pUartData)
     BaseType_t yield = false;
 
     if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_ENDRX)) {
-        volatile CellularPortUartBuffer_t *pRxBuffer = pUartData->pWriteBuffer;
+        volatile CellularPortUartBuffer_t *pRxBuffer;
         size_t x;
-        // Clear the event
+        // We arrive here for one of two reasons:
+        // 1.  DMA has filled a buffer (reference line 16 of the diagram).
+        // 2.  DMA has been stopped (reference line 23 of the diagram).
+        // In all cases we work on the data written into the receive
+        // buffer by the DMA.
+        // First clear the event
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_ENDRX);
         // Grab the count of the number of bytes DMAed
         x = nrf_uarte_rx_amount_get(pReg);
-        // Update the write buffer pointer
-        pUartData->pWriteBuffer = pUartData->pWriteBuffer->pNext;
-        // The next receive was already set up when the
-        // RXTSTARTED came through earlier, just need to trigger
-        // it, so do that ASAP
-        nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STARTRX);
-        // Now update the counts/pointers
-        pRxBuffer->toRead += x;
-        pUartData->toRead += x;
-        // If there is data and the user needs to be notified
-        // 'cos there was none before, let them know
-        if ((pUartData->toRead > 0) && pUartData->userNeedsNotify) {
+        // Remember where we are and move the current receive
+        // write buffer on.
+        pRxBuffer = pUartData->pRxBufferWrite;
+        pUartData->pRxBufferWrite = pUartData->pRxBufferWrite->pNext;
+        // Now update the read count and pointer
+        pRxBuffer->pRead = pRxBuffer->pStart;
+        pRxBuffer->toRead = x;
+        // If there is at least some data and the user needs to
+        // be notified, let them know
+        if ((pRxBuffer->toRead > 0) && pUartData->userNeedsNotify) {
             CellularPortUartEventData_t uartEvent;
             uartEvent.type = 0;
-            uartEvent.size = pUartData->toRead;
+            uartEvent.size = pRxBuffer->toRead;
             xQueueSendFromISR((QueueHandle_t *) (pUartData->queue),
                               &uartEvent, &yield);
             pUartData->userNeedsNotify = false;
         }
     } else if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_RXSTARTED)) {
         // An RX has started so it's OK to update the buffer
-        // pointer for the following one
+        // pointer registers in the hardware for the one that
+        // will follow after this one has ended as the
+        // Rx buffer register is double-buffered in HW.
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_RXSTARTED);
         nrf_uarte_rx_buffer_set(pReg,
-                                (uint8_t *) (pUartData->pWriteBuffer->pNext->pStart),
+                                (uint8_t *) (pUartData->pRxBufferWrite->pNext->pStart),
                                 CELLULAR_PORT_UART_SUB_BUFFER_SIZE);
     } else if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_RXTO)) {
-        // We've been stopped, must have been a timeout.
-        // No need to do anything here since ENDRX will
-        // be signalled in any case
+        // We are now at reference line 26 in the diagram.
+        // We've properely stopped due to a timeout.
+        // Let's start things up again.
         nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_RXTO);
+        nrf_uarte_shorts_enable(pReg, NRF_UARTE_SHORT_ENDRX_STARTRX);
+        nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STARTRX);
     } else if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_ERROR)) {
         // Clear any errors: no need to do anything, they
         // have no effect upon reception
@@ -345,7 +419,12 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
     NRF_UARTE_Type *pReg;
     char *pRxBuffer = NULL;
 
-    // TODO: use this
+    // The RTS threshold is not adjustable on this platform,
+    // From the nRF52840 Product Specification, UARTE section:
+    // "The RTS signal will be deactivated when the receiver
+    // is stopped via the STOPRX task or when the UARTE is
+    // only able to receive four more bytes in its internal
+    // RX FIFO."
     (void) rtsThreshold;
 
     if ((pUartQueue != NULL) && (pinRx >= 0) && (pinTx >= 0) &&
@@ -384,6 +463,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                         for (size_t x = 0; x < sizeof(gUartData[uart].rxBufferList) /
                                                sizeof(gUartData[uart].rxBufferList[0]); x++) {
                             gUartData[uart].rxBufferList[x].pStart = pRxBuffer;
+                            gUartData[uart].rxBufferList[x].pRead = pRxBuffer;
                             gUartData[uart].rxBufferList[x].toRead = 0;
                             // Set up the next pointers in a ring
                             if (x < sizeof(gUartData[uart].rxBufferList) /
@@ -394,9 +474,8 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                             }
                             pRxBuffer += CELLULAR_PORT_UART_SUB_BUFFER_SIZE;
                         }
-                        gUartData[uart].toRead = 0;
-                        gUartData[uart].pReadBuffer = &(gUartData[uart].rxBufferList[0]);
-                        gUartData[uart].pWriteBuffer = &(gUartData[uart].rxBufferList[0]);
+                        gUartData[uart].pRxBufferRead = &(gUartData[uart].rxBufferList[0]);
+                        gUartData[uart].pRxBufferWrite = &(gUartData[uart].rxBufferList[0]);
                         gUartData[uart].userNeedsNotify = true;
 
                         // Create the queue
@@ -454,8 +533,11 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                             nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_RXSTARTED);
                             nrf_uarte_event_clear(pReg, NRF_UARTE_EVENT_TXSTOPPED);
 
+                            // Let the end of one RX trigger the next immediately
+                            nrf_uarte_shorts_enable(pReg, NRF_UARTE_SHORT_ENDRX_STARTRX);
+
                             nrf_uarte_rx_buffer_set(pReg,
-                                                    (uint8_t *) (gUartData[uart].pWriteBuffer->pStart),
+                                                    (uint8_t *) (gUartData[uart].pRxBufferWrite->pStart),
                                                     CELLULAR_PORT_UART_SUB_BUFFER_SIZE);
                             nrf_uarte_task_trigger(pReg, NRF_UARTE_TASK_STARTRX);
                             nrf_uarte_int_enable(pReg, NRF_UARTE_INT_ENDRX_MASK     |
@@ -613,12 +695,25 @@ int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle
 int32_t cellularPortUartGetReceiveSize(int32_t uart)
 {
     CellularPortErrorCode_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortUartBuffer_t *pRxBuffer;
 
     if (uart < sizeof(gUartData) / sizeof(gUartData[0])) {
         sizeOrErrorCode = CELLULAR_PORT_NOT_INITIALISED;
         if (gUartData[uart].mutex != NULL) {
-            // No need to lock the mutex, this is atomic
-            sizeOrErrorCode = gUartData[uart].toRead;
+
+            CELLULAR_PORT_MUTEX_LOCK(gUartData[uart].mutex);
+
+            // Count up the lot
+            pRxBuffer = gUartData[uart].pRxBufferRead;
+            sizeOrErrorCode = 0;
+            for (size_t x = 0; x < sizeof(gUartData[uart].rxBufferList) /
+                                   sizeof(gUartData[uart].rxBufferList[0]); x++) {
+                sizeOrErrorCode += pRxBuffer->toRead;
+                pRxBuffer = pRxBuffer->pNext;
+            }
+
+            CELLULAR_PORT_MUTEX_UNLOCK(gUartData[uart].mutex);
+
         }
     }
 
@@ -640,34 +735,44 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
 
             CELLULAR_PORT_MUTEX_LOCK(gUartData[uart].mutex);
 
-            // Work out how much to copy
-            sizeOrErrorCode = gUartData[uart].toRead;
-            if (sizeOrErrorCode > sizeBytes) {
-                sizeOrErrorCode = sizeBytes;
-            }
-
             // Move along the buffers copying out
             // everything we can from each one
-            sizeBytes = sizeOrErrorCode;
+            sizeOrErrorCode = 0;
+            pRxBuffer = gUartData[uart].pRxBufferRead;
             while ((sizeBytes > 0) &&
-                   (gUartData[uart].toRead > 0)) {
-                pRxBuffer = gUartData[uart].pReadBuffer;
+                   (pRxBuffer != gUartData[uart].pRxBufferWrite)) {
+                // Read what we can from the current
+                // receive read buffer
                 thisRead = pRxBuffer->toRead;
                 if (thisRead > sizeBytes) {
                     thisRead = sizeBytes;
                 }
                 pCellularPort_memcpy(pBuffer,
-                                     pRxBuffer->pStart,
+                                     pRxBuffer->pRead,
                                      thisRead);
+                // Move buffer pointer and reduce read count
+                // by what we've read
+                pBuffer += thisRead;
                 pRxBuffer->toRead -= thisRead;
-                gUartData[uart].toRead -= thisRead;
+                pRxBuffer->pRead += thisRead;
+                if (pRxBuffer->toRead <= 0) {
+                    // If we've read everything from this
+                    // receive buffer, move to the next,
+                    // no need to reset the read pointer,
+                    // the interrupt will do that
+                    pRxBuffer = pRxBuffer->pNext;
+                    if (pRxBuffer != gUartData[uart].pRxBufferWrite) {
+                        gUartData[uart].pRxBufferRead = pRxBuffer;
+                    }
+                }
+                // Update the totals
+                sizeOrErrorCode += thisRead;
                 sizeBytes -= thisRead;
-                gUartData[uart].pReadBuffer = gUartData[uart].pReadBuffer->pNext;
             }
 
             // Set the notify flag if we've read everything
             gUartData[uart].userNeedsNotify = false;
-            if (gUartData[uart].toRead == 0) {
+            if (pRxBuffer->toRead == 0) {
                 gUartData[uart].userNeedsNotify = true;
             }
 

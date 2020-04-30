@@ -42,6 +42,7 @@
       <file file_name="../../../../../../../ctrl/src/cellular_ctrl_at.c" />
       <file file_name="../../../../../../../sock/src/cellular_sock.c" />
       <file file_name="../../../../../../clib/cellular_port_clib.c" />
+      <file file_name="../../../../../../clib/cellular_port_strtok_r.c" />
       <file file_name="../../../src/cellular_port.c" />
       <file file_name="../../../src/cellular_port_debug.c" />
       <file file_name="../../../src/cellular_port_gpio.c" />

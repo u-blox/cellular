@@ -187,12 +187,13 @@ static const char gSendData[] =  "_____0000:012345678901234567890123456789012345
                                  "_____2000:0123456789012345678901234567890123456789"
                                  "01234567890123456789012345678901234567890123456789";
 
-// A string of all possible characters, including strings`
-// that might appear as terminators in the AT interfacce,
-// and including an 'x' on the end which is intended to be
-// overwritten with a NULL in order to test that NULLs are
+// A string of all possible characters, including strings
+// that might appear as terminators in the AT interface,
+// and including an 'x' on the end which should be overwritten
+// with a NULL before sending in order to test that NULLs are
 // carried through also
-static const char gAllChars[] = "The quick brown fox jumps over the lazy dog 0123456789 "
+static const char gAllChars[] = "the quick brown fox jumps over the lazy dog "
+                                "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG 0123456789 "
                                 "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e"
                                 "\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c"
                                 "\x1d\x1e!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~\x7f"
@@ -318,9 +319,11 @@ static CellularSockTestOption_t gSupportedOptions[] = {
 #ifndef CELLULAR_CFG_MODULE_SARA_R4
     {CELLULAR_SOCK_OPT_LEVEL_SOCK, CELLULAR_SOCK_OPT_BROADCAST,    sizeof(int32_t),              compareInt32,   changeMod2},
     {CELLULAR_SOCK_OPT_LEVEL_SOCK, CELLULAR_SOCK_OPT_REUSEPORT,    sizeof(int32_t),              compareInt32,   changeMod2},
-    // This next one removed for SARA-R4 as it won't let me switch linger off, i.e.
+    // This next one removed for SARA-R4 and SARA-R5 as nither will let me switch linger off, i.e.
     // "AT+USOSO=0,65535,128,0" returns "+CME ERROR: Operation not allowed"
+# ifndef CELLULAR_CFG_MODULE_SARA_R5
     {CELLULAR_SOCK_OPT_LEVEL_SOCK, CELLULAR_SOCK_OPT_LINGER,       sizeof(CellularSockLinger_t), compareLinger,  changeLinger},
+# endif
 #endif
     {CELLULAR_SOCK_OPT_LEVEL_SOCK, CELLULAR_SOCK_OPT_RCVTIMEO,     sizeof(CellularPort_timeval), compareTimeval, changeTimevalMs},
     {CELLULAR_SOCK_OPT_LEVEL_IP,   CELLULAR_SOCK_OPT_IP_TOS,       sizeof(int32_t),              compareInt32,   changeMod256},
@@ -1088,7 +1091,7 @@ static void checkSetOption(CellularSockDescriptor_t sockDescriptor,
 /** Basic test: initialise and then deinitialise everything.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestInitialisation(),
-                            "sock_initialisation",
+                            "sockInitialisation",
                             "sock")
 {
     CellularPortQueueHandle_t queueHandle;
@@ -2041,7 +2044,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoAsyncMayMayFailDueToInte
     // Create a task that will receive the data
     CELLULAR_PORT_TEST_ASSERT(cellularPortTaskCreate(receiveDataTaskUdp,
                                                      "testTaskRxData",
-                                                     5128, (void **) &pParam,
+                                                     CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
+                                                     (void **) &pParam,
                                                      // lower priority than the callback made
                                                      // from the URC
                                                      CELLULAR_CTRL_CALLBACK_PRIORITY + 1,
@@ -2151,7 +2155,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
     gAsyncReturnCode = 0;
     CELLULAR_PORT_TEST_ASSERT(cellularPortTaskCreate(echoDataTaskTcp,
                                                      "testTaskTxRxData",
-                                                     5128, (void **) &pParam,
+                                                     CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
+                                                     (void **) &pParam,
                                                      // lower priority than the callback made
                                                      // from the URC
                                                      CELLULAR_CTRL_CALLBACK_PRIORITY + 1,
@@ -2171,7 +2176,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
     gAsyncReturnCode = 0;
     CELLULAR_PORT_TEST_ASSERT(cellularPortTaskCreate(echoDataTaskTcp,
                                                      "testTaskTxRxData",
-                                                     5128, (void **) &pParam,
+                                                     CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
+                                                     (void **) &pParam,
                                                      // lower priority than the callback made
                                                      // from the URC
                                                      CELLULAR_CTRL_CALLBACK_PRIORITY + 1,
@@ -2193,7 +2199,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
         gAsyncReturnCode = 0;
         CELLULAR_PORT_TEST_ASSERT(cellularPortTaskCreate(echoDataTaskTcp,
                                                          "testTaskTxRxData",
-                                                         5128, (void **) &pParam,
+                                                         CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
+                                                         (void **) &pParam,
                                                          // lower priority than the callback made
                                                          // from the URC
                                                          CELLULAR_CTRL_CALLBACK_PRIORITY + 1,

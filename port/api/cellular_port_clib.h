@@ -22,14 +22,16 @@
  */
 
 /* The #includes below (stdint, stddef, stdbool and limits) form
- * the base types for cellular; no other #includes are allowed
- * here */
+ * the base types for cellular; cellular_port_clib_platform_specific.h
+ * brings in any extra function definitions not supported on a given
+ * platform. */
 
 #include "stdint.h"
 #include "stddef.h"
 #include "stdarg.h"
 #include "stdbool.h"
 #include "limits.h"
+#include "cellular_port_clib_platform_specific.h"
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -166,6 +168,16 @@ int32_t cellularPort_strcmp(const char *pStr1, const char *pStr2);
  *             NULL if c is not found in pStr.
  */
 char *pCellularPort_strchr(const char *pStr, int32_t c);
+
+/** strtok().
+ *
+ * @param pStr        the string to search.
+ * @param pDelimiters the set of delimiters to look for.
+ * @param ppSave      place for this function to store context.
+ * @return            the next occurrence of pDelimiters in pStr.
+ */
+char *pCellularPort_strtok_r(char *pStr, const char *pDelimiters,
+                             char **ppSave);
 
 /** sscanf().
  *

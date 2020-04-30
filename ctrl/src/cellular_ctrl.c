@@ -100,7 +100,7 @@ static int32_t gRsrpDbm;
 
 /** The RSRQ of the serving cell.
  */
-static int32_t gRsrqDbm;
+static int32_t gRsrqDb;
 
 /** The RxQual of the serving cell.
  */
@@ -293,7 +293,7 @@ static void clearRadioParameters()
 {
     gRssiDbm = 0;
     gRsrpDbm = 0;
-    gRsrqDbm = 0;
+    gRsrqDb = 0;
     gCellId = -1;
     gEarfcn = -1;
 }
@@ -326,40 +326,55 @@ static CellularCtrlErrorCode_t moduleIsAlive(int32_t attempts)
     return errorCode;
 }
 
+// Configure one item in the cellular module.
+static bool moduleConfigureOne(int32_t uart,
+                               char *pAtString)
+{
+    bool success = false;
+
+    cellular_ctrl_at_lock();
+    cellular_ctrl_at_cmd_start(pAtString);
+    cellular_ctrl_at_cmd_stop_read_resp();
+    if (cellular_ctrl_at_unlock_return_error() == 0) {
+        success = true;
+    }
+
+    return success;
+}
+
 // Configure the cellular module.
 static CellularCtrlErrorCode_t moduleConfigure(int32_t uart)
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_CONFIGURED;
 
     // Configure the module
-    cellular_ctrl_at_lock();
-    cellular_ctrl_at_cmd_start("ATE0"); // Echo off
-    cellular_ctrl_at_cmd_stop_read_resp();
-    cellular_ctrl_at_cmd_start("AT+CMEE=2"); // Extended errors on
-    cellular_ctrl_at_cmd_stop_read_resp();
-    // TODO: check if AT&K3 requires both directions
-    // of flow control to be on or just one of them
-    if (cellularPortIsRtsFlowControlEnabled(uart) &&
-        cellularPortIsCtsFlowControlEnabled(uart)) {
-        cellular_ctrl_at_cmd_start("AT&K3"); // RTS/CTS handshaking on
-    } else {
-        cellular_ctrl_at_cmd_start("AT&K0"); // RTS/CTS handshaking off
-    }
-    cellular_ctrl_at_cmd_stop_read_resp();
-    cellular_ctrl_at_cmd_start("AT&C1"); // DCD circuit (109) changes in accordance with the carrier
-    cellular_ctrl_at_cmd_stop_read_resp();
-    cellular_ctrl_at_cmd_start("AT&D0"); // Ignore changes to DTR
-    cellular_ctrl_at_cmd_stop_read_resp();
+    if (moduleConfigureOne(uart, "ATE0") && // Echo off
+        // Extended errors on
+        moduleConfigureOne(uart, "AT+CMEE=2") &&
+        // DCD circuit (109) changes in accordance with the carrier
+        moduleConfigureOne(uart, "AT&C1") &&
+        // Ignore changes to DTR
+        moduleConfigureOne(uart, "AT&D0") &&
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
-    cellular_ctrl_at_cmd_start("AT+UCGED=5"); // Switch on channel and environment reporting for EUTRAN
-    cellular_ctrl_at_cmd_stop_read_resp();
+        // Switch on channel and environment reporting for EUTRAN
+        moduleConfigureOne(uart, "AT+UCGED=5") &&
 #endif
-    cellular_ctrl_at_cmd_start("AT+CPSMS=0"); // TODO switch off power saving until it is integrated into this API
-    cellular_ctrl_at_cmd_stop_read_resp();
-    cellular_ctrl_at_cmd_start("AT+CFUN=4"); // Stay in airplane mode until commanded to connect,
-    cellular_ctrl_at_cmd_stop_read_resp();
-    if (cellular_ctrl_at_unlock_return_error() == 0) {
-        errorCode = CELLULAR_CTRL_SUCCESS;
+        // TODO switch off power saving until it is integrated into this API
+        moduleConfigureOne(uart, "AT+CPSMS=0") && 
+        // Stay in airplane mode until commanded to connect
+        moduleConfigureOne(uart, "AT+CFUN=4")) {
+        // TODO: check if AT&K3 requires both directions
+        // of flow control to be on or just one of them
+        if (cellularPortIsRtsFlowControlEnabled(uart) &&
+            cellularPortIsCtsFlowControlEnabled(uart)) {
+            if (moduleConfigureOne(uart, "AT&K3")) { // RTS/CTS handshaking on
+                errorCode = CELLULAR_CTRL_SUCCESS;
+            }
+        } else {
+            if (moduleConfigureOne(uart, "AT&K0")) { // RTS/CTS handshaking off
+                errorCode = CELLULAR_CTRL_SUCCESS;
+            }
+        }
     }
 
     return errorCode;
@@ -383,7 +398,7 @@ static int32_t getString(const char *pCmd, char *pBuffer, size_t bufferSize)
             // Don't want characters in the string being interpreted
             // as delimiters
             cellular_ctrl_at_set_delimiter(0);
-            bytesRead = cellular_ctrl_at_read_string(pBuffer, bufferSize, false);
+            bytesRead = cellular_ctrl_at_read_string(pBuffer, bufferSize, true);
             cellular_ctrl_at_resp_stop();
             cellular_ctrl_at_set_default_delimiter();
             atError = cellular_ctrl_at_unlock_return_error();
@@ -582,15 +597,33 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
                     activated = (cellular_ctrl_at_read_int() == 1);
                     cellular_ctrl_at_resp_stop();
                     if (activated) {
-                        // In other u-blox modem's you'd now use AT+UPSD to
-                        // map the context to an internal modem profile so that it
-                        // Cell Locate could use it (AT+UPSD=0,100,1), then
-                        // you would activate that profile (AT+UPSDA=0,3).
-                        // However, SARA-R4 only supports a single
-                        // context at any one time and so that's not required.
                         cellular_ctrl_at_restore_at_timeout();
                         if (cellular_ctrl_at_unlock_return_error() == 0) {
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+                            // SARA-R4 only supports a single context at any
+                            // one time and so doesn't require that.
                             errorCode = CELLULAR_CTRL_SUCCESS;
+#else
+                            // Use AT+UPSD to map the context to an internal
+                            // modem profile e.g. AT+UPSD=0,100,1, then
+                            // activate that profile e.g. AT+UPSDA=0,3.
+                            cellular_ctrl_at_lock();
+                            // Map profile ID CELLULAR_CTRL_PROFILE_ID to
+                            // context ID CELLULAR_CTRL_CONTEXT_ID
+                            cellular_ctrl_at_cmd_start("AT+UPSD=");
+                            cellular_ctrl_at_write_int(CELLULAR_CTRL_PROFILE_ID);
+                            cellular_ctrl_at_write_int(100);
+                            cellular_ctrl_at_write_int(CELLULAR_CTRL_CONTEXT_ID);
+                            cellular_ctrl_at_cmd_stop_read_resp();
+                            // Activate profile ID CELLULAR_CTRL_PROFILE_ID
+                            cellular_ctrl_at_cmd_start("AT+UPSDA=");
+                            cellular_ctrl_at_write_int(CELLULAR_CTRL_PROFILE_ID);
+                            cellular_ctrl_at_write_int(3);
+                            cellular_ctrl_at_cmd_stop_read_resp();
+                            if (cellular_ctrl_at_unlock_return_error() == 0) {
+                                errorCode = CELLULAR_CTRL_SUCCESS;
+                            }
+#endif
                         }
                     } else {
                         // Help it on its way.
@@ -664,6 +697,50 @@ void waitForPowerOff(bool (*pKeepGoingCallback) (void),
         cellularPortTaskBlock(1000);
     }
 }
+
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+
+// Convert RSRP in 36.133 format to dBm.
+// Returns 0 if the number is not known.
+// 0: -141 dBm or less,
+// 1..96: from -140 dBm to -45 dBm with 1 dBm steps,
+// 97: -44 dBm or greater,
+// 255: not known or not detectable.
+static int32_t rsrpToDbm(int32_t rsrp)
+{
+    int32_t rsrpDbm = 0;
+
+    if (rsrp <= 97) {
+        rsrpDbm = rsrp - 97 - 44;
+        if (rsrpDbm < -141) {
+            rsrpDbm = -141;
+        }
+    }
+
+    return rsrpDbm;
+}
+
+// Convert RSRQ in 36.133 format to dB.
+// Returns 0 if the number is not known.
+// 0: less than -19.5 dB
+// 1..33: from -19.5 dB to -3.5 dB with 0.5 dB steps
+// 34: -3 dB or greater
+// 255: not known or not detectable.
+static int32_t rsrqToDb(int32_t rsrq)
+{
+    int32_t rsrqDb = 0;
+
+    if (rsrq <= 34) {
+        rsrqDb = (rsrq - 34 - 6) / 2;
+        if (rsrqDb < -19) {
+            rsrqDb = -19;
+        }
+    }
+
+    return rsrqDb;
+}
+
+#endif
 
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS
@@ -748,6 +825,7 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
                         // With that all done, initialise the AT command parser
                         errorCode = cellular_ctrl_at_init(uart, queueUart);
                         if (errorCode == 0) {
+                            cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_TIMEOUT_MS, true);
                             gPinEnablePower = pinEnablePower;
                             gPinPwrOn = pinPwrOn;
                             gPinVInt = pinVInt;
@@ -968,6 +1046,8 @@ int32_t cellularCtrlReboot()
         errorCode = CELLULAR_CTRL_AT_ERROR;
         cellularPortLog("CELLULAR_CTRL: rebooting.\n");
         cellular_ctrl_at_lock();
+        cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_REBOOT_COMMAND_WAIT_TIME_MS,
+                                        false);
         // Clear out the old RF readings
         clearRadioParameters();
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
@@ -977,6 +1057,7 @@ int32_t cellularCtrlReboot()
         cellular_ctrl_at_cmd_start("AT+CFUN=15");
 #endif
         cellular_ctrl_at_cmd_stop_read_resp();
+        cellular_ctrl_at_restore_at_timeout();
         if (cellular_ctrl_at_unlock_return_error() == 0) {
             // Wait for the module to boot
             cellularPortTaskBlock(CELLULAR_CTRL_BOOT_WAIT_TIME_MS);
@@ -993,8 +1074,8 @@ int32_t cellularCtrlReboot()
                 // Configure the module
                 errorCode = moduleConfigure(gUart);
             }
+            gAtNumConsecutiveTimeouts = 0;
         }
-        gAtNumConsecutiveTimeouts = 0;
     }
 
     return (int32_t) errorCode;
@@ -1473,6 +1554,18 @@ int32_t cellularCtrlDisconnect()
         cellular_ctrl_at_resp_stop();
         cellular_ctrl_at_unlock();
         if (status != 2) {
+#ifndef CELLULAR_CFG_MODULE_SARA_R4
+            // TODO: is this required?
+            // Deactivate profile ID CELLULAR_CTRL_PROFILE_ID
+            cellular_ctrl_at_lock();
+            cellular_ctrl_at_cmd_start("AT+UPSDA=");
+            cellular_ctrl_at_write_int(CELLULAR_CTRL_PROFILE_ID);
+            cellular_ctrl_at_write_int(4);
+            cellular_ctrl_at_cmd_stop_read_resp();
+            cellular_ctrl_at_unlock();
+            // No need to deactivate the context, it will
+            // go when we deregister.
+#endif
             // The normal thing to do here would be
             // AT+COPS=2.  However, due to oddities
             // in the SARA-R412M firmware it is
@@ -1717,11 +1810,17 @@ int32_t cellularCtrlGetApnStr(char *pStr, size_t size)
 int32_t cellularCtrlRefreshRadioParameters()
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
-    int32_t rssi;
+    int32_t x;
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
     double rsrx;
     char buf[16];
-    char *pLimit;
+#endif
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+    int32_t bytesRead;
+    int32_t atError;
+    char *pBuffer;
+    char *pStr;
+    char *pSave;
 #endif
 
     if (gInitialised) {
@@ -1730,7 +1829,7 @@ int32_t cellularCtrlRefreshRadioParameters()
             errorCode = CELLULAR_CTRL_AT_ERROR;
             gRssiDbm = 0;
             gRsrpDbm = 0;
-            gRsrqDbm = 0;
+            gRsrqDb = 0;
             // The mechanisms to get the radio information
             // are different between EUTRAN and GERAN but
             // AT+CSQ works in all cases though it sometimes
@@ -1739,7 +1838,7 @@ int32_t cellularCtrlRefreshRadioParameters()
             cellular_ctrl_at_cmd_start("AT+CSQ");
             cellular_ctrl_at_cmd_stop();
             cellular_ctrl_at_resp_start("+CSQ:", false);
-            rssi = cellular_ctrl_at_read_int();
+            x = cellular_ctrl_at_read_int();
             gRxQual = cellular_ctrl_at_read_int();
             if (gRxQual == 99) {
                 gRxQual = -1;
@@ -1748,45 +1847,86 @@ int32_t cellularCtrlRefreshRadioParameters()
             // AT+CSQ returns a coded RSSI value
             // The mapping is defined in the array gRssiConvertLte[].
             if (cellular_ctrl_at_unlock_return_error() == 0) {
-                if ((rssi >= 0) && (rssi < sizeof(gRssiConvertLte) / sizeof(gRssiConvertLte[0]))) {
-                    gRssiDbm = gRssiConvertLte[rssi];
+                if ((x >= 0) && (x < sizeof(gRssiConvertLte) / sizeof(gRssiConvertLte[0]))) {
+                    gRssiDbm = gRssiConvertLte[x];
                 }
                 // Note that AT+UCGED is used
                 // rather than AT+CESQ as, in my experience,
                 // it is more reliable in reporting answers.
-                cellular_ctrl_at_lock();
-                cellular_ctrl_at_cmd_start("AT+UCGED?");
-                cellular_ctrl_at_cmd_stop();
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
                 // For UCGED=2, which is what SARA-R5
-                // supports, the response is:
+                // supports, the response is a multi-line one:
                 // +UCGED: 2
-                // <rat>,<MCC>,<MNC>
-                // <EARFCN>,<Lband>,<ul_BW>,<dl_BW>,<TAC>,<P-CID>,<RSRP>,<RSRQ>,<NBMsinr>,<esm_cause>,<emm_state>,<tx_pwr>,<drx_cycle_len>,<tmsi>
+                // <rat>,<svc>,<MCC>,<MNC>
+                // <earfcn>,<Lband>,<ul_BW>,<dl_BW>,<tac>,<LcellId>,<PCID>,<mTmsi>,<mmeGrId>,<mmeCode>, <rsrp>,<rsrq>,<Lsinr>,<Lrrc>,<RI>,<CQI>,<avg_rsrp>,<totalPuschPwr>,<avgPucchPwr>,<drx>, <l2w>,<volte_mode>[,<meas_gap>,<tti_bundling>]
                 // e.g.
-                // 6,310,410
-                // 5110,12,10,10,830e,162,-86,-14,131,-1,3,255,128,"FB306E02"
-                cellular_ctrl_at_resp_start("+UCGED: 2", false);
-                // Skip <rat>,<MCC>,<MNC>
-                cellular_ctrl_at_skip_param(3);
-                // Read EARFCN
-                gEarfcn = cellular_ctrl_at_read_int();
-                // Skip <Lband>,<ul_BW>,<dl_BW>,<TAC>
-                cellular_ctrl_at_skip_param(4);
-                // Read Cell ID
-                gCellId = cellular_ctrl_at_read_int();
-                // Read RSRP
-                gRsrpDbm = cellular_ctrl_at_read_int();
-                // Read RSRQ
-                gRsrqDbm = cellular_ctrl_at_read_int();
+                // 6,4,001,01
+                // 2525,5,50,50,e8fe,1a2d001,1,d60814d1,8001,01,28,31,13.75,3,1,10,28,-50,-6,0,255,255,0
+                // Malloc some memory to read the whole thing into
+                pBuffer = (char *) pCellularPort_malloc(128);
+                if (pBuffer != NULL) {
+                    cellular_ctrl_at_lock();
+                    cellular_ctrl_at_cmd_start("AT+UCGED?");
+                    cellular_ctrl_at_cmd_stop();
+                    cellular_ctrl_at_resp_start("+UCGED:", false);
+                    cellular_ctrl_at_skip_param(1);
+                    // Next two lines of response
+                    // Don't want characters in the string being interpreted
+                    // as delimiters
+                    cellular_ctrl_at_set_delimiter(0);
+                    cellular_ctrl_at_resp_start(NULL, false);
+                    // Read beyond stop tag to ignore \r\n
+                    bytesRead = cellular_ctrl_at_read_string(pBuffer, 128, true);
+                    cellular_ctrl_at_resp_stop();
+                    cellular_ctrl_at_set_default_delimiter();
+                    atError = cellular_ctrl_at_unlock_return_error();
+                    if ((bytesRead > 0) && (atError == 0)) {
+                        // Find the '\r' at the end of the first line and replace it
+                        // with ','
+                        pStr = pCellularPort_strchr(pBuffer, '\r');
+                        if (pStr != NULL) {
+                            *pStr = ',';
+                            // Remove all the other control characters
+                            bytesRead -= strip_ctrl(pBuffer, cellularPort_strlen(pBuffer));
+                            if (bytesRead > 0) {
+                                // Now find all the bits we want
+                                pStr = pCellularPort_strtok_r(pBuffer, ",", &pSave);
+                                for (x = 1; pStr != NULL; x++) {
+                                    if (x == 5) {
+                                        // EARFCN is element 5
+                                        gEarfcn = cellularPort_strtol(pStr, NULL, 10);
+                                    } else if (x == 11) {
+                                        // Physical Cell ID is element 11
+                                        gCellId = cellularPort_strtol(pStr, NULL, 10);
+                                    } else if (x == 15) {
+                                        // RSRP is element 15,
+                                        // coded as specified in TS 36.133
+                                        gRsrpDbm = rsrpToDbm(cellularPort_strtol(pStr, NULL, 10));
+                                    } else if (x == 16) {
+                                        // RSRQ is element 16
+                                        // coded as specified in TS 36.133
+                                        gRsrqDb = rsrqToDb(cellularPort_strtol(pStr, NULL, 10));
+                                        errorCode = CELLULAR_CTRL_SUCCESS;
+                                   }
+                                   pStr = pCellularPort_strtok_r(NULL, ",", &pSave);
+                                }
+                            }
+                        }
+                    }
+                    // Free memory again
+                    cellularPort_free(pBuffer);
+                }
 #endif
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
                 // SARA-R4 only supports UCGED=5"
+                cellular_ctrl_at_lock();
+                cellular_ctrl_at_cmd_start("AT+UCGED?");
+                cellular_ctrl_at_cmd_stop();
                 cellular_ctrl_at_resp_start("+RSRP:", false);
                 gCellId = cellular_ctrl_at_read_int();
                 gEarfcn = cellular_ctrl_at_read_int();
                 if (cellular_ctrl_at_read_string(buf, sizeof(buf), false) > 0) {
-                    rsrx = cellularPort_strtof(buf, &pLimit);
+                    rsrx = cellularPort_strtof(buf, NULL);
                     if (rsrx >= 0) {
                         gRsrpDbm = (int32_t) (rsrx + 0.5);
                     } else {
@@ -1797,18 +1937,18 @@ int32_t cellularCtrlRefreshRadioParameters()
                 // Skip past cell ID and EARFCN since they will be the same
                 cellular_ctrl_at_skip_param(2);
                 if (cellular_ctrl_at_read_string(buf, sizeof(buf), false) > 0) {
-                    rsrx = cellularPort_strtof(buf, &pLimit);
+                    rsrx = cellularPort_strtof(buf, NULL);
                     if (rsrx >= 0) {
-                        gRsrqDbm = (int32_t) (rsrx + 0.5);
+                        gRsrqDb = (int32_t) (rsrx + 0.5);
                     } else {
-                        gRsrqDbm = (int32_t) (rsrx - 0.5);
+                        gRsrqDb = (int32_t) (rsrx - 0.5);
                     }
                 }
-#endif
                 cellular_ctrl_at_resp_stop();
                 if (cellular_ctrl_at_unlock_return_error() == 0) {
                     errorCode = CELLULAR_CTRL_SUCCESS;
                 }
+#endif
             }
         }
     }
@@ -1817,7 +1957,7 @@ int32_t cellularCtrlRefreshRadioParameters()
         cellularPortLog("CELLULAR_CTRL: radio parameters refreshed:\n");
         cellularPortLog("               RSSI:    %d dBm\n", gRssiDbm);
         cellularPortLog("               RSRP:    %d dBm\n", gRsrpDbm);
-        cellularPortLog("               RSRQ:    %d dBm\n", gRsrqDbm);
+        cellularPortLog("               RSRQ:    %d dB\n", gRsrqDb);
         cellularPortLog("               RxQual:  %d\n", gRxQual);
         cellularPortLog("               cell ID: %d\n", gCellId);
         cellularPortLog("               EARFCN:  %d\n", gEarfcn);
@@ -1841,9 +1981,9 @@ int32_t cellularCtrlGetRsrpDbm()
 }
 
 // Return the RSRQ.
-int32_t cellularCtrlGetRsrqDbm()
+int32_t cellularCtrlGetRsrqDb()
 {
-    return gRsrqDbm;
+    return gRsrqDb;
 }
 
 // Return the RxQual.
