@@ -17,8 +17,15 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
+#include "cellular_cfg_hw_platform_specific.h"
+#include "cellular_cfg_module.h"
 #include "cellular_port_test_platform_specific.h"
 #include "cellular_port_clib.h"
+#include "cellular_port.h"
+#include "cellular_port_os.h"
+#include "cellular_port_uart.h"
+#include "cellular_ctrl.h"
+#include "cellular_sock.h"
 
 #include "stdio.h"
 #include "stdbool.h"
@@ -108,7 +115,11 @@ void tearDown(void)
 
 void testFail(void)
 {
-    
+    // Attempt a clean-up
+    cellularSockDeinit();
+    cellularCtrlDeinit();
+    cellularPortUartDeinit(CELLULAR_CFG_UART);
+    cellularPortDeinit();
 }
 
 
