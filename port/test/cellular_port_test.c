@@ -134,7 +134,7 @@ static int32_t sendToQueue(CellularPortQueueHandle_t gQueueHandle,
 /** Basic test: initialise and then deinitialise the porting layer.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestInitialisation(),
-                            "port_initialisation",
+                            "portInitialisation",
                             "port")
 {
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
@@ -143,7 +143,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestInitialisation(),
 
 /** Test: all the OS stuff.
  */
-CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
+CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
                             "os",
                             "port")
 {
@@ -267,7 +267,51 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestEverything(),
     cellularPortDeinit();
 }
 
+/** Test: strtok_r since we have our own implementation for some platforms.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularPortTest_strtok_r(),
+                            "strtok_r",
+                            "port")
+{
+    char *pSave;
+    char buffer[8];
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
+
+    cellularPortLog("CELLULAR_PORT_TEST: testing strtok_r...\n");
+
+    buffer[sizeof(buffer) - 1] = 'x';
+
+    pCellularPort_strcpy(buffer, "abcabc");
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pCellularPort_strtok_r(buffer, "b", &pSave), "a") == 0);
+    CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pCellularPort_strtok_r(NULL, "b", &pSave), "ca") == 0);
+    CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pCellularPort_strtok_r(NULL, "b", &pSave), "c") == 0);
+    CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
+    CELLULAR_PORT_TEST_ASSERT(pCellularPort_strtok_r(NULL, "b", &pSave) == NULL);
+    CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
+
+    pCellularPort_strcpy(buffer, "abcade");
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pCellularPort_strtok_r(buffer, "a", &pSave), "bc") == 0);
+    CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
+    pCellularPort_strcpy(buffer, "abcade");
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pCellularPort_strtok_r(buffer, "a", &pSave), "bc") == 0);
+    CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pCellularPort_strtok_r(NULL, "a", &pSave), "de") == 0);
+    CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
+    CELLULAR_PORT_TEST_ASSERT(pCellularPort_strtok_r(NULL, "a", &pSave) == NULL);
+    CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
+
+    pCellularPort_strcpy(buffer, "abcabc");
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pCellularPort_strtok_r(buffer, "d", &pSave), "abcabc") == 0);
+    CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
+    CELLULAR_PORT_TEST_ASSERT(pCellularPort_strtok_r(NULL, "d", &pSave) == NULL);
+    CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
+
+    cellularPortDeinit();
+}
+
 // TODO: more ranges of OS stuff, stress testing, etc.
-// TODO: tests for clib
 
 // End of file

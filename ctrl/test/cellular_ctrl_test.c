@@ -470,7 +470,7 @@ static void connectDisconnect(CellularCtrlRat_t rat)
 /** Basic test: initialise and then deinitialise everything.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
-                            "ctrl_initialisation",
+                            "ctrlInitialisation",
                             "ctrl")
 {
     CellularPortQueueHandle_t queueHandle;

@@ -29,42 +29,43 @@
  *                    save context between calls.
  * @return            the token, NULL terminated.
  */
-char *strtok_r(char *pStr, const char *pDelimiter, char **ppSave)
+char *strtok_r(char *pStr, const char *pDelimiters, char **ppSave)
 {
     char *pEnd;
 
-    // On subsequent calls, with pStr NULL,
-    // set pStr to start from the saved position
     if (pStr == NULL) {
+        // On subsequent calls, with pStr NULL,
+        // set pStr to start from the saved position
         pStr = *ppSave;
     }
 
     if (*pStr != '\0') {
         // Find the position of any delimiters
         // at the beginning of the string/saved pointer
-        pStr += strspn(pStr, pDelimiter);
-        if (*pStr == '\0') {
-            // None at all, save it and
-            // set the return value to NULL
-            *ppSave = pStr;
-            pStr = NULL;
-        } else {
+        pStr += strspn(pStr, pDelimiters);
+        if (*pStr != '\0') {
             // Having found a token, find the start
             // of the next one
-            pEnd = pStr + strcspn(pStr, pDelimiter);
-            if (*pEnd == '\0') {
+            pEnd = pStr + strcspn(pStr, pDelimiters);
+            if (*pEnd != '\0') {
+                // Found one: write a NULL to the position
+                // of the start of the next token
+                // in order to make sure the returned
+                // token is terminated and make the
+                // saved pointer point beyond it for
+                // next time.
+                *pEnd = '\0';
+                *ppSave = ++pEnd;
+            } else {
                 // No next one, save the end
                 // for next time
                 *ppSave = pEnd;
             }
-            // Write a NULL to the position
-            // of the start of the next token
-            // in order to make sure the returned
-            // token is terminated and make the
-            // saved pointer point beyond it for
-            // next time.
-            *pEnd = '\0';
-            *ppSave = pEnd++;
+        } else {
+            // None at all, save it and
+            // set the return value to NULL
+            *ppSave = pStr;
+            pStr = NULL;
         }
     } else {
         // If we're at the terminator,

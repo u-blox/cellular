@@ -35,12 +35,12 @@
 
 /** strtok().
  *
- * @param pStr       the string to search.
- * @param pDelimiter the set of delimiters to look for.
- * @param ppSave     place for this function to store context.
- * @return           the next occurrence of pDelimiter in pStr.
+ * @param pStr        the string to search.
+ * @param pDelimiters the set of delimiters to look for.
+ * @param ppSave      place for this function to store context.
+ * @return            the next occurrence of pDelimiter in pStr.
  */
-char *strtok_r(char *pStr, const char *pDelimiter, char **ppSave);
+char *strtok_r(char *pStr, const char *pDelimiters, char **ppSave);
 
 #endif // _CELLULAR_PORT_CLIB_PLATFORM_SPECIFIC_H_
 

@@ -260,9 +260,8 @@ static void rxIrqHandler(CellularPortUartData_t *pUartData)
         // write buffer on.
         pRxBuffer = pUartData->pRxBufferWrite;
         pUartData->pRxBufferWrite = pUartData->pRxBufferWrite->pNext;
-        // Now update the read count
-        // TODO: remove this when we're more sure this code works
-        cellularPort_assert(pRxBuffer->toRead == 0);
+        // Now update the read count and pointer
+        pRxBuffer->pRead = pRxBuffer->pStart;
         pRxBuffer->toRead = x;
         // If there is at least some data and the user needs to
         // be notified, let them know
@@ -740,9 +739,8 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
             // everything we can from each one
             sizeOrErrorCode = 0;
             pRxBuffer = gUartData[uart].pRxBufferRead;
-            for (size_t x = 0; (sizeBytes > 0) &&
-                               (x < sizeof(gUartData[uart].rxBufferList) /
-                                    sizeof(gUartData[uart].rxBufferList[0])); x++) {
+            while ((sizeBytes > 0) &&
+                   (pRxBuffer != gUartData[uart].pRxBufferWrite)) {
                 // Read what we can from the current
                 // receive read buffer
                 thisRead = pRxBuffer->toRead;
@@ -759,19 +757,18 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
                 pRxBuffer->pRead += thisRead;
                 if (pRxBuffer->toRead <= 0) {
                     // If we've read everything from this
-                    // receive read buffer, move
-                    // its read pointer back to the start
-                    // and move on
-                    pRxBuffer->pRead = pRxBuffer->pStart;
+                    // receive buffer, move to the next,
+                    // no need to reset the read pointer,
+                    // the interrupt will do that
                     pRxBuffer = pRxBuffer->pNext;
+                    if (pRxBuffer != gUartData[uart].pRxBufferWrite) {
+                        gUartData[uart].pRxBufferRead = pRxBuffer;
+                    }
                 }
                 // Update the totals
                 sizeOrErrorCode += thisRead;
                 sizeBytes -= thisRead;
             }
-
-            // Set the receive read buffer to where we've got to
-            gUartData[uart].pRxBufferRead = pRxBuffer;
 
             // Set the notify flag if we've read everything
             gUartData[uart].userNeedsNotify = false;
