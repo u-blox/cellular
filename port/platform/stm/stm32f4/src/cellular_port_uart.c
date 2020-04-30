@@ -428,7 +428,8 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                             // Set DMA priority
                             NVIC_SetPriority(CELLULAR_DMA_STREAM_IRQ_N(CELLULAR_CFG_DMA, CELLULAR_CFG_DMA_STREAM),
                                              NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
-                            // Clear all the DMA flags and DMA pending IRQ first
+                            // Clear all the DMA flags and the DMA pending IRQ from any previous
+                            // session first, or an unexpected interrupt may result
                             CELLULAR_DMA_CLEAR_FLAG_HT(CELLULAR_CFG_DMA_STREAM)(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA));
                             CELLULAR_DMA_CLEAR_FLAG_TC(CELLULAR_CFG_DMA_STREAM)(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA));
                             CELLULAR_DMA_CLEAR_FLAG_TE(CELLULAR_CFG_DMA_STREAM)(CELLULAR_PORT_DMA(CELLULAR_CFG_DMA));
