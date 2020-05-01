@@ -52,7 +52,7 @@
 int32_t cellularPortTaskCreate(void (*pFunction)(void *),
                                const char *pName,
                                size_t stackSizeBytes,
-                               void **ppParameter,
+                               void *pParameter,
                                int32_t priority,
                                CellularPortTaskHandle_t *pTaskHandle)
 {
@@ -62,18 +62,10 @@ int32_t cellularPortTaskCreate(void (*pFunction)(void *),
         // On the native FreeRTOS that NRF52840 uses stack size is
         // actually in words, so divide by four here.
         stackSizeBytes >>= 4;
-        if (ppParameter != NULL) {
-            if (xTaskCreate(pFunction, pName, stackSizeBytes,
-                            *ppParameter, priority,
-                            (TaskHandle_t *) pTaskHandle) == pdPASS) {
-                errorCode = CELLULAR_PORT_SUCCESS;
-            }
-        } else {
-            if (xTaskCreate(pFunction, pName, stackSizeBytes,
-                            NULL, priority,
-                            (TaskHandle_t *) pTaskHandle) == pdPASS) {
-                errorCode = CELLULAR_PORT_SUCCESS;
-            }
+        if (xTaskCreate(pFunction, pName, stackSizeBytes,
+                        pParameter, priority,
+                        (TaskHandle_t *) pTaskHandle) == pdPASS) {
+            errorCode = CELLULAR_PORT_SUCCESS;
         }
     }
 
@@ -261,13 +253,6 @@ int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle)
 
     return (int32_t) errorCode;
 }
-
-// Return the handle of the task that currently holds a mutex.
-CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandle_t mutexHandle)
-{
-    return (CellularPortTaskHandle_t) xSemaphoreGetMutexHolder(mutexHandle);
-}
-
 
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS: HOOKS

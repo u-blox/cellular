@@ -114,22 +114,6 @@
  */
 #define CELLULAR_CTRL_ICCID_BUFFER_SIZE 21
 
-/** The task priority for any callbacks.
- * IMPORTANT: should not be higher than 
- * CELLULAR_CTRL_AT_TASK_URC_HANDLER_PRIORITY,
- * see cellular_ctrl_at.h.
- */
-#ifndef CELLULAR_CTRL_CALLBACK_PRIORITY
-# define CELLULAR_CTRL_CALLBACK_PRIORITY 15
-#endif
-
-/** The stack size of the task in the context of which callbacks
- * will be run.
- */
-#ifndef CELLULAR_CTRL_CALLBACK_STACK_SIZE_BYTES
-# define CELLULAR_CTRL_CALLBACK_STACK_SIZE_BYTES (1024 * 5)
-#endif
-
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */

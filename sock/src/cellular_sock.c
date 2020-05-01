@@ -175,7 +175,7 @@ static void UUSORD_UUSORF_urc(void *pUnused)
             pContainer->socket.pendingBytes = dataSizeBytes;
             CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
             if (pContainer->socket.pPendingDataCallback != NULL) {
-                cellular_ctrl_at_urc_callback(pContainer->socket.pPendingDataCallback,
+                cellular_ctrl_at_callback(pContainer->socket.pPendingDataCallback,
                                               pContainer->socket.pPendingDataCallbackParam);
             }
             CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
@@ -204,7 +204,7 @@ static void UUSOCL_urc(void *pUnused)
             pContainer->socket.state = CELLULAR_SOCK_STATE_CLOSED;
             CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
             if (pContainer->socket.pConnectionClosedCallback != NULL) {
-                cellular_ctrl_at_urc_callback(pContainer->socket.pConnectionClosedCallback,
+                cellular_ctrl_at_callback(pContainer->socket.pConnectionClosedCallback,
                                               pContainer->socket.pConnectionClosedCallbackParam);
             }
             CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
