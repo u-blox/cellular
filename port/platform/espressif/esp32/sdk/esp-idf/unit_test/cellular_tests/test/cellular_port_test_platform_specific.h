@@ -41,19 +41,24 @@
  */
 #define CELLULAR_PORT_TEST_ASSERT(condition) TEST_ASSERT(condition)
 
+/** The stack size to use for the test task created during OS testing.
+ */
+#define CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES 2048
+
 /** The task priority to use for the task created during.
  * testing: make sure that the priority of the task RUNNING
  * the tests is lower than this.
  */
 #define CELLULAR_PORT_TEST_TASK_PRIORITY 12
 
-/** The stack size to use for the test task created during OS testing.
- */
-#define CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES 2048
-
 /** The stack size to use for the test task created during sockets testing.
  */
 #define CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES (1024 * 5)
+
+/** The priority to use for the test task created during sockets testing;
+ * lower priority than the URC handler.
+ */
+#define CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY (CELLULAR_CTRL_AT_TASK_URC_PRIORITY + 1)
 
 /* ----------------------------------------------------------------
  * TYPES

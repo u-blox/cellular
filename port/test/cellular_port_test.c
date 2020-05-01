@@ -73,12 +73,11 @@ static int32_t gStuffToSend[] = {0, 100, 25, 3};
 // The test task.
 static void testTask(void *pParameters)
 {
-    CellularPortTaskHandle_t taskHandle;
     int32_t queueItem = 0;
     int32_t index = 0;
 
-    cellularPortLog("CELLULAR_PORT_TEST_TASK: task started, received parameter pointer 0x%08x containing string \"%s\".\n",
-                    pParameters, (const char *) pParameters);
+    cellularPortLog("CELLULAR_PORT_TEST_TASK: task with handle 0x%08x started, received parameter pointer 0x%08x containing string \"%s\".\n",
+                    (int) gTaskHandle, pParameters, (const char *) pParameters);
     CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pParameters,
                                                   gpTaskParameter) == 0);
 
@@ -92,12 +91,6 @@ static void testTask(void *pParameters)
 
     cellularPortLog("CELLULAR_PORT_TEST_TASK: locking it again (non-try version).\n");
     CELLULAR_PORT_MUTEX_LOCK(gMutexHandle);
-
-    // Check that we have it
-    taskHandle = cellularPortMutexGetLocker(gMutexHandle);
-    cellularPortLog("CELLULAR_PORT_TEST_TASK: task 0x%08x has the mutex.\n",
-                    taskHandle);
-    CELLULAR_PORT_TEST_ASSERT(taskHandle == gTaskHandle);
 
     CELLULAR_PORT_TEST_ASSERT(gQueueHandle != NULL);
     cellularPortLog("CELLULAR_PORT_TEST_TASK: task waiting on queue.\n");
@@ -148,7 +141,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
                             "port")
 {
     int32_t errorCode;
-    CellularPortTaskHandle_t taskHandle;
     CellularPortQueueHandle_t queueHandle;
     int64_t startTimeMs;
     int64_t timeNowMs;
@@ -166,10 +158,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
     CELLULAR_PORT_TEST_ASSERT(errorCode == 0);
     CELLULAR_PORT_TEST_ASSERT(gMutexHandle != NULL);
 
-    // Check that the mutex it not currently locked
-    taskHandle = cellularPortMutexGetLocker(gMutexHandle);
-    CELLULAR_PORT_TEST_ASSERT(taskHandle == NULL);
-
     cellularPortLog("CELLULAR_PORT_TEST: creating a queue...\n");
     errorCode = cellularPortQueueCreate(CELLULAR_PORT_TEST_QUEUE_LENGTH,
                                         CELLULAR_PORT_TEST_QUEUE_ITEM_SIZE,
@@ -185,7 +173,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
                     &gpTaskParameter, gpTaskParameter);
     errorCode = cellularPortTaskCreate(testTask, "test_task",
                                        CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES,
-                                       (void **) &gpTaskParameter,
+                                       (void *) gpTaskParameter,
                                        CELLULAR_PORT_TEST_TASK_PRIORITY,
                                        &gTaskHandle);
     cellularPortLog("                    returned error code %d, handle 0x%08x.\n",
@@ -195,12 +183,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
 
     // Pause to let the task print its opening messages
     cellularPortTaskBlock(1000);
-
-    // Check that the mutex is now locked by our test task
-    taskHandle = cellularPortMutexGetLocker(gMutexHandle);
-    cellularPortLog("CELLULAR_PORT_TEST: task handle 0x%08x has the mutex.\n",
-                    taskHandle);
-    CELLULAR_PORT_TEST_ASSERT(taskHandle == gTaskHandle);
 
     cellularPortLog("CELLULAR_PORT_TEST: trying to lock the mutex, should fail...\n");
     CELLULAR_PORT_TEST_ASSERT(cellularPortMutexTryLock(gMutexHandle, 10) != 0);
@@ -215,6 +197,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
     sendToQueue(gQueueHandle, -1);
 
     CELLULAR_PORT_MUTEX_LOCK(gMutexHandle);
+    // Yield to let it get the message
+    cellularPortTaskBlock(10);
     CELLULAR_PORT_MUTEX_UNLOCK(gMutexHandle);
     cellularPortLog("CELLULAR_PORT_TEST: task stopped.\n");
 

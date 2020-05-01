@@ -29,6 +29,7 @@
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
 #include "cellular_cfg_sw.h"
+#include "cellular_cfg_os_platform_specific.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_debug.h"
@@ -102,6 +103,32 @@
 // will be sizeof(cellular_ctrl_at_callback_t) bytes big.
 #define CELLULAR_CTRL_AT_CALLBACK_QUEUE_LENGTH 10
 
+/** The stack size for the URC task.
+ */
+#ifndef CELLULAR_CTRL_AT_TASK_URC_STACK_SIZE_BYTES
+# error CELLULAR_CTRL_AT_TASK_URC_STACK_SIZE_BYTES must be defined in cellular_cfg_os_platform_specific.h
+#endif
+
+/** The task priority for the URC handler.
+ */
+#ifndef CELLULAR_CTRL_AT_TASK_URC_PRIORITY
+# error CELLULAR_CTRL_AT_TASK_URC_PRIORITY must be defined in cellular_cfg_os_platform_specific.h
+#endif
+
+/** The stack size of the task in the context of which callbacks
+ * will be run.  5 kbytes should be plenty of room.
+ */
+#ifndef CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES
+# error CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES must be defined in cellular_cfg_os_platform_specific.h
+#endif
+
+/** The task priority for any callback made via
+ * cellular_ctrl_at_callback().
+ */
+#ifndef CELLULAR_CTRL_TASK_CALLBACK_PRIORITY
+# error CELLULAR_CTRL_TASK_CALLBACK_PRIORITY must be defined in cellular_cfg_os_platform_specific.h
+#endif
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -121,14 +148,14 @@ typedef enum {
     CELLULAR_CTRL_AT_SCOPE_TYPE_NOT_SET
 } cellular_ctrl_at_scope_type;
 
-// Definition of an Out Of Band response.
-typedef struct cellular_ctrl_at_oob_t {
+// Definition of a URC.
+typedef struct cellular_ctrl_at_urc_t {
     const char *prefix;
     int prefix_len;
     void (*cb) (void *);
     void *cb_param;
-    struct cellular_ctrl_at_oob_t *next;
-} cellular_ctrl_at_oob_t;
+    struct cellular_ctrl_at_urc_t *next;
+} cellular_ctrl_at_urc_t;
 
 // Definition of a tag.
 typedef struct {
@@ -169,11 +196,11 @@ static const uint8_t _map_3gpp_errors[][2] =  {
 // Mutex to control access to the UART stream.
 static CellularPortMutexHandle_t _mtx_stream;
 
-// Task buffer and task stack for out of band task.
-static CellularPortTaskHandle_t _task_handle_oob;
+// Task buffer and task stack for the URC task.
+static CellularPortTaskHandle_t _task_handle_urc;
 
-// Mutex to determine whether the out of band task is running.
-static CellularPortMutexHandle_t _mtx_oob_task_running;
+// Mutex to determine whether the URC task is running.
+static CellularPortMutexHandle_t _mtx_urc_task_running;
 
 // Task buffer and task stack for call-backs.
 static CellularPortTaskHandle_t _task_handle_callbacks;
@@ -184,7 +211,7 @@ static CellularPortMutexHandle_t _mtx_callbacks_task_running;
 // Queue to feed the call-backs task.
 static CellularPortQueueHandle_t _queue_callbacks;
 
-// Queue to feed the out of band task.
+// Queue to feed the URC task.
 static CellularPortQueueHandle_t _queue_uart;
 
 // The UART port to use, -1 means not initialised.
@@ -193,10 +220,10 @@ static int32_t _uart = -1;
 static cellular_ctrl_at_error_code_t _last_error;
 static int32_t _last_3gpp_error;
 static cellular_ctrl_at_device_err_t  _last_at_error;
-static uint16_t _oob_string_max_length;
+static uint16_t _urc_string_max_length;
 
-// Linked-list anchor for Out Of Band handlers
-static cellular_ctrl_at_oob_t *_oobs;
+// Linked-list anchor for URC handlers
+static cellular_ctrl_at_urc_t *_urcs;
 
 static uint32_t _at_timeout_ms;
 static uint32_t _previous_at_timeout;
@@ -394,7 +421,7 @@ static bool fill_buffer(bool wait_for_timeout)
 
     if (wait_for_timeout) {
         at_timeout = _at_timeout_ms;
-        if (cellularPortTaskIsThis(_task_handle_oob)) {
+        if (cellularPortTaskIsThis(_task_handle_urc)) {
             at_timeout = CELLULAR_CTRL_AT_URC_TIMEOUT_MS;
         }
     }
@@ -588,14 +615,14 @@ static bool match_urc()
 {
     rewind_buffer();
     size_t prefix_len = 0;
-    for (cellular_ctrl_at_oob_t *oob = _oobs; oob; oob = oob->next) {
-        prefix_len = oob->prefix_len;
+    for (cellular_ctrl_at_urc_t *urc = _urcs; urc; urc = urc->next) {
+        prefix_len = urc->prefix_len;
         if (_buf.recv_len >= prefix_len) {
-            if (match(oob->prefix, prefix_len)) {
+            if (match(urc->prefix, prefix_len)) {
                 set_scope(CELLULAR_CTRL_AT_SCOPE_TYPE_INFO);
                 int64_t now_ms = cellularPortGetTickTimeMs();
-                if (oob->cb) {
-                    oob->cb(oob->cb_param);
+                if (urc->cb) {
+                    urc->cb(urc->cb_param);
                 }
                 information_response_stop();
                 // Add the amount of time spent in the URC
@@ -803,12 +830,12 @@ static bool check_cmd_send()
 
 static bool find_urc_handler(const char *prefix)
 {
-    cellular_ctrl_at_oob_t *oob = _oobs;
-    while (oob) {
-        if (cellularPort_strcmp(prefix, oob->prefix) == 0) {
+    cellular_ctrl_at_urc_t *urc = _urcs;
+    while (urc) {
+        if (cellularPort_strcmp(prefix, urc->prefix) == 0) {
             return true;
         }
-        oob = oob->next;
+        urc = urc->next;
     }
 
     return false;
@@ -816,25 +843,25 @@ static bool find_urc_handler(const char *prefix)
 
 // Just unlock the UART stream, don't kick off
 // any further data receipt.  This is used in
-// task_oob to avoid recursion.
+// task_urc to avoid recursion.
 static void cellular_ctrl_at_unlock_no_data_check()
 {
     cellularPortMutexUnlock(_mtx_stream);
 }
 
-// Task to find oob's from the AT response, triggered through
+// Task to find urc's from the AT response, triggered through
 // something being written to _queue_uart.
 // If an invalid event (e.g. a negative size) is received, the
 // task will exit in an orderly fashion.
-static void task_oob(void *parameters)
+static void task_urc(void *parameters)
 {
     int32_t data_size_or_error = 0;
 
-    CELLULAR_PORT_MUTEX_LOCK(_mtx_oob_task_running);
+    CELLULAR_PORT_MUTEX_LOCK(_mtx_urc_task_running);
 
     (void) parameters;
 
-    cellularPortLog("CELLULAR_AT: task_oob() started.\n");
+    cellularPortLog("CELLULAR_AT: task_urc() started.\n");
 
     while (data_size_or_error >= 0) {
         data_size_or_error = cellularPortUartEventReceive(_queue_uart);
@@ -882,12 +909,12 @@ static void task_oob(void *parameters)
         }
     }
 
-    CELLULAR_PORT_MUTEX_UNLOCK(_mtx_oob_task_running);
+    CELLULAR_PORT_MUTEX_UNLOCK(_mtx_urc_task_running);
 
     // Delete ourself: only valid way out in Free RTOS
     cellularPortTaskDelete(NULL);
 
-    cellularPortLog("CELLULAR_AT: task_oob() ended.\n");
+    cellularPortLog("CELLULAR_AT: task_urc() ended.\n");
 }
 
 // Dummy function that should never be called, just used in the
@@ -923,7 +950,7 @@ static void task_callbacks(void *parameters)
 
     CELLULAR_PORT_MUTEX_UNLOCK(_mtx_callbacks_task_running);
 
-    // Delete ourself: only valid way out in Free RTOS
+    // Delete ourself
     cellularPortTaskDelete(NULL);
 
     cellularPortLog("CELLULAR_AT: task_callbacks() ended.\n");
@@ -952,8 +979,8 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
     _at_send_delay_ms = CELLULAR_CTRL_AT_SEND_DELAY,
     _last_error = CELLULAR_CTRL_AT_SUCCESS;
     _last_3gpp_error = 0;
-    _oob_string_max_length = 0;
-    _oobs = NULL;
+    _urc_string_max_length = 0;
+    _urcs = NULL;
     _previous_at_timeout = _at_timeout_ms;
     _last_response_stop_ms = 0;
     _stop_tag = NULL;
@@ -986,13 +1013,13 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
     if (cellularPortMutexCreate(&_mtx_stream) != 0) {
         return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
     }
-    if (cellularPortMutexCreate(&_mtx_oob_task_running) != 0) {
+    if (cellularPortMutexCreate(&_mtx_urc_task_running) != 0) {
         cellularPortMutexDelete(_mtx_stream);
         return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
     }
     if (cellularPortMutexCreate(&_mtx_callbacks_task_running) != 0) {
         cellularPortMutexDelete(_mtx_stream);
-        cellularPortMutexDelete(_mtx_oob_task_running);
+        cellularPortMutexDelete(_mtx_urc_task_running);
         return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
     }
 
@@ -1001,19 +1028,19 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
                                 sizeof(cellular_ctrl_at_callback_t),
                                 &_queue_callbacks) != 0) {
         cellularPortMutexDelete(_mtx_stream);
-        cellularPortMutexDelete(_mtx_oob_task_running);
+        cellularPortMutexDelete(_mtx_urc_task_running);
         cellularPortMutexDelete(_mtx_callbacks_task_running);
         return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
     }
 
     // Start a task to handle out of band responses
-    if (cellularPortTaskCreate(task_oob, "at_task_oob",
-                               CELLULAR_CTRL_OOB_TASK_STACK_CALLBACK_SIZE_BYTES,
+    if (cellularPortTaskCreate(task_urc, "at_task_urc",
+                               CELLULAR_CTRL_AT_TASK_URC_STACK_SIZE_BYTES,
                                NULL,
-                               CELLULAR_CTRL_AT_TASK_URC_HANDLER_PRIORITY,
-                               &_task_handle_oob) != 0) {
+                               CELLULAR_CTRL_AT_TASK_URC_PRIORITY,
+                               &_task_handle_urc) != 0) {
         cellularPortMutexDelete(_mtx_stream);
-        cellularPortMutexDelete(_mtx_oob_task_running);
+        cellularPortMutexDelete(_mtx_urc_task_running);
         cellularPortMutexDelete(_mtx_callbacks_task_running);
         cellularPortMutexDelete(_queue_callbacks);
         return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
@@ -1026,16 +1053,16 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
 
     // Start a task to run callbacks and a queue to feed it
     if (cellularPortTaskCreate(task_callbacks, "at_callbacks",
-                               CELLULAR_CTRL_AT_TASK_STACK_CALLBACK_SIZE_BYTES,
+                               CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES,
                                NULL,
-                               CELLULAR_CTRL_AT_TASK_URC_CALLBACK_PRIORITY,
+                               CELLULAR_CTRL_TASK_CALLBACK_PRIORITY,
                                &_task_handle_callbacks) != 0) {
-        // Get oob task to exit
+        // Get urc task to exit
         cellularPortUartEventSend(_queue_uart, -1);
-        CELLULAR_PORT_MUTEX_LOCK(_mtx_oob_task_running);
-        CELLULAR_PORT_MUTEX_UNLOCK(_mtx_oob_task_running);
+        CELLULAR_PORT_MUTEX_LOCK(_mtx_urc_task_running);
+        CELLULAR_PORT_MUTEX_UNLOCK(_mtx_urc_task_running);
         cellularPortMutexDelete(_mtx_stream);
-        cellularPortMutexDelete(_mtx_oob_task_running);
+        cellularPortMutexDelete(_mtx_urc_task_running);
         cellularPortMutexDelete(_mtx_callbacks_task_running);
         cellularPortMutexDelete(_queue_callbacks);
         // Pause here to allow the task deletion that was
@@ -1065,10 +1092,10 @@ void cellular_ctrl_at_deinit()
         // The caller needs to make sure that no read/write
         // is in progress when this function is called.
 
-        // Get oob task to exit
+        // Get urc task to exit
         cellularPortUartEventSend(_queue_uart, -1);
-        CELLULAR_PORT_MUTEX_LOCK(_mtx_oob_task_running);
-        CELLULAR_PORT_MUTEX_UNLOCK(_mtx_oob_task_running);
+        CELLULAR_PORT_MUTEX_LOCK(_mtx_urc_task_running);
+        CELLULAR_PORT_MUTEX_UNLOCK(_mtx_urc_task_running);
 
         // Get callbacks task to exit
         cb.function = NULL;
@@ -1078,15 +1105,15 @@ void cellular_ctrl_at_deinit()
         CELLULAR_PORT_MUTEX_UNLOCK(_mtx_callbacks_task_running);
 
          // Free memory
-        while (_oobs) {
-            cellular_ctrl_at_oob_t *oob = _oobs;
-            _oobs = oob->next;
-            cellularPort_free(oob);
+        while (_urcs) {
+            cellular_ctrl_at_urc_t *urc = _urcs;
+            _urcs = urc->next;
+            cellularPort_free(urc);
         }
 
         // Tidy up
         cellularPortMutexDelete(_mtx_stream);
-        cellularPortMutexDelete(_mtx_oob_task_running);
+        cellularPortMutexDelete(_mtx_urc_task_running);
         cellularPortMutexDelete(_mtx_callbacks_task_running);
         cellularPortQueueDelete(_queue_callbacks);
         cellularPort_assert(CELLULAR_CTRL_AT_GUARD_CHECK(_buf));
@@ -1121,24 +1148,24 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_set_urc_handler(const char *prefi
             return CELLULAR_CTRL_AT_SUCCESS;
         }
 
-        cellular_ctrl_at_oob_t *oob = (cellular_ctrl_at_oob_t *) pCellularPort_malloc(sizeof(cellular_ctrl_at_oob_t));
-        if (!oob) {
+        cellular_ctrl_at_urc_t *urc = (cellular_ctrl_at_urc_t *) pCellularPort_malloc(sizeof(cellular_ctrl_at_urc_t));
+        if (!urc) {
             return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
         } else {
             size_t prefix_len = cellularPort_strlen(prefix);
-            if (prefix_len > _oob_string_max_length) {
-                _oob_string_max_length = prefix_len;
-                if (_oob_string_max_length > _max_resp_length) {
-                    _max_resp_length = _oob_string_max_length;
+            if (prefix_len > _urc_string_max_length) {
+                _urc_string_max_length = prefix_len;
+                if (_urc_string_max_length > _max_resp_length) {
+                    _max_resp_length = _urc_string_max_length;
                 }
             }
 
-            oob->prefix = prefix;
-            oob->prefix_len = prefix_len;
-            oob->cb = callback;
-            oob->cb_param = callback_param;
-            oob->next = _oobs;
-            _oobs = oob;
+            urc->prefix = prefix;
+            urc->prefix_len = prefix_len;
+            urc->cb = callback;
+            urc->cb_param = callback_param;
+            urc->next = _urcs;
+            _urcs = urc;
         }
     }
 
@@ -1147,8 +1174,8 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_set_urc_handler(const char *prefi
 
 void cellular_ctrl_at_remove_urc_handler(const char *prefix)
 {
-    cellular_ctrl_at_oob_t *current = _oobs;
-    cellular_ctrl_at_oob_t *prev = NULL;
+    cellular_ctrl_at_urc_t *current = _urcs;
+    cellular_ctrl_at_urc_t *prev = NULL;
 
     if (_uart >= 0) {
         while (current) {
@@ -1156,7 +1183,7 @@ void cellular_ctrl_at_remove_urc_handler(const char *prefix)
                 if (prev) {
                     prev->next = current->next;
                 } else {
-                    _oobs = current->next;
+                    _urcs = current->next;
                 }
                 cellularPort_free(current);
                 break;
@@ -1168,7 +1195,7 @@ void cellular_ctrl_at_remove_urc_handler(const char *prefix)
 }
 
 // Make a callback resulting from a URC
-bool cellular_ctrl_at_urc_callback(void (callback)(void *),
+bool cellular_ctrl_at_callback(void (callback)(void *),
                                    void *callback_param)
 {
     cellular_ctrl_at_callback_t cb;

@@ -69,8 +69,8 @@ typedef struct {
  *                       may be NULL.
  * @param stackSizeBytes the number of bytes of memory to dynamically
  *                       allocate for stack.
- * @param ppParameter    a pointer to the pointer that will be passed
- *                       to pFunction when the task is started.
+ * @param pParameter     a pointer that will be passed to pFunction
+ *                       when the task is started.
  *                       The thing at the end of this pointer must be
  *                       there for the lifetime of the task.
  *                       May be NULL.
@@ -83,7 +83,7 @@ typedef struct {
 int32_t cellularPortTaskCreate(void (*pFunction)(void *),
                                const char *pName,
                                size_t stackSizeBytes,
-                               void **ppParameter,
+                               void *pParameter,
                                int32_t priority,
                                CellularPortTaskHandle_t *pTaskHandle);
 
@@ -196,14 +196,6 @@ int32_t cellularPortMutexTryLock(const CellularPortMutexHandle_t mutexHandle,
  * @return              zero on success else negative error code.
  */
 int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle);
-
-/** Get the task handle of the task that has the given mutex locked.
- *
- * @param mutexHandle   the handle of the mutex.
- * @return              the handle of the task that holds the mutex
- *                      or zero if the mutex is not currently held.
- */
-CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandle_t mutexHandle);
 
 #endif // _CELLULAR_PORT_OS_H_
 

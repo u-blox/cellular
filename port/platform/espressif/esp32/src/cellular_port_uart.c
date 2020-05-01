@@ -151,9 +151,6 @@ int32_t cellularPortUartDeinit(int32_t uart)
         errorCode = CELLULAR_PORT_SUCCESS;
         if (gMutex[uart] != NULL) {
             errorCode = CELLULAR_PORT_PLATFORM_ERROR;
-            // This function should not be called if another task
-            // already has the mutex, do a quick check here
-            cellularPort_assert(cellularPortMutexGetLocker(gMutex[uart]) == NULL);
 
             // No need to lock the mutex, we need to delete it
             // and we're not allowed to delete a locked mutex.

@@ -24,6 +24,7 @@
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
 #include "cellular_cfg_hw_platform_specific.h"
+#include "cellular_cfg_os_platform_specific.h"
 #include "cellular_cfg_sw.h"
 #include "cellular_cfg_module.h"
 #include "cellular_port_clib.h"
@@ -2046,9 +2047,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoAsyncMayMayFailDueToInte
                                                      "testTaskRxData",
                                                      CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
                                                      (void **) &pParam,
-                                                     // lower priority than the callback made
-                                                     // from the URC
-                                                     CELLULAR_CTRL_CALLBACK_PRIORITY + 1,
+                                                     CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY,
                                                      &gTaskHandleDataReceived) == 0);
 
     // Set up the callback that will signal data reception
@@ -2157,9 +2156,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
                                                      "testTaskTxRxData",
                                                      CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
                                                      (void **) &pParam,
-                                                     // lower priority than the callback made
-                                                     // from the URC
-                                                     CELLULAR_CTRL_CALLBACK_PRIORITY + 1,
+                                                     CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY,
                                                      &gTaskHandleDataReceived) == 0);
 
     // Wait for the spawned task to finish
@@ -2178,9 +2175,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
                                                      "testTaskTxRxData",
                                                      CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
                                                      (void **) &pParam,
-                                                     // lower priority than the callback made
-                                                     // from the URC
-                                                     CELLULAR_CTRL_CALLBACK_PRIORITY + 1,
+                                                     CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY,
                                                      &gTaskHandleDataReceived) == 0);
 
     // Wait for the spawned task to finish
@@ -2201,9 +2196,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
                                                          "testTaskTxRxData",
                                                          CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
                                                          (void **) &pParam,
-                                                         // lower priority than the callback made
-                                                         // from the URC
-                                                         CELLULAR_CTRL_CALLBACK_PRIORITY + 1,
+                                                         CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY,
                                                          &gTaskHandleDataReceived) == 0);
 
         // Wait for the spawned task to finish

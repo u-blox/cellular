@@ -107,7 +107,7 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
             errorCode = CELLULAR_PORT_PLATFORM_ERROR;
             if (gpio_config(&config) == ESP_OK) {
                 // If it's an output pin, set the drive capability
-                if (((pConfig->direction == CELLULAR_PORT_GPIO_DIRECTION_INPUT) ||
+                if (((pConfig->direction == CELLULAR_PORT_GPIO_DIRECTION_OUTPUT) ||
                      (pConfig->direction == CELLULAR_PORT_GPIO_DIRECTION_INPUT_OUTPUT)) &&
                     (gpio_set_drive_capability(pConfig->pin, pConfig->driveCapability) == ESP_OK)) {
                     errorCode = CELLULAR_PORT_SUCCESS;
