@@ -30,9 +30,8 @@
 #include "stdio.h"
 #include "stdbool.h"
 #include "assert.h"
-#include "FreeRTOS.h"
-#include "task.h"
 
+#include "cmsis_os.h"
 #include "stm32f4xx_hal.h"
 
 /* ----------------------------------------------------------------
@@ -147,7 +146,7 @@ void testTask(void *pParam)
 // Entry point
 int main(void)
 {
-    TaskHandle_t taskHandle = NULL;
+    osThreadId threadId = NULL;
 
     // Reset all peripherals, initialize the Flash interface and the Systick
     HAL_Init();
@@ -160,15 +159,15 @@ int main(void)
     // results in a hard fault.  Need to find out why.
     printf("\n\nCELLULAR_TEST: starting RTOS...\n");
 
-   // Create the test task and have it running
-   // at a low priority
-    assert(xTaskCreate(testTask, "TestTask",
-                       CELLULAR_PORT_TEST_RUNNER_TASK_STACK_SIZE_BYTES / 4,
-                       NULL, 14 /* Priority */,
-                       &taskHandle) == pdPASS);
+    // Create the test task and have it running
+    // at a low priority
+    osThreadDef(TestTask, (os_pthread) testTask, osPriorityLow, 0,
+                CELLULAR_PORT_TEST_RUNNER_TASK_STACK_SIZE_BYTES);
+    threadId = osThreadCreate(osThread(TestTask), NULL);
+    assert(threadId != NULL);
 
     // Start the scheduler.
-    vTaskStartScheduler();
+    osKernelStart();
 
     // Should never get here
     assert(false);

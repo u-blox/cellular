@@ -62,9 +62,6 @@ static TIM_HandleTypeDef gTimerHandle;
 // Counter to keep track of RTOS ticks
 static int32_t gTickTimerRtosCount;
 
-// Overflow counter that allows us to keep 64 bit time.
-static int64_t gTickTimerOverflowCount;
-
 // Get the GPIOx address for a given GPIO port.
 static GPIO_TypeDef * const gpGpioReg[] = {GPIOA,
                                            GPIOB,
@@ -103,14 +100,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *pTimerHandle)
     // time-base.
     HAL_IncTick();
 
-    // Increment the local count and check for
-    // overflow of the longer term overflow counter
-    // that allows us to keep 64 bit time
+    // Increment the local count that allows us to keep 64 bit time
     gTickTimerRtosCount++;
-    if (gTickTimerRtosCount > CELLULAR_PORT_TICK_TIMER_OVERFLOW_PERIOD_MS) {
-        gTickTimerOverflowCount++;
-        gTickTimerRtosCount = 0;
-    }
 }
 
 // Start the tick timer.
@@ -148,7 +139,6 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t tickPriority)
     errorCode = HAL_TIM_Base_Init(&gTimerHandle);
     if (errorCode == HAL_OK) {
         gTickTimerRtosCount = 0;
-        gTickTimerOverflowCount = 0;
         errorCode = HAL_TIM_Base_Start_IT(&gTimerHandle);
     }
 
@@ -176,18 +166,20 @@ void HAL_ResumeTick(void)
 // Initalise the private stuff.
 int32_t cellularPortPrivateInit()
 {
-    // Nothing to do, all done when
-    // HAL_InitTick() is called from HAL_Init()
+    // HAL_InitTick() is called from HAL_Init().
+    // All we need to do here, in case we have been deinit()ed
+    // is re-enable interrupts and the clock.
+    HAL_NVIC_EnableIRQ(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE));
+    CELLULAR_PORT_TIM_CLK_ENABLE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
+
     return CELLULAR_PORT_SUCCESS;
 }
 
 // Deinitialise the private stuff.
 void cellularPortPrivateDeinit()
 {
-    // Disable interrupts
+    // Disable interrupts and clock
     HAL_NVIC_DisableIRQ(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE));
-
-    // Disable the clock
     CELLULAR_PORT_TIM_CLK_DISABLE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
 }
 
@@ -198,16 +190,7 @@ void cellularPortPrivateDeinit()
 // Get the current tick converted to a time in milliseconds.
 int64_t cellularPortPrivateGetTickTimeMs()
 {
-    int64_t tickTimerValue;
-
-    // Read the timer
-    tickTimerValue = __HAL_TIM_GET_COUNTER(&gTimerHandle);
-
-    // Add the overflow count.
-    tickTimerValue += gTickTimerOverflowCount *
-                      CELLULAR_PORT_TICK_TIMER_OVERFLOW_PERIOD_MS;
-
-    return tickTimerValue;
+    return gTickTimerRtosCount;
 }
 
 /* ----------------------------------------------------------------
@@ -218,8 +201,10 @@ int64_t cellularPortPrivateGetTickTimeMs()
 GPIO_TypeDef * const pCellularPortPrivateGpioGetReg(int32_t pin)
 {
     int32_t port = CELLULAR_PORT_STM32F4_GPIO_PORT(pin);
+
     cellularPort_assert(port >= 0);
     cellularPort_assert(port < sizeof(gpGpioReg) / sizeof(gpGpioReg[0]));
+
     return gpGpioReg[port];
 }
 

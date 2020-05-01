@@ -23,10 +23,7 @@
 #include "cellular_port.h"
 #include "cellular_port_os.h"
 
-#include "FreeRTOS.h"
-#include "task.h"
-#include "semphr.h"
-#include "queue.h"
+#include "cmsis_os.h"
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -52,28 +49,25 @@
 int32_t cellularPortTaskCreate(void (*pFunction)(void *),
                                const char *pName,
                                size_t stackSizeBytes,
-                               void **ppParameter,
+                               void *pParameter,
                                int32_t priority,
                                CellularPortTaskHandle_t *pTaskHandle)
 {
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    osThreadDef_t threadDef = {0};
 
     if ((pFunction != NULL) && (pTaskHandle != NULL)) {
-        // On the native FreeRTOS that STM32F4 uses stack size is
-        // actually in words, so divide by four here.
-        stackSizeBytes >>= 4;
-        if (ppParameter != NULL) {
-            if (xTaskCreate(pFunction, pName, stackSizeBytes,
-                            *ppParameter, priority,
-                            (TaskHandle_t *) pTaskHandle) == pdPASS) {
-                errorCode = CELLULAR_PORT_SUCCESS;
-            }
-        } else {
-            if (xTaskCreate(pFunction, pName, stackSizeBytes,
-                            NULL, priority,
-                            (TaskHandle_t *) pTaskHandle) == pdPASS) {
-                errorCode = CELLULAR_PORT_SUCCESS;
-            }
+
+        threadDef.name = (char *) pName;
+        threadDef.pthread = (void (*) (void const *)) pFunction;
+        threadDef.tpriority = priority;
+        threadDef.instances = 0;
+        threadDef.stacksize = stackSizeBytes;
+
+        *pTaskHandle = (CellularPortTaskHandle_t *) osThreadCreate(&threadDef,
+                                                                   pParameter);
+        if (*pTaskHandle != NULL) {
+            errorCode = CELLULAR_PORT_SUCCESS;
         }
     }
 
@@ -83,11 +77,9 @@ int32_t cellularPortTaskCreate(void (*pFunction)(void *),
 // Delete the given task.
 int32_t cellularPortTaskDelete(const CellularPortTaskHandle_t taskHandle)
 {
-    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_PLATFORM_ERROR;
 
-    // Can only delete oneself in freeRTOS
-    if (taskHandle == NULL) {
-        vTaskDelete((TaskHandle_t) taskHandle);
+    if (osThreadTerminate((osThreadId) taskHandle) == osOK) {
         errorCode = CELLULAR_PORT_SUCCESS;
     }
 
@@ -97,16 +89,16 @@ int32_t cellularPortTaskDelete(const CellularPortTaskHandle_t taskHandle)
 // Check if the current task handle is equal to the given task handle.
 bool cellularPortTaskIsThis(const CellularPortTaskHandle_t taskHandle)
 {
-    return xTaskGetCurrentTaskHandle() == (TaskHandle_t) taskHandle;
+    return osThreadGetId() == (osThreadId) taskHandle;
 }
 
 // Block the current task for a time.
 void cellularPortTaskBlock(int32_t delayMs)
 {
     // Make sure the scheduler has been started
-    // or this will fly off into space 
-    cellularPort_assert(xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED);
-    vTaskDelay(delayMs);
+    // or this may fly off into space 
+    cellularPort_assert(osKernelRunning());
+    osDelay(delayMs);
 }
 
 /* ----------------------------------------------------------------
@@ -114,6 +106,13 @@ void cellularPortTaskBlock(int32_t delayMs)
  * -------------------------------------------------------------- */
 
 // Create a queue.
+// Note: CMSIS-OS has osMessage which, in the case
+// of the STM32F4 platform, maps to FreeRTOS queues,
+// however an osMessage is fixed at 32 bits in size.
+// Could use osMail but that would result in lots
+// of malloc()/free() operations which is undesirable
+// hence we go straight to the underlying FreeRTOS
+// xQueue interface here.
 int32_t cellularPortQueueCreate(size_t queueLength,
                                 size_t itemSizeBytes,
                                 CellularPortQueueHandle_t *pQueueHandle)
@@ -190,11 +189,12 @@ int32_t cellularPortQueueReceive(const CellularPortQueueHandle_t queueHandle,
 int32_t cellularPortMutexCreate(CellularPortMutexHandle_t *pMutexHandle)
 {
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    osMutexDef_t mutexDef = {0}; // Required but with no meaningful content
+                                 // in this case
 
     if (pMutexHandle != NULL) {
         errorCode = CELLULAR_PORT_PLATFORM_ERROR;
-        // Actually create the mutex
-        *pMutexHandle = (CellularPortMutexHandle_t) xSemaphoreCreateMutex();
+        *pMutexHandle = (CellularPortMutexHandle_t) osMutexCreate(&mutexDef);
         if (*pMutexHandle != NULL) {
             errorCode = CELLULAR_PORT_SUCCESS;
         }
@@ -209,8 +209,10 @@ int32_t cellularPortMutexDelete(const CellularPortMutexHandle_t mutexHandle)
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if (mutexHandle != NULL) {
-        vSemaphoreDelete((SemaphoreHandle_t) mutexHandle);
-        errorCode = CELLULAR_PORT_SUCCESS;
+        errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        if (osMutexDelete((osMutexId) mutexHandle) == osOK) {
+            errorCode = CELLULAR_PORT_SUCCESS;
+        }
     }
 
     return (int32_t) errorCode;
@@ -223,8 +225,7 @@ int32_t cellularPortMutexLock(const CellularPortMutexHandle_t mutexHandle)
 
     if (mutexHandle != NULL) {
         errorCode = CELLULAR_PORT_PLATFORM_ERROR;
-        if (xSemaphoreTake((SemaphoreHandle_t) mutexHandle,
-                           (portTickType) portMAX_DELAY) == pdTRUE) {
+        if (osMutexWait((osMutexId) mutexHandle, 0) == osOK) {
             errorCode = CELLULAR_PORT_SUCCESS;
         }
     }
@@ -240,8 +241,7 @@ int32_t cellularPortMutexTryLock(const CellularPortMutexHandle_t mutexHandle,
 
     if (mutexHandle != NULL) {
         errorCode = CELLULAR_PORT_TIMEOUT;
-        if (xSemaphoreTake((SemaphoreHandle_t) mutexHandle,
-                           delayMs) == pdTRUE) {
+        if (osMutexWait((osMutexId) mutexHandle, delayMs) == osOK) {
             errorCode = CELLULAR_PORT_SUCCESS;
         }
     }
@@ -255,19 +255,14 @@ int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle)
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
 
     if (mutexHandle != NULL) {
-        xSemaphoreGive((SemaphoreHandle_t) mutexHandle);
-        errorCode = CELLULAR_PORT_SUCCESS;
+        errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        if (osMutexRelease((osMutexId) mutexHandle) == osOK) {
+            errorCode = CELLULAR_PORT_SUCCESS;
+        }
     }
 
     return (int32_t) errorCode;
 }
-
-// Return the handle of the task that currently holds a mutex.
-CellularPortTaskHandle_t cellularPortMutexGetLocker(const CellularPortMutexHandle_t mutexHandle)
-{
-    return (CellularPortTaskHandle_t) xSemaphoreGetMutexHolder(mutexHandle);
-}
-
 
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS: HOOKS
@@ -284,7 +279,7 @@ void vApplicationStackOverflowHook(TaskHandle_t taskHandle, char *pTaskName)
 
 // Malloc failed hook, employed when configUSE_MALLOC_FAILED_HOOK is
 // set to 1 in FreeRTOSConfig.h.
-void vApplicationMallocFailedHook( void )
+void vApplicationMallocFailedHook()
 {
     cellularPortLog("CELLULAR_PORT: freeRTOS doesn't have enough heap, increase configTOTAL_HEAP_SIZE in FreeRTOSConfig.h.\n");
     cellularPort_assert(false);

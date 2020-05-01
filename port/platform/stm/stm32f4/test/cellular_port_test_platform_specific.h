@@ -40,19 +40,29 @@
  */
 #define CELLULAR_PORT_TEST_FUNCTION(function, name, group) CELLULAR_PORT_UNITY_TEST_FUNCTION(name, group)
 
-/** The task priority to use for the task created during.
- * testing: make sure that the priority of the task RUNNING
- * the tests is lower than this.
- */
-#define CELLULAR_PORT_TEST_TASK_PRIORITY 12
-
 /** The stack size to use for the test task created during OS testing.
  */
 #define CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES (1024 * 3)
 
+/** The task priority to use for the task created during.
+ * testing.  Normally this should be a higher than the task
+ * running the tests, however in the case of the STM32F4
+ * platform a task that is created is off and running before
+ * the create function returns so the task handle variable
+ * isn't populated and hence the test task check against it
+ * will fail.  So here we make the OS test task a low priority
+ * and the test code yields to let it in.
+ */
+#define CELLULAR_PORT_TEST_TASK_PRIORITY -2 // osPriorityLow
+
 /** The stack size to use for the test task created during sockets testing.
  */
 #define CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES (1024 * 5)
+
+/** The priority to use for the test task created during sockets testing;
+ * lower priority than the URC handler.
+ */
+#define CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY (CELLULAR_CTRL_AT_TASK_URC_PRIORITY + 1)
 
 /* ----------------------------------------------------------------
  * FUNCTIONS
