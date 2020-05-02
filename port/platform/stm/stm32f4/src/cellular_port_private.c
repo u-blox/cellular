@@ -17,36 +17,16 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
-#include "cellular_cfg_hw_platform_specific.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
 
 #include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_tim.h"
 
 #include "cellular_port_private.h"  // Down here 'cos it needs GPIO_TypeDef
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
-
-// Macro melder called by all those below.
-#define CELLULAR_PORT_TIM_MELD(x, y, z) x ## y ## z
-
-// Make TIMx_BASE
-#define CELLULAR_PORT_TIM_BASE(x) ((TIM_TypeDef *) CELLULAR_PORT_TIM_MELD(TIM, x, _BASE))
-
-// Make TIMx_IRQHandler()
-#define CELLULAR_PORT_TIM_IRQ_HANDLER(x) CELLULAR_PORT_TIM_MELD(TIM, x, _IRQHandler())
-
-// Make TIMx_IRQn
-#define CELLULAR_PORT_TIM_IRQ_N(x) CELLULAR_PORT_TIM_MELD(TIM, x, _IRQn)
-
-// Make __TIMx_CLK_ENABLE()
-#define CELLULAR_PORT_TIM_CLK_ENABLE(x) CELLULAR_PORT_TIM_MELD(__TIM, x, _CLK_ENABLE())
-
-// Make __TIMx_CLK_DISABLE()
-#define CELLULAR_PORT_TIM_CLK_DISABLE(x) CELLULAR_PORT_TIM_MELD(__TIM, x, _CLK_DISABLE())
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -56,11 +36,9 @@
  * VARIABLES
  * -------------------------------------------------------------- */
 
-// The timer handle structure
-static TIM_HandleTypeDef gTimerHandle;
-
-// Counter to keep track of RTOS ticks
-static int32_t gTickTimerRtosCount;
+// Counter to keep track of RTOS ticks: NOT static
+// so that the stm32f4xx_it.c can update it.
+int32_t gTickTimerRtosCount;
 
 // Get the GPIOx address for a given GPIO port.
 static GPIO_TypeDef * const gpGpioReg[] = {GPIOA,
@@ -80,107 +58,20 @@ static GPIO_TypeDef * const gpGpioReg[] = {GPIOA,
  * -------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------
- * PUBLIC FUNCTIONS SPECIFIC TO THIS PORT: HAL FUNCTIONS
- * -------------------------------------------------------------- */
-
-// IRQ handler for the tick timer.
-void CELLULAR_PORT_TIM_IRQ_HANDLER(CELLULAR_PORT_TICK_TIMER_INSTANCE)
-{
-    // Call the HAL's generic timer IRQ handler
-    HAL_TIM_IRQHandler(&gTimerHandle);
-}
-
-// Called when the timer period interrupt occurs.
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *pTimerHandle)
-{
-    (void) pTimerHandle;
-
-    // Call into the HAL to increment
-    // a global variable "uwTick" used as the RTOS
-    // time-base.
-    HAL_IncTick();
-
-    // Increment the local count that allows us to keep 64 bit time
-    gTickTimerRtosCount++;
-}
-
-// Start the tick timer.
-// This function is called automagically by HAL_Init()
-// at start of day.
-HAL_StatusTypeDef HAL_InitTick(uint32_t tickPriority)
-{
-    HAL_StatusTypeDef errorCode = HAL_ERROR;
-
-    // Set interrupt priority
-    HAL_NVIC_SetPriority(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE),
-                         tickPriority, 0);
-
-    // Set the global uwTickPrio based on this so that when
-    // HAL_RCC_ClockConfig() is called later it uses the
-    // correct value
-    uwTickPrio = tickPriority;
-
-    // Enable interrupt
-    HAL_NVIC_EnableIRQ(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE));
-
-    // Enable the clock
-    CELLULAR_PORT_TIM_CLK_ENABLE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
-
-    // Fill in the handle structure
-    gTimerHandle.Instance = CELLULAR_PORT_TIM_BASE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
-    gTimerHandle.Init.Prescaler = CELLULAR_PORT_TICK_TIMER_PRESCALER;
-    gTimerHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
-    gTimerHandle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    gTimerHandle.Init.Period = CELLULAR_PORT_TICK_TIMER_PERIOD_US - 1;
-    gTimerHandle.Init.ClockDivision = CELLULAR_PORT_TICK_TIMER_DIVIDER;
-    gTimerHandle.Init.RepetitionCounter = 0;
-
-    // Initialise and start the timer
-    errorCode = HAL_TIM_Base_Init(&gTimerHandle);
-    if (errorCode == HAL_OK) {
-        gTickTimerRtosCount = 0;
-        errorCode = HAL_TIM_Base_Start_IT(&gTimerHandle);
-    }
-
-    return errorCode;
-}
-
-// Suspend Tick increment.
-void HAL_SuspendTick(void)
-{
-    // Disable TIM update interrupt
-    __HAL_TIM_DISABLE_IT(&gTimerHandle, TIM_IT_UPDATE);
-}
-
-// Resume Tick increment.
-void HAL_ResumeTick(void)
-{
-    // Enable TIM Update interrupt
-    __HAL_TIM_ENABLE_IT(&gTimerHandle, TIM_IT_UPDATE);
-}
-
-/* ----------------------------------------------------------------
- * PUBLIC FUNCTIONS SPECIFIC TO THIS PORT: INIT FUNCTIONS
+ * PUBLIC FUNCTIONS SPECIFIC TO THIS PORT
  * -------------------------------------------------------------- */
 
 // Initalise the private stuff.
 int32_t cellularPortPrivateInit()
 {
-    // HAL_InitTick() is called from HAL_Init().
-    // All we need to do here, in case we have been deinit()ed
-    // is re-enable interrupts and the clock.
-    HAL_NVIC_EnableIRQ(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE));
-    CELLULAR_PORT_TIM_CLK_ENABLE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
-
+    gTickTimerRtosCount = 0;
     return CELLULAR_PORT_SUCCESS;
 }
 
 // Deinitialise the private stuff.
 void cellularPortPrivateDeinit()
 {
-    // Disable interrupts and clock
-    HAL_NVIC_DisableIRQ(CELLULAR_PORT_TIM_IRQ_N(CELLULAR_PORT_TICK_TIMER_INSTANCE));
-    CELLULAR_PORT_TIM_CLK_DISABLE(CELLULAR_PORT_TICK_TIMER_INSTANCE);
+    // Nothing to do
 }
 
 /* ----------------------------------------------------------------

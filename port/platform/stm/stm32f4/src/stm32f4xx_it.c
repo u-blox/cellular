@@ -30,6 +30,9 @@
 #include "stm32f4xx_it.h"
 #include "cmsis_os.h"
 
+/* Need to update this value in cellular_port_private.c. */
+extern int32_t gTickTimerRtosCount;
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -57,9 +60,7 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* Go to infinite loop when Hard Fault exception occurs */
-  while (1)
-  {
-  }
+    while (1) {}
 }
 
 /**
@@ -69,10 +70,8 @@ void HardFault_Handler(void)
   */
 void MemManage_Handler(void)
 {
-  /* Go to infinite loop when Memory Manage exception occurs */
-  while (1)
-  {
-  }
+    /* Go to infinite loop when Memory Manage exception occurs */
+    while (1) {}
 }
 
 /**
@@ -82,10 +81,8 @@ void MemManage_Handler(void)
   */
 void BusFault_Handler(void)
 {
-  /* Go to infinite loop when Bus Fault exception occurs */
-  while (1)
-  {
-  }
+    /* Go to infinite loop when Bus Fault exception occurs */
+    while (1) {}
 }
 
 /**
@@ -95,17 +92,15 @@ void BusFault_Handler(void)
   */
 void UsageFault_Handler(void)
 {
-  /* Go to infinite loop when Usage Fault exception occurs */
-  while (1)
-  {
-  }
+    /* Go to infinite loop when Usage Fault exception occurs */
+    while (1) {}
 }
 
 /**
   * @brief  This function handles Debug Monitor exception.
   * @param  None
   * @retval None
-   */
+  */
 void DebugMon_Handler(void)
 {
 }
@@ -117,7 +112,8 @@ void DebugMon_Handler(void)
   */
 void SysTick_Handler(void)
 {
-  osSystickHandler();
+    gTickTimerRtosCount++;
+    osSystickHandler();
 }
 
 /******************************************************************************/

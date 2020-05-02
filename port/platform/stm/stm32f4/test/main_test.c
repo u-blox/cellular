@@ -17,15 +17,8 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
-#include "cellular_cfg_hw_platform_specific.h"
-#include "cellular_cfg_module.h"
 #include "cellular_port_test_platform_specific.h"
 #include "cellular_port_clib.h"
-#include "cellular_port.h"
-#include "cellular_port_os.h"
-#include "cellular_port_uart.h"
-#include "cellular_ctrl.h"
-#include "cellular_sock.h"
 
 #include "stdio.h"
 #include "stdbool.h"
@@ -40,6 +33,9 @@
 
 // How much stack the task running all the tests needs in bytes.
 #define CELLULAR_PORT_TEST_RUNNER_TASK_STACK_SIZE_BYTES (1024 * 4)
+
+// The priority of the task running the tests.
+#define CELLULAR_PORT_TEST_RUNNER_TASK_PRIORITY osPriorityLow
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -114,11 +110,7 @@ void tearDown(void)
 
 void testFail(void)
 {
-    // Attempt a clean-up
-    cellularSockDeinit();
-    cellularCtrlDeinit();
-    cellularPortUartDeinit(CELLULAR_CFG_UART);
-    cellularPortDeinit();
+    
 }
 
 
@@ -161,7 +153,8 @@ int main(void)
 
     // Create the test task and have it running
     // at a low priority
-    osThreadDef(TestTask, (os_pthread) testTask, osPriorityLow, 0,
+    osThreadDef(TestTask, (os_pthread) testTask,
+                CELLULAR_PORT_TEST_RUNNER_TASK_PRIORITY, 0,
                 CELLULAR_PORT_TEST_RUNNER_TASK_STACK_SIZE_BYTES);
     threadId = osThreadCreate(osThread(TestTask), NULL);
     assert(threadId != NULL);

@@ -62,69 +62,6 @@
 #endif
 
 /* ----------------------------------------------------------------
- * COMPILE-TIME MACROS FOR STM32F4: TIMx TIMER (USED FOR
- * RTOS TICK AND cellularPortGetTickTimeMs())
- * -------------------------------------------------------------- */
-
-/** The TIMx TIMER instance to use.  Values can be 2, 3, 4, 5
- * or 7, others if you fiddle with the macro expansion of
- * CELLULAR_PORT_TIM_IRQ_N() in cellular_port_private.c
- * (because not all timer interrupts follow the same naming
- * convention).  Note that timers 1 and timers 8 to 11 are on
- * APB2, the rest on APB1, so if you have different clock
- * dividers on the two buses you will need to revisit
- * the numbers lower down.
- */
-#ifndef CELLULAR_PORT_TICK_TIMER_INSTANCE
-# define CELLULAR_PORT_TICK_TIMER_INSTANCE           2
-#endif
-
-/** The ST32F437VG processor on the C030-R412M board is 
- * driven from an external 8 MHz clock which PLL_HSE_XTAL
- * is assumed to multiply up to a SYSCLK value of 168 MHz.
- * The APBx clock is assumed to divide by 4, so
- * APBxCLK is 42 MHz (noting that timers 1 and 8 to 11 are on
- * APB2, the rest on APB1).  The prescaler for the APB timer
- * clocks (a 16 bit value) is then adjusted to give a 1 us
- * tick, so with a CELLULAR_PORT_TICK_TIMER_DIVIDER of
- * TIM_CLOCKDIVISION_DIV1 this is 42.  If your clocks are
- * different then the value of CELLULAR_PORT_TICK_TIMER_PRESCALER
- * (and, if necessary CELLULAR_PORT_TICK_TIMER_DIVIDER) should be
- * adjusted to obtain a 1 us tick.
- */
-#ifndef CELLULAR_PORT_TICK_TIMER_PRESCALER
-# define CELLULAR_PORT_TICK_TIMER_PRESCALER          42
-#endif
-
-/** If it is not possible to get enough range out of the
- * prescaler then this divider, possible values are:
- *
- * - 0      (TIM_CLOCKDIVISION_DIV1) for divide by 1
- * - 0x0100 (TIM_CR1_CKD_0) for divide by 2
- * - 0x0200 (TIM_CR1_CKD_1) for divide by 4
- */
-#ifndef CELLULAR_PORT_TICK_TIMER_DIVIDER
-# define CELLULAR_PORT_TICK_TIMER_DIVIDER            0
-#endif
-
-/** The auto-reload value, the 16-bit value at which the
- * timer will restart its count.  This is set such that
- * the overflow interrupt occurs every millisecond, which is
- * used for the RTOS tick.
- */
-#ifndef CELLULAR_PORT_TICK_TIMER_PERIOD_US
-# define CELLULAR_PORT_TICK_TIMER_PERIOD_US           1000
-#endif
-
-/** The number of 1 ms RTOS ticks at which the more lazy
- * overflow counter is incremented, allowing us to keep
- * 64 bit time.
- */
-#ifndef CELLULAR_PORT_TICK_TIMER_OVERFLOW_PERIOD_MS
-# define CELLULAR_PORT_TICK_TIMER_OVERFLOW_PERIOD_MS 60000
-#endif
-
-/* ----------------------------------------------------------------
  * COMPILE-TIME MACROS FOR STM32F4: PINS
  * -------------------------------------------------------------- */
 

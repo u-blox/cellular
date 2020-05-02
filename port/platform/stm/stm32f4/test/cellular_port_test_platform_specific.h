@@ -45,15 +45,9 @@
 #define CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES (1024 * 3)
 
 /** The task priority to use for the task created during.
- * testing.  Normally this should be a higher than the task
- * running the tests, however in the case of the STM32F4
- * platform a task that is created is off and running before
- * the create function returns so the task handle variable
- * isn't populated and hence the test task check against it
- * will fail.  So here we make the OS test task a low priority
- * and the test code yields to let it in.
+ * testing.
  */
-#define CELLULAR_PORT_TEST_TASK_PRIORITY -2 // osPriorityLow
+#define CELLULAR_PORT_TEST_TASK_PRIORITY 0 // osPriorityNormal
 
 /** The stack size to use for the test task created during sockets testing.
  */
