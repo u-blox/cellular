@@ -282,7 +282,6 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
 // Do a connect/disconnect test on the specified RAT.
 static void connectDisconnect(CellularCtrlRat_t rat)
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularCtrlRat_t originalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
     uint64_t originalMask1;
     uint64_t originalMask2;
