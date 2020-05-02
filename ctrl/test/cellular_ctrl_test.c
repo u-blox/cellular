@@ -89,6 +89,15 @@
 // Used for keepGoingCallback() timeout.
 static int64_t gStopTimeMS;
 
+// The UART queue handle: kept as a global variable
+// because if a test fails init will have run but
+// deinit will have been skipped.  With this as a global,
+// when the inits skip doing their thing because
+// things are already init'ed, the subsequent
+// functions will continue to use this valid queue
+// handle.
+static CellularPortQueueHandle_t gUartQueueHandle;
+
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS
  * -------------------------------------------------------------- */
@@ -110,7 +119,6 @@ static bool keepGoingCallback()
 // we're deliberately doing things that should cause timeouts.
 static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
 {
-    CellularPortQueueHandle_t queueHandle;
     bool (*pKeepGoingCallback) (void) = NULL;
     bool trulyHardPowerOff = false;
 #if CELLULAR_CFG_PIN_VINT < 0
@@ -137,7 +145,7 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
 
     cellularPortLog("CELLULAR_CTRL_TEST: testing power-on and alive calls before initialisation...\n");
 #if CELLULAR_CFG_PIN_ENABLE_POWER < 0
@@ -156,7 +164,7 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
                                                pinVint,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
 
     // Do this twice so as to check transiting from
     // a call to cellularCtrlPowerOff() to a call to
@@ -300,13 +308,13 @@ static void connectDisconnect(CellularCtrlRat_t rat)
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
     // Purely for diagnostics
@@ -473,8 +481,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
                             "ctrlInitialisation",
                             "ctrl")
 {
-    CellularPortQueueHandle_t queueHandle;
-
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
                                                    CELLULAR_CFG_PIN_RXD,
@@ -483,14 +489,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
-
+                                               gUartQueueHandle) == 0);
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
@@ -502,7 +507,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestGetBandMask(),
                             "getBandMask",
                             "ctrl")
 {
-    CellularPortQueueHandle_t queueHandle;
     uint64_t mask1;
     uint64_t mask2;
     int32_t y;
@@ -515,13 +519,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestGetBandMask(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
     cellularPortLog("CELLULAR_CTRL_TEST: getting band mask...\n");
@@ -550,7 +554,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
                             "setBandMask",
                             "ctrl")
 {
-    CellularPortQueueHandle_t queueHandle;
     int32_t y;
     uint64_t originalMask1CatM1;
     uint64_t originalMask2CatM1;
@@ -573,13 +576,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
     cellularPortLog("CELLULAR_CTRL_TEST: reading original band mask...\n");
@@ -709,7 +712,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
                             "setGetRat",
                             "ctrl")
 {
-    CellularPortQueueHandle_t queueHandle;
     int32_t y;
     CellularCtrlRat_t originalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
     bool screwy = false;
@@ -722,13 +724,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
     cellularPortLog("CELLULAR_CTRL_TEST: reading original RATs...\n");
@@ -789,7 +791,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
                             "setGetRatRank",
                             "ctrl")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularCtrlRat_t originalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
     CellularCtrlRat_t setRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
     CellularCtrlRat_t allRats[CELLULAR_CTRL_MAX_NUM_RATS];
@@ -821,13 +822,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
     // Before starting, read out the existing RATs so that we can put them back
@@ -1026,7 +1027,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
                             "getSetMnoProfile",
                             "ctrl")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularCtrlRat_t originalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
     uint64_t originalMask1;
     uint64_t originalMask2;
@@ -1047,13 +1047,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
     cellularPortLog("CELLULAR_CTRL_TEST: preparing for test...\n");
@@ -1150,7 +1150,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
                             "readRadioParameters",
                             "ctrl")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularCtrlRat_t originalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
     uint64_t originalMask1;
     uint64_t originalMask2;
@@ -1171,13 +1170,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
     cellularPortLog("CELLULAR_CTRL_TEST: preparing for test...\n");
@@ -1281,7 +1280,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadImeiEtc(),
                             "readImeiEtc",
                             "ctrl")
 {
-    CellularPortQueueHandle_t queueHandle;
     char buffer[64];
     int32_t bytesRead;
     int32_t y;
@@ -1294,13 +1292,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadImeiEtc(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
     cellularPortLog("CELLULAR_CTRL_TEST: getting and checking IMEI...\n");
@@ -1384,6 +1382,19 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadImeiEtc(),
     cellularPortLog("CELLULAR_CTRL_TEST: there have been %d consecutive AT timeouts.\n", y);
     CELLULAR_PORT_TEST_ASSERT(y <= CELLULAR_CTRL_AT_CONSECUTIVE_TIMEOUTS_LIMIT);
 
+    cellularCtrlDeinit();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
+    cellularPortDeinit();
+}
+
+/** Clean-up to be run at the end of this round of tests, just
+ * in case there were test failures which would have resulted
+ * in the deinitialisation being skipped.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestCleanUp(),
+                            "ctrlCleanUp",
+                            "ctrl")
+{
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();

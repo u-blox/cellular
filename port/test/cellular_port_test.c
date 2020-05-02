@@ -76,6 +76,10 @@ static void testTask(void *pParameters)
     int32_t queueItem = 0;
     int32_t index = 0;
 
+    // Pause here to let the task that spawned this one
+    // run otherwise gTaskHandle won't have been populated.
+    cellularPortTaskBlock(10);
+
     cellularPortLog("CELLULAR_PORT_TEST_TASK: task with handle 0x%08x started, received parameter pointer 0x%08x containing string \"%s\".\n",
                     (int) gTaskHandle, pParameters, (const char *) pParameters);
     CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pParameters,
@@ -141,15 +145,14 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
                             "port")
 {
     int32_t errorCode;
-    CellularPortQueueHandle_t queueHandle;
     int64_t startTimeMs;
     int64_t timeNowMs;
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
 
     startTimeMs = cellularPortGetTickTimeMs();
-    cellularPortLog("CELLULAR_PORT_TEST: tick time now is %lld.\n",
-                    startTimeMs);
+    cellularPortLog("CELLULAR_PORT_TEST: tick time now is %d.\n",
+                    (int32_t) startTimeMs);
 
     cellularPortLog("CELLULAR_PORT_TEST: creating a mutex...\n");
     errorCode = cellularPortMutexCreate(&gMutexHandle);
@@ -215,8 +218,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
     // differently when the UART is running so initialise that
     // here and re-measure time
     timeNowMs = cellularPortGetTickTimeMs();
-    cellularPortLog("CELLULAR_PORT_TEST: tick time now is %lld.\n",
-                    timeNowMs);
+    cellularPortLog("CELLULAR_PORT_TEST: tick time now is %d.\n",
+                    (int32_t) timeNowMs);
     cellularPortLog("CELLULAR_PORT_TEST: initialising UART...\n");
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
                                                    CELLULAR_CFG_PIN_RXD,
@@ -225,12 +228,12 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gQueueHandle) == 0);
     cellularPortLog("CELLULAR_PORT_TEST: waiting one second...\n");
     cellularPortTaskBlock(1000);
     timeNowMs = cellularPortGetTickTimeMs() - timeNowMs;
-    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() %lld ms have elapsed.\n",
-                    timeNowMs);
+    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() %d ms have elapsed.\n",
+                    (int32_t) timeNowMs);
     CELLULAR_PORT_TEST_ASSERT((timeNowMs > 950) && (timeNowMs < 1050));
     cellularPortLog("CELLULAR_PORT_TEST: deinitialising UART...\n");
     timeNowMs = cellularPortGetTickTimeMs();
@@ -238,13 +241,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
     cellularPortLog("CELLULAR_PORT_TEST: waiting one second...\n");
     cellularPortTaskBlock(1000);
     timeNowMs = cellularPortGetTickTimeMs() - timeNowMs;
-    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() %lld ms have elapsed.\n",
-                    timeNowMs);
+    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() %d ms have elapsed.\n",
+                    (int32_t) timeNowMs);
     CELLULAR_PORT_TEST_ASSERT((timeNowMs > 950) && (timeNowMs < 1050));
 
     timeNowMs = cellularPortGetTickTimeMs() - startTimeMs;
-    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() the test took %lld ms.\n",
-                    timeNowMs);
+    cellularPortLog("CELLULAR_PORT_TEST: according to cellularPortGetTickTimeMs() the test took %d ms.\n",
+                    (int32_t) timeNowMs);
     CELLULAR_PORT_TEST_ASSERT((timeNowMs > 0) &&
                               (timeNowMs < CELLULAR_PORT_TEST_OS_GUARD_DURATION_MS));
 
@@ -293,6 +296,19 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTest_strtok_r(),
     CELLULAR_PORT_TEST_ASSERT(pCellularPort_strtok_r(NULL, "d", &pSave) == NULL);
     CELLULAR_PORT_TEST_ASSERT(buffer[sizeof(buffer) - 1] == 'x');
 
+    cellularPortDeinit();
+}
+
+/** Clean-up to be run at the end of this round of tests, just
+ * in case there were test failures which would have resulted
+ * in the deinitialisation being skipped.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestCleanUp(),
+                            "portCleanUp",
+                            "port")
+{
+    cellularCtrlDeinit();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
 }
 
