@@ -99,6 +99,15 @@ typedef struct {
 // Used for keepGoingCallback() timeout.
 static int64_t gStopTimeMS;
 
+// The UART queue handle: kept as a global variable
+// because if a test fails init will have run but
+// deinit will have been skipped.  With this as a global,
+// when the inits skip doing their thing because
+// things are already init'ed, the subsequent
+// functions will continue to use this valid queue
+// handle.
+static CellularPortQueueHandle_t gUartQueueHandle;
+
 // Place to store the original RAT settings of the module.
 static CellularCtrlRat_t gOriginalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
 
@@ -507,8 +516,7 @@ static void networkDisconnect()
 }
 
 // Perform the standard preamble to any data test
-static void stdDataTestInit(CellularPortQueueHandle_t *pQueueHandle,
-                            const char *pRemoteDomainName,
+static void stdDataTestInit(const char *pRemoteDomainName,
                             int32_t remotePort,
                             CellularSockAddress_t *pRemoteAddress,
                             CellularSockType_t type,
@@ -531,13 +539,13 @@ static void stdDataTestInit(CellularPortQueueHandle_t *pQueueHandle,
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   pQueueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               *pQueueHandle) == 0);
+                                               gUartQueueHandle) == 0);
 
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
@@ -1095,8 +1103,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestInitialisation(),
                             "sockInitialisation",
                             "sock")
 {
-    CellularPortQueueHandle_t queueHandle;
-
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
                                                    CELLULAR_CFG_PIN_RXD,
@@ -1105,13 +1111,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestInitialisation(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
@@ -1196,7 +1202,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoBasic(),
                             "udpEchoBasic",
                             "sock")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularSockAddress_t remoteAddress;
     CellularSockAddress_t address;
     CellularSockDescriptor_t sockDescriptor;
@@ -1204,8 +1209,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoBasic(),
     int32_t errorCode;
     size_t sizeBytes;
 
-    stdDataTestInit(&queueHandle,
-                    CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME,
+    stdDataTestInit(CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_UDP_SERVER_PORT,
                     &remoteAddress,
                     CELLULAR_SOCK_TYPE_DGRAM,
@@ -1288,7 +1292,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoBasic(),
                             "tcpEchoBasic",
                             "sock")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularSockAddress_t remoteAddress;
     CellularSockAddress_t address;
     CellularSockDescriptor_t sockDescriptor;
@@ -1300,8 +1303,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoBasic(),
     char *pDataReceived;
     int64_t startTimeMs;
 
-    stdDataTestInit(&queueHandle,
-                    CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
+    stdDataTestInit(CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT,
                     &remoteAddress,
                     CELLULAR_SOCK_TYPE_STREAM,
@@ -1426,7 +1428,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
                             "maxNumSockets",
                             "sock")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularSockAddress_t remoteAddress;
     CellularSockDescriptor_t sockDescriptor[CELLULAR_SOCK_MAX + 1];
     int32_t errorCode;
@@ -1445,13 +1446,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
                                                    CELLULAR_CFG_BAUD_RATE,
                                                    CELLULAR_CFG_RTS_THRESHOLD,
                                                    CELLULAR_CFG_UART,
-                                                   &queueHandle) == 0);
+                                                   &gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
                                                CELLULAR_CFG_PIN_PWR_ON,
                                                CELLULAR_CFG_PIN_VINT,
                                                false,
                                                CELLULAR_CFG_UART,
-                                               queueHandle) == 0);
+                                               gUartQueueHandle) == 0);
 
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
@@ -1553,7 +1554,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
                             "setGetOptions",
                             "sock")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularSockAddress_t remoteAddress;
     CellularSockDescriptor_t sockDescriptor;
     void *pValue;
@@ -1568,8 +1568,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
 
     // Has to be a TCP socket since some socket options
     // only apply to TCP sockets
-    stdDataTestInit(&queueHandle,
-                    CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
+    stdDataTestInit(CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT,
                     &remoteAddress,
                     CELLULAR_SOCK_TYPE_STREAM,
@@ -1676,7 +1675,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
                             "nonBlocking",
                             "sock")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularSockAddress_t remoteAddress;
     CellularSockDescriptor_t sockDescriptor;
     int32_t returnCode;
@@ -1688,8 +1686,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     int32_t value;
 
     // Open a TCP socket so that we can test both UDP and TCP
-    stdDataTestInit(&queueHandle,
-                    CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
+    stdDataTestInit(CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT,
                     &remoteAddress,
                     CELLULAR_SOCK_TYPE_STREAM,
@@ -1916,7 +1913,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoNonPingPong(),
                             "udpEchoNonPingPong",
                             "sock")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularSockAddress_t remoteAddress;
     CellularSockDescriptor_t sockDescriptor;
     bool dataCallbackCalled;
@@ -1929,8 +1925,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoNonPingPong(),
     char *pDataReceived;
     int64_t startTimeMs;
 
-    stdDataTestInit(&queueHandle,
-                    CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME,
+    stdDataTestInit(CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_UDP_SERVER_PORT,
                     &remoteAddress,
                     CELLULAR_SOCK_TYPE_DGRAM,
@@ -2015,7 +2010,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoAsyncMayMayFailDueToInte
                             "udpEchoAsyncMayFailDueToInternetDatagramDrop",
                             "sock")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularSockAddress_t remoteAddress;
     CellularSockDescriptor_t sockDescriptor;
     bool dataCallbackCalled;
@@ -2025,8 +2019,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoAsyncMayMayFailDueToInte
     int32_t x = 0;
     void *pParam = &sockDescriptor;
 
-    stdDataTestInit(&queueHandle,
-                    CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME,
+    stdDataTestInit(CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_UDP_SERVER_PORT,
                     &remoteAddress,
                     CELLULAR_SOCK_TYPE_DGRAM,
@@ -2107,15 +2100,13 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
                             "tcpEchoAsync",
                             "sock")
 {
-    CellularPortQueueHandle_t queueHandle;
     CellularSockAddress_t remoteAddress;
     CellularSockTestTcpEchoAsyncParams_t params;
     char *pDataReceived;
     int32_t errorCode;
     void *pParam = &params;
 
-    stdDataTestInit(&queueHandle,
-                    CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
+    stdDataTestInit(CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT,
                     &remoteAddress,
                     CELLULAR_SOCK_TYPE_STREAM,
@@ -2233,6 +2224,20 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
     cellularPort_free(pDataReceived);
 
     stdDataTestDeinit(params.sockDescriptor);
+}
+
+
+/** Clean-up to be run at the end of this round of tests, just
+ * in case there were test failures which would have resulted
+ * in the deinitialisation being skipped.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestCleanUp(),
+                            "sockCleanUp",
+                            "sock")
+{
+    cellularCtrlDeinit();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
+    cellularPortDeinit();
 }
 
 // End of file

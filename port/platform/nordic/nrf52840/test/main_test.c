@@ -17,20 +17,10 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
-#include "cellular_cfg_hw_platform_specific.h"
-#include "cellular_cfg_module.h"
 #include "cellular_port_test_platform_specific.h"
-#include "cellular_port_clib.h"
-#include "cellular_port.h"
-#include "cellular_port_os.h"
-#include "cellular_port_uart.h"
-#include "cellular_ctrl.h"
-#include "cellular_sock.h"
-
 #include "assert.h"
 #include "FreeRTOS.h"
 #include "task.h"
-
 #include "nrf_drv_clock.h"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -42,6 +32,9 @@
 
 // How much stack the task running all the tests needs in bytes.
 #define CELLULAR_PORT_TEST_RUNNER_TASK_STACK_SIZE_BYTES (1024 * 4)
+
+// The priority of the task running all the tests.
+#define CELLULAR_PORT_TEST_RUNNER_TASK_PRIORITY 14
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -68,15 +61,12 @@ void setUp(void)
 // Unity tearDown() function.
 void tearDown(void)
 {
+    // Nothing to do
 }
 
 void testFail(void)
 {
-    // Attempt a clean-up
-    cellularSockDeinit();
-    cellularCtrlDeinit();
-    cellularPortUartDeinit(CELLULAR_CFG_UART);
-    cellularPortDeinit();
+    
 }
 
 // The task within which testing runs.
@@ -118,7 +108,8 @@ int main(void)
    // at a low priority
     assert(xTaskCreate(testTask, "TestTask",
                        CELLULAR_PORT_TEST_RUNNER_TASK_STACK_SIZE_BYTES / 4,
-                       NULL, 14 /* Priority */,
+                       NULL,
+                       CELLULAR_PORT_TEST_RUNNER_TASK_PRIORITY,
                        &taskHandle) == pdPASS);
 
     // Activate deep sleep mode.
