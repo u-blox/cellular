@@ -307,7 +307,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestCleanUp(),
                             "portCleanUp",
                             "port")
 {
-    cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
 }
