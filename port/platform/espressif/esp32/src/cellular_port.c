@@ -42,6 +42,26 @@
  * PUBLIC FUNCTIONS
  * -------------------------------------------------------------- */
 
+// Start the platform.
+int32_t cellularPortPlatformStart(void (*pEntryPoint)(void *),
+                                  void *pParameter,
+                                  size_t stackSizeBytes,
+                                  int32_t priority)
+{
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+
+    (void) stackSizeBytes;
+    (void) priority;
+
+    // RTOS is already running, just call pEntryPoint
+    if (pEntryPoint != NULL) {
+        errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        pEntryPoint(pParameter);
+    }
+
+    return errorCode;
+}
+
 // Initialise the porting layer.
 int32_t cellularPortInit()
 {

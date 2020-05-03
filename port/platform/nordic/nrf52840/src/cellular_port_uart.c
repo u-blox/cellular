@@ -269,7 +269,7 @@ static void rxIrqHandler(CellularPortUartData_t *pUartData)
             CellularPortUartEventData_t uartEvent;
             uartEvent.type = 0;
             uartEvent.size = pRxBuffer->toRead;
-            xQueueSendFromISR((QueueHandle_t *) (pUartData->queue),
+            xQueueSendFromISR((QueueHandle_t) (pUartData->queue),
                               &uartEvent, &yield);
             pUartData->userNeedsNotify = false;
         }

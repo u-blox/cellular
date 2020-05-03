@@ -17,9 +17,19 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
+#include "cellular_port_test_platform_specific.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_private.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+
+#include "nrf_drv_clock.h"
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+#include "nrf_log_default_backends.h"
+
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -43,6 +53,43 @@ static bool gInitialised = false;
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS
  * -------------------------------------------------------------- */
+
+// Start the platform.
+int32_t cellularPortPlatformStart(void (*pEntryPoint)(void *),
+                                  void *pParameter,
+                                  size_t stackSizeBytes,
+                                  int32_t priority)
+{
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    TaskHandle_t taskHandle;
+
+    if (pEntryPoint != NULL) {
+        errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+
+        NRF_LOG_INIT(NULL);
+        NRF_LOG_DEFAULT_BACKENDS_INIT();
+
+#if configTICK_SOURCE == FREERTOS_USE_RTC
+        // If the clock has not already been started, start it
+        nrf_drv_clock_init();
+#endif
+
+        if (xTaskCreate(pEntryPoint, "EntryPoint",
+                        stackSizeBytes, pParameter,
+                        priority, &taskHandle) == pdPASS) {
+
+            // Activate deep sleep mode.
+            SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+
+            // Start the scheduler.
+            vTaskStartScheduler();
+
+            // Should never get here
+        }
+    }
+
+    return errorCode;
+}
 
 // Initialise the porting layer.
 int32_t cellularPortInit()
