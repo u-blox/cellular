@@ -27,30 +27,140 @@
  * COMPILE-TIME MACROS FOR STM32F4: UART/USART
  * -------------------------------------------------------------- */
 
+/** The STM32F4 chip has 8 UARTs.  The UARTs that may be used
+ * by the UART driver should be set to 1 here.
+ */
+#ifndef CELLULAR_CFG_UART1_AVAILABLE
+# define CELLULAR_CFG_UART1_AVAILABLE  1
+#endif
+
+#ifndef CELLULAR_CFG_UART2_AVAILABLE
+# define CELLULAR_CFG_UART2_AVAILABLE  0
+#endif
+
+#ifndef CELLULAR_CFG_UART3_AVAILABLE
+# define CELLULAR_CFG_UART3_AVAILABLE  0
+#endif
+
+#ifndef CELLULAR_CFG_UART4_AVAILABLE
+# define CELLULAR_CFG_UART4_AVAILABLE  0
+#endif
+
+#ifndef CELLULAR_CFG_UART5_AVAILABLE
+# define CELLULAR_CFG_UART5_AVAILABLE  0
+#endif
+
+#ifndef CELLULAR_CFG_UART6_AVAILABLE
+# define CELLULAR_CFG_UART6_AVAILABLE  0
+#endif
+
+#ifndef CELLULAR_CFG_UART7_AVAILABLE
+# define CELLULAR_CFG_UART7_AVAILABLE  0
+#endif
+
+#ifndef CELLULAR_CFG_UART8_AVAILABLE
+# define CELLULAR_CFG_UART8_AVAILABLE  0
+#endif
+
+/** For the UART driver to operate it needs a DMA
+ * channel (0 to 7) on a DMA stream (0 to 7) on a
+ * DMA engine (1 or 2) for each UART that it is
+ * requested to use through the cellular port UART API.
+ * Since cellularPortUartInit() API has no concept of DMA,
+ * the engine/stream/channel to use for a given UART is
+ * defined here.
+ * IMPORTANT: make sure that a given engine/stream
+ * combination is (a) only used once and (b) not
+ * used anywhere else in your code.
+ */
+#ifndef CELLULAR_CFG_UART1_DMA_ENGINE
+# define CELLULAR_CFG_UART1_DMA_ENGINE              1
+#endif
+#ifndef CELLULAR_CFG_UART1_DMA_STREAM
+# define CELLULAR_CFG_UART1_DMA_STREAM              0
+#endif
+#ifndef CELLULAR_CFG_UART1_DMA_CHANNEL
+# define CELLULAR_CFG_UART1_DMA_CHANNEL             0
+#endif
+
+#ifndef CELLULAR_CFG_UART2_DMA_ENGINE
+# define CELLULAR_CFG_UART2_DMA_ENGINE              1
+#endif
+#ifndef CELLULAR_CFG_UART2_DMA_STREAM
+# define CELLULAR_CFG_UART2_DMA_STREAM              1
+#endif
+#ifndef CELLULAR_CFG_UART2_DMA_CHANNEL
+# define CELLULAR_CFG_UART2_DMA_CHANNEL             0
+#endif
+
+#ifndef CELLULAR_CFG_UART3_DMA_ENGINE
+# define CELLULAR_CFG_UART3_DMA_ENGINE              1
+#endif
+#ifndef CELLULAR_CFG_UART3_DMA_STREAM
+# define CELLULAR_CFG_UART3_DMA_STREAM              2
+#endif
+#ifndef CELLULAR_CFG_UART3_DMA_CHANNEL
+# define CELLULAR_CFG_UART3_DMA_CHANNEL             0
+#endif
+
+#ifndef CELLULAR_CFG_UART4_DMA_ENGINE
+# define CELLULAR_CFG_UART4_DMA_ENGINE              1
+#endif
+#ifndef CELLULAR_CFG_UART4_DMA_STREAM
+# define CELLULAR_CFG_UART4_DMA_STREAM              3
+#endif
+#ifndef CELLULAR_CFG_UART4_DMA_CHANNEL
+# define CELLULAR_CFG_UART4_DMA_CHANNEL             0
+#endif
+
+#ifndef CELLULAR_CFG_UART5_DMA_ENGINE
+# define CELLULAR_CFG_UART5_DMA_ENGINE              1
+#endif
+#ifndef CELLULAR_CFG_UART5_DMA_STREAM
+# define CELLULAR_CFG_UART5_DMA_STREAM              4
+#endif
+#ifndef CELLULAR_CFG_UART5_DMA_CHANNEL
+# define CELLULAR_CFG_UART5_DMA_CHANNEL             0
+#endif
+
+#ifndef CELLULAR_CFG_UART6_DMA_ENGINE
+# define CELLULAR_CFG_UART6_DMA_ENGINE              1
+#endif
+#ifndef CELLULAR_CFG_UART6_DMA_STREAM
+# define CELLULAR_CFG_UART6_DMA_STREAM              5
+#endif
+#ifndef CELLULAR_CFG_UART6_DMA_CHANNEL
+# define CELLULAR_CFG_UART6_DMA_CHANNEL             0
+#endif
+
+#ifndef CELLULAR_CFG_UART7_DMA_ENGINE
+# define CELLULAR_CFG_UART7_DMA_ENGINE              1
+#endif
+#ifndef CELLULAR_CFG_UART7_DMA_STREAM
+# define CELLULAR_CFG_UART7_DMA_STREAM              6
+#endif
+#ifndef CELLULAR_CFG_UART7_DMA_CHANNEL
+# define CELLULAR_CFG_UART7_DMA_CHANNEL             0
+#endif
+
+#ifndef CELLULAR_CFG_UART8_DMA_ENGINE
+# define CELLULAR_CFG_UART8_DMA_ENGINE              1
+#endif
+#ifndef CELLULAR_CFG_UART8_DMA_STREAM
+# define CELLULAR_CFG_UART8_DMA_STREAM              7
+#endif
+#ifndef CELLULAR_CFG_UART8_DMA_CHANNEL
+# define CELLULAR_CFG_UART8_DMA_CHANNEL             0
+#endif
+
 #ifndef CELLULAR_CFG_UART
-/** The UART/USART HW block to use, a number between 1 and 8,
+/** The UART/USART to use, a number between 1 and 8,
  * though only the USARTs (1, 2, 3 and 6) are capable of HW flow
- * control.
+ * control.  If you change this number you will also need to
+ * make sure that the corresponding CELLULAR_CFG_UARTx_AVAILABLE
+ * #define above is not set to zero.
  */
 # define CELLULAR_CFG_UART                           1
-#endif
-
-#ifndef CELLULAR_CFG_DMA
-/** The DMA to use with the UART, either 1 or 2.
- */
-# define CELLULAR_CFG_DMA                            1
-#endif
-
-#ifndef CELLULAR_CFG_DMA_STREAM
-/** The stream of the given DMA to use, a number between 0 and 7.
- */
-# define CELLULAR_CFG_DMA_STREAM                     0
-#endif
-
-#ifndef CELLULAR_CFG_DMA_CHANNEL
-/** The channel of the given DMA to use, a number between 0 and 7.
- */
-# define CELLULAR_CFG_DMA_CHANNEL                    0
 #endif
 
 #ifndef CELLULAR_CFG_RTS_THRESHOLD
@@ -67,8 +177,8 @@
 
 /** Note: on STM32F4 the pin numbering has the bank number in the
  * upper nibble and the pin number in the lower nibble, so pin 15
- * is also known as PA_15 with value 0x0f and pin 16 is also known
- * as PB_0 with value 0x10, etc.
+ * is also known as PA_15 has value 0x0f and pin 16 is also known
+ * as PB_0 and has value 0x10, etc.
  */
 
 #ifndef CELLULAR_CFG_PIN_ENABLE_POWER

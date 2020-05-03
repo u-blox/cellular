@@ -51,7 +51,7 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
 {
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
     bool badConfig = false;
-    GPIO_InitTypeDef config;
+    GPIO_InitTypeDef config = {0};
 
     config.Pin = CELLULAR_PORT_STM32F4_GPIO_PIN(pConfig->pin);
     config.Mode = GPIO_MODE_INPUT;

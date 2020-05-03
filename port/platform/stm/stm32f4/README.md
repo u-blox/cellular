@@ -12,7 +12,7 @@ This code was developed to run on the u-blox C030-R412M board, which includes an
 #Chip Resource Requirements
 SysTick is assumed to provide a 1 ms RTOS tick which is used as a source of time for `cellularPortGetTickTimeMs()`.  Note that this means that if you want to use FreeRTOS in tickless mode you will need to either find another source of tick for `cellularPortGetTickTimeMs()` or put in a call that updates `gTickTimerRtosCount` when FreeRTOS resumes after a tickless period.
 
-One UART is also required and, to go with it, a single stream from one of the two DMA channels: see `cellular_cfg_hw_platform_specific.h` in the `cfg` directory for the defaults if nothing else is specified.
+One UART is also required and, to go with it, a single channel of a single stream from of one of two DMA channels.  See `cellular_cfg_hw_platform_specific.h` in the `cfg` directory for which UARTs are available to this driver and which DMA resources are assigned to each UART.
 
 #Downloading To The Board
 When the C030-R412M board is plugged into a USB port a mapped drive should appear, e.g. `D:`.  Builds are downloaded by copying your compiled `.bin` file to this drive.  Builds can also be downloaded using ST's (ST-Link utility)[https://www.st.com/en/development-tools/stsw-link004.html] and through the STM32Cube IDE.

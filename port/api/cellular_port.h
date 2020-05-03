@@ -57,6 +57,32 @@ typedef enum {
  * FUNCTIONS
  * -------------------------------------------------------------- */
 
+/** Start the platform.  This should be called before
+ * anything else: it configures clocks, resources, etc. and,
+ * then calls the entry point function.
+ * Where there is code already in the system that does these
+ * things, that code should be adapted to include the
+ * necessary portions of this function.
+ * This function only returns if there is an error;
+ * code execution ends up in pEntryPoint, which should 
+ * never return.
+ *
+ * @param pEntryPoint    the function to run.
+ * @param pParameter     a pointer that will be passed to pEntryPoint
+ *                       when it is called. Usually NULL.
+ * @param stackSizeBytes the number of bytes of memory to dynamically
+ *                       allocate for stack; ignored if an RTOS
+ *                       task is already running.
+ * @param priority       the priority at which to run a task that
+ *                       is pEntryPoint; ignored if an RTOS
+ *                       task is already running.
+ * @return               negative error code.
+ */
+int32_t cellularPortPlatformStart(void (*pEntryPoint)(void *),
+                                  void *pParameter,
+                                  size_t stackSizeBytes,
+                                  int32_t priority);
+
 /** Initialise the porting layer.
  *
  * @return zero on success else negative error code.
