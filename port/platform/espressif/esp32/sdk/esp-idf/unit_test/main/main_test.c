@@ -17,22 +17,45 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
+#include "cellular_port_clib.h"
+#include "cellular_port.h"
 #include "cellular_port_test_platform_specific.h"
-#include <stdio.h>
-#include <string.h>
 
-static void print_banner(const char* text);
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS
+ * -------------------------------------------------------------- */
 
-void app_main(void)
+/* ----------------------------------------------------------------
+ * TYPES
+ * -------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------
+ * VARIABLES
+ * -------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------
+ * STATIC FUNCTIONS
+ * -------------------------------------------------------------- */
+
+// Do tests.
+static void testTask(void *pParam)
 {
-    print_banner("Starting interactive test menu");
-    /* This function will not return, and will be busy waiting for UART input.
-     * Make sure that task watchdog is disabled if you use this function.
-     */
+    (void) pParam;
+
     unity_run_menu();
 }
 
-static void print_banner(const char* text)
+/* ----------------------------------------------------------------
+ * PUBLIC FUNCTIONS
+ * -------------------------------------------------------------- */
+
+// Application entry point.
+void app_main(void)
 {
-    printf("\n#### %s #####\n\n", text);
+    // On this platform the OS is started automagically so we
+    // don't need to worry about stack sizes or priority
+    cellularPortPlatformStart(testTask, NULL, 0, 0);
+
+    // Should never get here
+    cellularPort_assert(false);
 }
