@@ -44,11 +44,11 @@
  */
 #define CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES (1024 * 3)
 
-/** The task priority to use for the task created during.
+/** The task priority to use for the task created during OS
  * testing: make sure that the priority of the task RUNNING
  * the tests is lower than this.
  */
-#define CELLULAR_PORT_TEST_TASK_PRIORITY 12
+#define CELLULAR_PORT_TEST_OS_TASK_PRIORITY 12
 
 /** The stack size to use for the test task created during sockets testing.
  */
