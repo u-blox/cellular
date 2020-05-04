@@ -58,6 +58,4 @@ void app_main(void)
 
     // Should never get here
     cellularPort_assert(false);
-
-    return 0;
 }

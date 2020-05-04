@@ -73,9 +73,21 @@ int32_t cellularPortPlatformStart(void (*pEntryPoint)(void *),
         // If the clock has not already been started, start it
         nrf_drv_clock_init();
 #endif
+        // Need to have the high frequency clock
+        // running for the UART driver, otherwise
+        // it can drop characters at 115,200 baud.
+        // If you do NOT use the UART driver you don't
+        // need this line: it is put here rather than
+        // down in the UART driver as it should be the
+        // application's responsibility to configure
+        // clocks, not some random driver code that
+        // has no context.
+        nrfx_clock_hfclk_start();
 
+        // Note that stack size is in words on the native FreeRTOS
+        // that NRF52840 uses, hence the divide by four here.
         if (xTaskCreate(pEntryPoint, "EntryPoint",
-                        stackSizeBytes, pParameter,
+                        stackSizeBytes / 4, pParameter,
                         priority, &taskHandle) == pdPASS) {
 
             // Activate deep sleep mode.

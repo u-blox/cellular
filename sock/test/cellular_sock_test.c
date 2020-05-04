@@ -2039,7 +2039,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoAsyncMayMayFailDueToInte
     CELLULAR_PORT_TEST_ASSERT(cellularPortTaskCreate(receiveDataTaskUdp,
                                                      "testTaskRxData",
                                                      CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
-                                                     (void **) &pParam,
+                                                     (void *) pParam,
                                                      CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY,
                                                      &gTaskHandleDataReceived) == 0);
 
@@ -2146,7 +2146,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
     CELLULAR_PORT_TEST_ASSERT(cellularPortTaskCreate(echoDataTaskTcp,
                                                      "testTaskTxRxData",
                                                      CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
-                                                     (void **) &pParam,
+                                                     (void *) pParam,
                                                      CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY,
                                                      &gTaskHandleDataReceived) == 0);
 
@@ -2165,7 +2165,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
     CELLULAR_PORT_TEST_ASSERT(cellularPortTaskCreate(echoDataTaskTcp,
                                                      "testTaskTxRxData",
                                                      CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
-                                                     (void **) &pParam,
+                                                     (void *) pParam,
                                                      CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY,
                                                      &gTaskHandleDataReceived) == 0);
 
@@ -2186,7 +2186,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
         CELLULAR_PORT_TEST_ASSERT(cellularPortTaskCreate(echoDataTaskTcp,
                                                          "testTaskTxRxData",
                                                          CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES,
-                                                         (void **) &pParam,
+                                                         (void *) pParam,
                                                          CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY,
                                                          &gTaskHandleDataReceived) == 0);
 
