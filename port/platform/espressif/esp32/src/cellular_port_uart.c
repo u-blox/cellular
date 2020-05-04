@@ -199,7 +199,11 @@ int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle
         if (cellularPortQueueReceive(queueHandle, &uartEvent) == 0) {
             sizeOrErrorCode = CELLULAR_PORT_UNKNOWN_ERROR;
             if (uartEvent.type < UART_EVENT_MAX) {
-                sizeOrErrorCode = uartEvent.size;
+                if (uartEvent.type == UART_DATA) {
+                    sizeOrErrorCode = uartEvent.size;
+                } else {
+                    sizeOrErrorCode = 0;
+                }
             }
         }
     }
