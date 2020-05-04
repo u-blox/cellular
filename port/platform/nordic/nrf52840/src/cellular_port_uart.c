@@ -132,12 +132,11 @@
      CELLULAR_PORT_UART_STATE_FLUSHING
  } CellularPortUartState_t;
 
-/** Structure to hold a UART event.
+/** A UART event.  Since we only ever need to signal
+ * size or -1 then on this platform the CellularPortUartEventData_t
+ * can simply be an int32_t.
  */
-typedef struct {
-    int32_t type;
-    size_t size;
-} CellularPortUartEventData_t;
+typedef int32_t CellularPortUartEventData_t;
 
 /** UART buffer structure, which can be used as a list.
  */
@@ -267,8 +266,7 @@ static void rxIrqHandler(CellularPortUartData_t *pUartData)
         // be notified, let them know
         if ((pRxBuffer->toRead > 0) && pUartData->userNeedsNotify) {
             CellularPortUartEventData_t uartEvent;
-            uartEvent.type = 0;
-            uartEvent.size = pRxBuffer->toRead;
+            uartEvent = pRxBuffer->toRead;
             xQueueSendFromISR((QueueHandle_t) (pUartData->queue),
                               &uartEvent, &yield);
             pUartData->userNeedsNotify = false;
@@ -656,12 +654,7 @@ int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
     CellularPortUartEventData_t uartEvent;
 
     if (queueHandle != NULL) {
-        uartEvent.type = -1;
-        uartEvent.size = 0;
-        if (sizeBytes >= 0) {
-            uartEvent.type = 0;
-            uartEvent.size = sizeBytes;
-        }
+        uartEvent = sizeBytes;
         errorCode = cellularPortQueueSend(queueHandle, (void *) &uartEvent);
     }
 
@@ -677,10 +670,7 @@ int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle
     if (queueHandle != NULL) {
         sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
         if (cellularPortQueueReceive(queueHandle, &uartEvent) == 0) {
-            sizeOrErrorCode = CELLULAR_PORT_UNKNOWN_ERROR;
-            if (uartEvent.type >= 0) {
-                sizeOrErrorCode = uartEvent.size;
-            }
+            sizeOrErrorCode = uartEvent;
         }
     }
 
