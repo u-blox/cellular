@@ -53,7 +53,8 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
     bool badConfig = false;
     GPIO_InitTypeDef config = {0};
 
-    config.Pin = CELLULAR_PORT_STM32F4_GPIO_PIN(pConfig->pin);
+    // Note that Pin is a bitmap
+    config.Pin = 1U << CELLULAR_PORT_STM32F4_GPIO_PIN(pConfig->pin);
     config.Mode = GPIO_MODE_INPUT;
     config.Pull = GPIO_NOPULL;
     config.Speed = GPIO_SPEED_FREQ_LOW;
@@ -104,6 +105,8 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
 
         // Actually do the configuration
         if (!badConfig) {
+            // Enable the clocks to the port for this pin
+            cellularPortPrivateGpioEnableClock(pConfig->pin);
             // The GPIO init function for STM32F4 takes a pointer
             // to the port register, the index for which is the upper
             // nibble of pin (they are in banks of 16), and then
@@ -121,8 +124,11 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
 // Set the state of a GPIO.
 int32_t cellularPortGpioSet(int32_t pin, int32_t level)
 {
+    // Enable the clocks to the port for this pin
+    cellularPortPrivateGpioEnableClock(pin);
+
     HAL_GPIO_WritePin(pCellularPortPrivateGpioGetReg(pin),
-                      CELLULAR_PORT_STM32F4_GPIO_PIN(pin),
+                      1U << CELLULAR_PORT_STM32F4_GPIO_PIN(pin),
                       level);
 
     return (int32_t) CELLULAR_PORT_SUCCESS;
@@ -131,8 +137,11 @@ int32_t cellularPortGpioSet(int32_t pin, int32_t level)
 // Get the state of a GPIO.
 int32_t cellularPortGpioGet(int32_t pin)
 {
+    // Enable the clocks to the port for this pin
+    cellularPortPrivateGpioEnableClock(pin);
+
     return HAL_GPIO_ReadPin(pCellularPortPrivateGpioGetReg(pin),
-                            CELLULAR_PORT_STM32F4_GPIO_PIN(pin));
+                            1U << CELLULAR_PORT_STM32F4_GPIO_PIN(pin));
 }
 
 // End of file

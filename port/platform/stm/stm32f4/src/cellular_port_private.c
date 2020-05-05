@@ -21,6 +21,7 @@
 #include "cellular_port.h"
 
 #include "stm32f4xx_hal.h"
+#include "stm32f4xx_ll_bus.h"
 
 #include "cellular_port_private.h"  // Down here 'cos it needs GPIO_TypeDef
 
@@ -52,6 +53,19 @@ static GPIO_TypeDef * const gpGpioReg[] = {GPIOA,
                                            GPIOI,
                                            GPIOJ,
                                            GPIOK};
+
+// Get the LL driver peripheral number for a given GPIO port.
+static const int32_t gLlApbGrpPeriphGpioPort[] = {LL_AHB1_GRP1_PERIPH_GPIOA,
+                                                  LL_AHB1_GRP1_PERIPH_GPIOB,
+                                                  LL_AHB1_GRP1_PERIPH_GPIOC,
+                                                  LL_AHB1_GRP1_PERIPH_GPIOD,
+                                                  LL_AHB1_GRP1_PERIPH_GPIOE,
+                                                  LL_AHB1_GRP1_PERIPH_GPIOF,
+                                                  LL_AHB1_GRP1_PERIPH_GPIOG,
+                                                  LL_AHB1_GRP1_PERIPH_GPIOH,
+                                                  LL_AHB1_GRP1_PERIPH_GPIOI,
+                                                  LL_AHB1_GRP1_PERIPH_GPIOJ,
+                                                  LL_AHB1_GRP1_PERIPH_GPIOK};
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS
@@ -97,6 +111,16 @@ GPIO_TypeDef * const pCellularPortPrivateGpioGetReg(int32_t pin)
     cellularPort_assert(port < sizeof(gpGpioReg) / sizeof(gpGpioReg[0]));
 
     return gpGpioReg[port];
+}
+
+// Enable the clock to the register of the given GPIO pin.
+void cellularPortPrivateGpioEnableClock(int32_t pin)
+{
+    int32_t port = CELLULAR_PORT_STM32F4_GPIO_PORT(pin);
+
+    cellularPort_assert(port >= 0);
+    cellularPort_assert(port < sizeof(gLlApbGrpPeriphGpioPort) / sizeof(gLlApbGrpPeriphGpioPort[0]));
+    LL_AHB1_GRP1_EnableClock(gLlApbGrpPeriphGpioPort[port]);
 }
 
 // End of file

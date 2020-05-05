@@ -9,6 +9,8 @@ These directories provide the implementation of the porting layer on the STM32F4
 #Hardware Requirements
 This code was developed to run on the u-blox C030-R412M board, which includes an STM32F437VG chip, a SARA-R412M cellular module and a separate ST debug chip.  However there is no reason why it would not work on any STM32F4 chip talking to another supported u-blox cellular module, see `cfg/cellular_cfg_module.h`.
 
+Note that the u-blox C030 board runs from an external 12 MHz crystal, hence the contents of `cellularPortPlatformStart()` reflect this and the value for `HSE_VALUE` of 12000000 in `stm32f4xx_hal_conf.h` reflects this; if your board is different you should amend these entries appropriately.
+
 #Chip Resource Requirements
 SysTick is assumed to provide a 1 ms RTOS tick which is used as a source of time for `cellularPortGetTickTimeMs()`.  Note that this means that if you want to use FreeRTOS in tickless mode you will need to either find another source of tick for `cellularPortGetTickTimeMs()` or put in a call that updates `gTickTimerRtosCount` when FreeRTOS resumes after a tickless period.
 

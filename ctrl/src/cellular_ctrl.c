@@ -784,10 +784,13 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
         if (platformError == 0) {
             // PWR_ON open drain so that we can pull it low and then let it
             // float afterwards since it is pulled-up by the cellular module
+            // TODO: the u-blox C030-R412M board requires a pull-up here.
+            gpioConfig.pullMode = CELLULAR_PORT_GPIO_PULL_MODE_PULL_UP;
             gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN;
             gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
             platformError = cellularPortGpioConfig(&gpioConfig);
             if (platformError == 0) {
+                gpioConfig.pullMode = CELLULAR_PORT_GPIO_PULL_MODE_NONE;
                 if (pinEnablePower >= 0) {
                     gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL;
                     gpioConfig.pin = pinEnablePower;

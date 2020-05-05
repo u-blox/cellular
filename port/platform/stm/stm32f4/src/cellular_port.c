@@ -17,8 +17,10 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
+#include "cellular_cfg_hw_platform_specific.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
+#include "cellular_port_gpio.h"
 
 #include "stm32f437xx.h"
 #include "stm32f4xx_hal.h"
@@ -102,6 +104,9 @@ int32_t cellularPortPlatformStart(void (*pEntryPoint)(void *),
 {
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
     osThreadId threadId;
+#if (CELLULAR_CFG_PIN_C030_ENABLE_3V3 >= 0) || (CELLULAR_CFG_PIN_RESET >= 0)
+    CellularPortGpioConfig_t gpioConfig = CELLULAR_PORT_GPIO_CONFIG_DEFAULT;
+#endif
 
     if (pEntryPoint != NULL) {
         errorCode = CELLULAR_PORT_PLATFORM_ERROR;
@@ -112,21 +117,43 @@ int32_t cellularPortPlatformStart(void (*pEntryPoint)(void *),
         // Configure the system clock
         systemClockConfig();
 
-        // TODO: if I put a printf() here then all is fine.
-        // If I don't then any attempt to print later
-        // results in a hard fault.  Need to find out why.
-        printf("\n\nCELLULAR_TEST: starting RTOS...\n");
+#if CELLULAR_CFG_PIN_C030_ENABLE_3V3 >= 0
+        // Enable power to 3V3 rail for the C030 board
+        gpioConfig.pin = CELLULAR_CFG_PIN_C030_ENABLE_3V3;
+        gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN;
+        gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
+        if ((cellularPortGpioConfig(&gpioConfig) == 0) &&
+            (cellularPortGpioSet(CELLULAR_CFG_PIN_C030_ENABLE_3V3, 1) == 0)) {
+#endif
+#if CELLULAR_CFG_PIN_RESET >= 0
+            // Set reset high (i.e. not reset) if it is connected
+            gpioConfig.pin = CELLULAR_CFG_PIN_RESET;
+            gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL;
+            gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
+            if ((cellularPortGpioConfig(&gpioConfig) == 0) &&
+                (cellularPortGpioSet(CELLULAR_CFG_PIN_RESET, 1) == 0)) {
+#endif
+                // TODO: if I put a printf() here then all is fine.
+                // If I don't then any attempt to print later
+                // results in a hard fault.  Need to find out why.
+                printf("\n\nCELLULAR_TEST: starting RTOS...\n");
 
-        // Create the task
-        osThreadDef(EntryPoint, (os_pthread) pEntryPoint,
-                    priority, 0, stackSizeBytes);
-        threadId = osThreadCreate(osThread(EntryPoint), pParameter);
+                // Create the task
+                osThreadDef(EntryPoint, (os_pthread) pEntryPoint,
+                            priority, 0, stackSizeBytes);
+                threadId = osThreadCreate(osThread(EntryPoint), pParameter);
 
-        if (threadId != NULL) {
-            // Start the scheduler.
-            osKernelStart();
-            // Should never get here
+                if (threadId != NULL) {
+                    // Start the scheduler.
+                    osKernelStart();
+                    // Should never get here
+                }
+#if CELLULAR_CFG_PIN_RESET >= 0
+            }
+#endif
+#if CELLULAR_CFG_PIN_C030_ENABLE_3V3 >= 0
         }
+#endif
     }
 
     return errorCode;

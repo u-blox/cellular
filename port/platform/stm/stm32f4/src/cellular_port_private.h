@@ -59,6 +59,12 @@ int64_t cellularPortPrivateGetTickTimeMs();
  * */
 GPIO_TypeDef *pCellularPortPrivateGpioGetReg(int32_t pin);
 
+/** Enable the clock to the register of the given GPIO pin.
+ *
+ * @param pin the pin number.
+ */
+void cellularPortPrivateGpioEnableClock(int32_t pin);
+
 #endif // _CELLULAR_PORT_PRIVATE_H_
 
 // End of file

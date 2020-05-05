@@ -676,7 +676,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
 
 /* TODO: removing this test for SARA-R4 for now:
  * for reasons that flummox me, powering SARA-R4
- * off doesn't work properly, it comes up in ability
+ * off doesn't work properly, it comes up in a
  * strange state and all subsequent tests fail
  * as the module stops responding to AT commands
  * very early on during initialisation (e.g.

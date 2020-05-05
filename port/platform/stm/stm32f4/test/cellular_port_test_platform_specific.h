@@ -47,7 +47,7 @@
 /** The task priority to use for the task created during.
  * testing.
  */
-#define CELLULAR_PORT_TEST_TASK_PRIORITY 0 // osPriorityNormal
+#define CELLULAR_PORT_TEST_OS_TASK_PRIORITY 0 // osPriorityNormal
 
 /** The stack size to use for the test task created during sockets testing.
  */

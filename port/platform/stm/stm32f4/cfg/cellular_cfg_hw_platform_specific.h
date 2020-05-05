@@ -31,11 +31,15 @@
  * by the UART driver should be set to 1 here.
  */
 #ifndef CELLULAR_CFG_UART1_AVAILABLE
+// This UART must be available for the C030-R412M board
+// since that's the way it is wired.
 # define CELLULAR_CFG_UART1_AVAILABLE  1
 #endif
 
 #ifndef CELLULAR_CFG_UART2_AVAILABLE
-# define CELLULAR_CFG_UART2_AVAILABLE  0
+// This UART should be available for the C030-U201 board
+// since that's the way it is wired.
+# define CELLULAR_CFG_UART2_AVAILABLE  o
 #endif
 
 #ifndef CELLULAR_CFG_UART3_AVAILABLE
@@ -159,6 +163,11 @@
  * control.  If you change this number you will also need to
  * make sure that the corresponding CELLULAR_CFG_UARTx_AVAILABLE
  * #define above is not set to zero.
+ * For a C030-R412M board this HAS to be 1 as that's the UART
+ * HW block that is wired INSIDE the STM32F437VG chip to
+ * the correct alternate functions for the Tx/Rx/RTS/CTS pins
+ * below (see table 12 of the STM32F437VG data sheet).
+ * For a C030-U201 board this HAS to be 1 for the same reasons.
  */
 # define CELLULAR_CFG_UART                           1
 #endif
@@ -180,6 +189,25 @@
  * is also known as PA_15 has value 0x0f and pin 16 is also known
  * as PB_0 and has value 0x10, etc.
  */
+
+#ifndef CELLULAR_CFG_PIN_C030_ENABLE_3V3
+/** On the u-blox C030 board it is necessary to enable
+ * power to the 3.3V rail of the Arduino interface
+ * by setting this pin to an open drain output and to high.
+ * If you are not running on a u-blox C030 board then
+ * override this pin to -1.
+ */
+# define CELLULAR_CFG_PIN_C030_ENABLE_3V3   0x40 // AKA PE_0
+#endif
+
+#ifndef CELLULAR_CFG_PIN_RESET
+/** On the u-blox C030 board the modem reset pin
+ * is connected to the STM32F4 on this pin.
+ * If you are not running on a u-blox C030 board then
+ * override this pin to -1.
+ */
+# define CELLULAR_CFG_PIN_RESET             0x15 // AKA PB_5
+#endif
 
 #ifndef CELLULAR_CFG_PIN_ENABLE_POWER
 /** The STM32F4 GPIO output that enables power to the cellular module.
