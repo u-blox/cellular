@@ -61,33 +61,23 @@
 // The maximum number of DMA streams on an STM32F4.
 #define CELLULAR_PORT_MAX_NUM_DMA_STREAMS 8
 
-// Determine if the given DMA engine is in use
-#define CELLULAR_PORT_DMA_ENGINE_IN_USE(x) (((CELLULAR_CFG_UART1_AVAILABLE != 0) && (CELLULAR_CFG_UART1_DMA_ENGINE == x)) || \
-                                            ((CELLULAR_CFG_UART2_AVAILABLE != 0) && (CELLULAR_CFG_UART2_DMA_ENGINE == x)) || \
-                                            ((CELLULAR_CFG_UART3_AVAILABLE != 0) && (CELLULAR_CFG_UART3_DMA_ENGINE == x)) || \
-                                            ((CELLULAR_CFG_UART4_AVAILABLE != 0) && (CELLULAR_CFG_UART4_DMA_ENGINE == x)) || \
-                                            ((CELLULAR_CFG_UART5_AVAILABLE != 0) && (CELLULAR_CFG_UART5_DMA_ENGINE == x)) || \
-                                            ((CELLULAR_CFG_UART6_AVAILABLE != 0) && (CELLULAR_CFG_UART6_DMA_ENGINE == x)) || \
-                                            ((CELLULAR_CFG_UART7_AVAILABLE != 0) && (CELLULAR_CFG_UART7_DMA_ENGINE == x)) || \
-                                            ((CELLULAR_CFG_UART8_AVAILABLE != 0) && (CELLULAR_CFG_UART8_DMA_ENGINE == x)))
-
-// Determine if the given DMA stream is in use
-#define CELLULAR_PORT_DMA_STREAM_IN_USE(x) (((CELLULAR_CFG_UART1_AVAILABLE != 0) && (CELLULAR_CFG_UART1_DMA_STREAM == x)) || \
-                                            ((CELLULAR_CFG_UART2_AVAILABLE != 0) && (CELLULAR_CFG_UART2_DMA_STREAM == x)) || \
-                                            ((CELLULAR_CFG_UART3_AVAILABLE != 0) && (CELLULAR_CFG_UART3_DMA_STREAM == x)) || \
-                                            ((CELLULAR_CFG_UART4_AVAILABLE != 0) && (CELLULAR_CFG_UART4_DMA_STREAM == x)) || \
-                                            ((CELLULAR_CFG_UART5_AVAILABLE != 0) && (CELLULAR_CFG_UART5_DMA_STREAM == x)) || \
-                                            ((CELLULAR_CFG_UART6_AVAILABLE != 0) && (CELLULAR_CFG_UART6_DMA_STREAM == x)) || \
-                                            ((CELLULAR_CFG_UART7_AVAILABLE != 0) && (CELLULAR_CFG_UART7_DMA_STREAM == x)) || \
-                                            ((CELLULAR_CFG_UART8_AVAILABLE != 0) && (CELLULAR_CFG_UART8_DMA_STREAM == x)))
+// Determine if the given DMA engine/stream interrupt is in use
+#define CELLULAR_PORT_DMA_INTERRUPT_IN_USE(x, y) (((CELLULAR_CFG_UART1_AVAILABLE != 0) && (CELLULAR_CFG_UART1_DMA_ENGINE == x) && (CELLULAR_CFG_UART1_DMA_STREAM == y)) || \
+                                                  ((CELLULAR_CFG_UART2_AVAILABLE != 0) && (CELLULAR_CFG_UART2_DMA_ENGINE == x) && (CELLULAR_CFG_UART2_DMA_STREAM == y)) || \
+                                                  ((CELLULAR_CFG_UART3_AVAILABLE != 0) && (CELLULAR_CFG_UART3_DMA_ENGINE == x) && (CELLULAR_CFG_UART3_DMA_STREAM == y)) || \
+                                                  ((CELLULAR_CFG_UART4_AVAILABLE != 0) && (CELLULAR_CFG_UART4_DMA_ENGINE == x) && (CELLULAR_CFG_UART4_DMA_STREAM == y)) || \
+                                                  ((CELLULAR_CFG_UART5_AVAILABLE != 0) && (CELLULAR_CFG_UART5_DMA_ENGINE == x) && (CELLULAR_CFG_UART5_DMA_STREAM == y)) || \
+                                                  ((CELLULAR_CFG_UART6_AVAILABLE != 0) && (CELLULAR_CFG_UART6_DMA_ENGINE == x) && (CELLULAR_CFG_UART6_DMA_STREAM == y)) || \
+                                                  ((CELLULAR_CFG_UART7_AVAILABLE != 0) && (CELLULAR_CFG_UART7_DMA_ENGINE == x) && (CELLULAR_CFG_UART7_DMA_STREAM == y)) || \
+                                                  ((CELLULAR_CFG_UART8_AVAILABLE != 0) && (CELLULAR_CFG_UART8_DMA_ENGINE == x) && (CELLULAR_CFG_UART8_DMA_STREAM == y)))
 
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
 
 /** A UART event.  Since we only ever need to signal
- * size or -1 then on this platform the CellularPortUartEventData_t
- * can simply be an int32_t.
+ * size or error then on this platform the
+ * CellularPortUartEventData_t can simply be an int32_t.
  */
 typedef int32_t CellularPortUartEventData_t;
 
@@ -95,9 +85,9 @@ typedef int32_t CellularPortUartEventData_t;
  */
 typedef struct CellularPortUartConstData_t {
     USART_TypeDef *pReg;
-    int32_t dmaEngine;
-    int32_t dmaStream;
-    int32_t dmaChannel;
+    uint32_t dmaEngine;
+    uint32_t dmaStream;
+    uint32_t dmaChannel;
     IRQn_Type irq;
 } CellularPortUartConstData_t;
 
@@ -136,20 +126,20 @@ static const void (*gLlApbClkEnable[])(uint32_t) = {0, // This to avoid having t
                                                     LL_APB1_GRP1_EnableClock};
 
 // Get the LL driver peripheral number for a given UART/USART.
-static const int32_t gLlApbGrpPeriphUart[] = {0, // This to avoid having to -1 all the time
-                                              LL_APB2_GRP1_PERIPH_USART1,
-                                              LL_APB1_GRP1_PERIPH_USART2,
-                                              LL_APB1_GRP1_PERIPH_USART3,
-                                              LL_APB1_GRP1_PERIPH_UART4,
-                                              LL_APB1_GRP1_PERIPH_UART5,
-                                              LL_APB2_GRP1_PERIPH_USART6,
-                                              LL_APB1_GRP1_PERIPH_UART7,
-                                              LL_APB1_GRP1_PERIPH_UART8};
+static const uint32_t gLlApbGrpPeriphUart[] = {0, // This to avoid having to -1 all the time
+                                               LL_APB2_GRP1_PERIPH_USART1,
+                                               LL_APB1_GRP1_PERIPH_USART2,
+                                               LL_APB1_GRP1_PERIPH_USART3,
+                                               LL_APB1_GRP1_PERIPH_UART4,
+                                               LL_APB1_GRP1_PERIPH_UART5,
+                                               LL_APB2_GRP1_PERIPH_USART6,
+                                               LL_APB1_GRP1_PERIPH_UART7,
+                                               LL_APB1_GRP1_PERIPH_UART8};
 
 // Get the LL driver peripheral number for a given DMA engine.
-static const int32_t gLlApbGrpPeriphDma[] = {0, // This to avoid having to -1 all the time
-                                             LL_AHB1_GRP1_PERIPH_DMA1,
-                                             LL_AHB1_GRP1_PERIPH_DMA2};
+static const uint32_t gLlApbGrpPeriphDma[] = {0, // This to avoid having to -1 all the time
+                                              LL_AHB1_GRP1_PERIPH_DMA1,
+                                              LL_AHB1_GRP1_PERIPH_DMA2};
 
 // Get the DMA base address for a given DMA engine
 static DMA_TypeDef * const gpDmaReg[] =  {0, // This to avoid having to -1 all the time
@@ -159,15 +149,15 @@ static DMA_TypeDef * const gpDmaReg[] =  {0, // This to avoid having to -1 all t
 // Get the alternate function required on a GPIO line for a given UART.
 // Note: which function a GPIO line actually performs on that UART is
 // hard coded in the chip; for instance see table 12 of the STM32F437 data sheet.
-static const int32_t gGpioAf[] = {0, // This to avoid having to -1 all the time
-                                  LL_GPIO_AF_7,  /* UART 1 */
-                                  LL_GPIO_AF_7,  /* UART 2 */
-                                  LL_GPIO_AF_7,  /* UART 3 */
-                                  LL_GPIO_AF_8,  /* UART 4 */
-                                  LL_GPIO_AF_8,  /* UART 5 */
-                                  LL_GPIO_AF_8,  /* UART 6 */
-                                  LL_GPIO_AF_8,  /* UART 7 */
-                                  LL_GPIO_AF_8}; /* UART 8 */
+static const uint32_t gGpioAf[] = {0, // This to avoid having to -1 all the time
+                                   LL_GPIO_AF_7,  // USART 1
+                                   LL_GPIO_AF_7,  // USART 2
+                                   LL_GPIO_AF_7,  // USART 3
+                                   LL_GPIO_AF_8,  // UART 4
+                                   LL_GPIO_AF_8,  // UART 5
+                                   LL_GPIO_AF_8,  // USART 6
+                                   LL_GPIO_AF_8,  // USART 7
+                                   LL_GPIO_AF_8}; // UART 8
 
 // Table of stream IRQn for DMA engine 1
 static const IRQn_Type gDma1StreamIrq[] = {DMA1_Stream0_IRQn,
@@ -244,6 +234,26 @@ static const void (*gpLlDmaClearFlagFe[]) (DMA_TypeDef *)  = {LL_DMA_ClearFlag_F
                                                               LL_DMA_ClearFlag_FE6,
                                                               LL_DMA_ClearFlag_FE7};
 
+// Table of functions LL_DMA_IsActiveFlag_HTx(DMA_TypeDef *DMAx) for each stream.
+static const uint32_t (*gpLlDmaIsActiveFlagHt[]) (DMA_TypeDef *)  = {LL_DMA_IsActiveFlag_HT0,
+                                                                     LL_DMA_IsActiveFlag_HT1,
+                                                                     LL_DMA_IsActiveFlag_HT2,
+                                                                     LL_DMA_IsActiveFlag_HT3,
+                                                                     LL_DMA_IsActiveFlag_HT4,
+                                                                     LL_DMA_IsActiveFlag_HT5,
+                                                                     LL_DMA_IsActiveFlag_HT6,
+                                                                     LL_DMA_IsActiveFlag_HT7};
+
+// Table of functions LL_DMA_IsActiveFlag_TCx(DMA_TypeDef *DMAx) for each stream.
+static const uint32_t (*gpLlDmaIsActiveFlagTc[]) (DMA_TypeDef *)  = {LL_DMA_IsActiveFlag_TC0,
+                                                                     LL_DMA_IsActiveFlag_TC1,
+                                                                     LL_DMA_IsActiveFlag_TC2,
+                                                                     LL_DMA_IsActiveFlag_TC3,
+                                                                     LL_DMA_IsActiveFlag_TC4,
+                                                                     LL_DMA_IsActiveFlag_TC5,
+                                                                     LL_DMA_IsActiveFlag_TC6,
+                                                                     LL_DMA_IsActiveFlag_TC7};
+
 // Table of the constant data per UART.
 static const CellularPortUartConstData_t gUartCfg[] = {{}, // This to avoid having to -1 all the time
                                                        {USART1,
@@ -288,11 +298,11 @@ static const CellularPortUartConstData_t gUartCfg[] = {{}, // This to avoid havi
                                                         UART8_IRQn}};
 
 // Table to make it possible for UART interrupts to get to the UART data
-// without having to trawl through a list.
+// without having to trawl through a list.  +1 is for the usual reason.
 static CellularPortUartData_t *gpUart[CELLULAR_PORT_MAX_NUM_UARTS + 1] = {NULL};
 
 // Table to make it possible for a DMA interrupt to
-// get to the UART data.  +1 is for the usual reason
+// get to the UART data.  +1 is for the usual reason.
 static CellularPortUartData_t *gpDmaUart[(CELLULAR_PORT_MAX_NUM_DMA_ENGINES + 1) *
                                           CELLULAR_PORT_MAX_NUM_DMA_STREAMS] = {NULL};
 
@@ -396,31 +406,37 @@ void dmaIrqHandler(uint32_t dmaEngine, uint32_t dmaStream)
 
     // Check half-transfer complete interrupt
     if (LL_DMA_IsEnabledIT_HT(pDmaReg, dmaStream) &&
-        LL_DMA_IsActiveFlag_HT1(pDmaReg)) {
-        pUartData = gpDmaUart[dmaEngine + dmaStream];
+        gpLlDmaIsActiveFlagHt[dmaStream](pDmaReg)) {
         // Clear the flag
         gpLlDmaClearFlagHt[dmaStream](pDmaReg);
+        pUartData = gpDmaUart[dmaEngine + dmaStream];
     }
 
     // Check transfer complete interrupt
     if (LL_DMA_IsEnabledIT_TC(pDmaReg, dmaStream) &&
-        LL_DMA_IsActiveFlag_TC1(pDmaReg)) {
-        pUartData = gpDmaUart[dmaEngine + dmaStream];
+        gpLlDmaIsActiveFlagTc[dmaStream](pDmaReg)) {
         // Clear the flag
         gpLlDmaClearFlagTc[dmaStream](pDmaReg);
+        pUartData = gpDmaUart[dmaEngine + dmaStream];
     }
 
     if (pUartData != NULL) {
-        CellularPortUartEventData_t uartEvent;
+        CellularPortUartEventData_t uartSizeOrError;
 
         // Stuff has arrived: how much?
-        uartEvent = CELLULAR_PORT_UART_RX_BUFFER_SIZE -
-                    LL_DMA_GetDataLength(pDmaReg, dmaStream);
-        // Move the write pointer on
-        pUartData->pRxBufferWrite += uartEvent;
+        // LL_DMA_GetDataLength() returns a value in the sense
+        // of "number of bytes left to be transmitted", so for
+        // an Rx DMA we have to subtract the number from
+        // the Rx buffer size
+        uartSizeOrError = CELLULAR_PORT_UART_RX_BUFFER_SIZE -
+                          LL_DMA_GetDataLength(pDmaReg, dmaStream);
+        // Move the write pointer on, wrapping
+        // around the end of the buffer circularlarly
+        pUartData->pRxBufferWrite += uartSizeOrError;
         if (pUartData->pRxBufferWrite >= pUartData->pRxBufferStart +
                                          CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
-            pUartData->pRxBufferWrite = pUartData->pRxBufferStart;
+            pUartData->pRxBufferWrite = pUartData->pRxBufferWrite -
+                                        CELLULAR_PORT_UART_RX_BUFFER_SIZE;
         }
 
         // If the user wanted to know then send a message
@@ -428,14 +444,13 @@ void dmaIrqHandler(uint32_t dmaEngine, uint32_t dmaStream)
             BaseType_t yield = false;
 
             xQueueSendFromISR((QueueHandle_t) (pUartData->queue),
-                              &uartEvent, &yield);
+                              &uartSizeOrError, &yield);
             pUartData->userNeedsNotify = false;
 
             // Required for correct FreeRTOS operation
             portEND_SWITCHING_ISR(yield);
         }
     }
-
 }
 
 // UART interrupt handler
@@ -447,27 +462,28 @@ void uartIrqHandler(CellularPortUartData_t *pUartData)
     // Check for IDLE line interrupt
     if (LL_USART_IsEnabledIT_IDLE(pUartReg) &&
         LL_USART_IsActiveFlag_IDLE(pUartReg)) {
-        CellularPortUartEventData_t uartEvent;
+        CellularPortUartEventData_t uartSizeOrError;
 
         // Clear flag
         LL_USART_ClearFlag_IDLE(pUartReg);
-        uartEvent = CELLULAR_PORT_UART_RX_BUFFER_SIZE -
-                    LL_DMA_GetDataLength(gpDmaReg[pUartCfg->dmaEngine],
-                                         pUartCfg->dmaStream);
+        uartSizeOrError = CELLULAR_PORT_UART_RX_BUFFER_SIZE -
+                          LL_DMA_GetDataLength(gpDmaReg[pUartCfg->dmaEngine],
+                                               pUartCfg->dmaStream);
         // Move the write pointer on
         pUartData->pRxBufferWrite += uartEvent;
         if (pUartData->pRxBufferWrite >= pUartData->pRxBufferStart +
                                          CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
-            pUartData->pRxBufferWrite = pUartData->pRxBufferStart;
+            pUartData->pRxBufferWrite = pUartData->pRxBufferWrite -
+                                        CELLULAR_PORT_UART_RX_BUFFER_SIZE;
         }
 
         // If there is new data and the user wanted to know
         // then send a message to let them know.
-        if ((uartEvent > 0) && pUartData->userNeedsNotify) {
+        if ((uartSizeOrError > 0) && pUartData->userNeedsNotify) {
             BaseType_t yield = false;
 
             xQueueSendFromISR((QueueHandle_t) (pUartData->queue),
-                              &uartEvent, &yield);
+                              &uartSizeOrError, &yield);
             pUartData->userNeedsNotify = false;
 
             // Required for correct FreeRTOS operation
@@ -556,112 +572,112 @@ void UART8_IRQHandler()
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(1) && CELLULAR_PORT_DMA_STREAM_IN_USE(0)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(1, 0)
 void DMA1_Stream0_IRQHandler()
 {
     dmaIrqHandler(1, 0);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(1) && CELLULAR_PORT_DMA_STREAM_IN_USE(1)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(1, 1)
 void DMA1_Stream1_IRQHandler()
 {
     dmaIrqHandler(1, 1);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(1) && CELLULAR_PORT_DMA_STREAM_IN_USE(2)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(1, 2)
 void DMA1_Stream2_IRQHandler()
 {
     dmaIrqHandler(1, 2);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(1) && CELLULAR_PORT_DMA_STREAM_IN_USE(3)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(1, 3)
 void DMA1_Stream3_IRQHandler()
 {
     dmaIrqHandler(1, 3);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(1) && CELLULAR_PORT_DMA_STREAM_IN_USE(4)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(1, 4)
 void DMA1_Stream4_IRQHandler()
 {
     dmaIrqHandler(1, 4);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(1) && CELLULAR_PORT_DMA_STREAM_IN_USE(5)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(1, 5)
 void DMA1_Stream5_IRQHandler()
 {
     dmaIrqHandler(1, 5);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(1) && CELLULAR_PORT_DMA_STREAM_IN_USE(6)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(1, 6)
 void DMA1_Stream6_IRQHandler()
 {
     dmaIrqHandler(1, 6);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(1) && CELLULAR_PORT_DMA_STREAM_IN_USE(7)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(1, 7)
 void DMA1_Stream7_IRQHandler()
 {
     dmaIrqHandler(1, 7);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(2) && CELLULAR_PORT_DMA_STREAM_IN_USE(0)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(2, 0)
 void DMA2_Stream0_IRQHandler()
 {
     dmaIrqHandler(2, 0);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(2) && CELLULAR_PORT_DMA_STREAM_IN_USE(1)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(2, 1)
 void DMA2_Stream1_IRQHandler()
 {
     dmaIrqHandler(2, 1);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(2) && CELLULAR_PORT_DMA_STREAM_IN_USE(2)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(2, 2)
 void DMA2_Stream2_IRQHandler()
 {
     dmaIrqHandler(2, 2);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(2) && CELLULAR_PORT_DMA_STREAM_IN_USE(3)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(2, 3)
 void DMA2_Stream3_IRQHandler()
 {
     dmaIrqHandler(2, 3);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(2) && CELLULAR_PORT_DMA_STREAM_IN_USE(4)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(2, 4)
 void DMA2_Stream4_IRQHandler()
 {
     dmaIrqHandler(2, 4);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(2) && CELLULAR_PORT_DMA_STREAM_IN_USE(5)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(2, 5)
 void DMA2_Stream5_IRQHandler()
 {
     dmaIrqHandler(2, 5);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(2) && CELLULAR_PORT_DMA_STREAM_IN_USE(6)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(2, 6)
 void DMA2_Stream6_IRQHandler()
 {
     dmaIrqHandler(2, 6);
 }
 #endif
 
-#if CELLULAR_PORT_DMA_ENGINE_IN_USE(2) && CELLULAR_PORT_DMA_STREAM_IN_USE(7)
+#if CELLULAR_PORT_DMA_INTERRUPT_IN_USE(2, 7)
 void DMA2_Stream7_IRQHandler()
 {
     dmaIrqHandler(2, 7);
@@ -686,11 +702,12 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
     LL_USART_InitTypeDef usartInitStruct = {0};
     LL_GPIO_InitTypeDef gpioInitStruct = {0};
     USART_TypeDef *pUartReg;
-    int32_t dmaEngine;
+    uint32_t dmaEngine;
     DMA_TypeDef *pDmaReg;
-    int32_t dmaStream;
-    int32_t dmaChannel;
-    IRQn_Type irq;
+    uint32_t dmaStream;
+    uint32_t dmaChannel;
+    IRQn_Type uartIrq;
+    IRQn_Type dmaIrq;
 
     // TODO: use this
     (void) rtsThreshold;
@@ -707,7 +724,6 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                 CELLULAR_PORT_MUTEX_LOCK(uartData.mutex);
 
                 errorCode = CELLULAR_PORT_OUT_OF_MEMORY;
-
                 uartData.number = uart;
                 // Malloc memory for the read buffer
                 uartData.pRxBufferStart = (char *) pCellularPort_malloc(CELLULAR_PORT_UART_RX_BUFFER_SIZE);
@@ -729,12 +745,13 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                         pDmaReg = gpDmaReg[dmaEngine];
                         dmaStream = gUartCfg[uart].dmaStream;
                         dmaChannel = gUartCfg[uart].dmaChannel;
-                        irq = gUartCfg[uart].irq;
+                        uartIrq = gUartCfg[uart].irq;
+                        dmaIrq = gpDmaStreamIrq[dmaEngine][dmaStream];
 
                         // Now do the platform stuff
                         errorCode = CELLULAR_PORT_PLATFORM_ERROR;
 
-                        // Enable clock to the UART HW block
+                        // Enable clock to the UART/USART HW block
                         gLlApbClkEnable[uart](gLlApbGrpPeriphUart[uart]);
 
                         // Enable clock to the DMA HW block (all DMAs
@@ -745,13 +762,14 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                         // Note, using the LL driver rather than our
                         // driver or the HAL driver here partly because
                         // the example code does that and also
-                        // because lower down we need to enable the
-                        // UART alternate function for these pins.
+                        // because we need to enable the alternate
+                        // function for these pins.
 
                         // Enable clock to the registers for the Tx/Rx pins
                         cellularPortPrivateGpioEnableClock(pinTx);
                         cellularPortPrivateGpioEnableClock(pinRx);
-                        // Remember that the Pin field is a bitmap
+                        // The Pin field is a bitmap so we can do Tx and Rx
+                        // at the same time as they are always on the same port
                         gpioInitStruct.Pin = (1U << CELLULAR_PORT_STM32F4_GPIO_PIN(pinTx)) |
                                              (1U << CELLULAR_PORT_STM32F4_GPIO_PIN(pinRx));
                         gpioInitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
@@ -784,7 +802,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
 
                         // Configure DMA
                         if (platformError == SUCCESS) {
-                            // Channel CELLULAR_CFG_DMA_CHANNEL on our DMA/Stream
+                            // Set the channel on our DMA/Stream
                             LL_DMA_SetChannelSelection(pDmaReg, dmaStream, dmaChannel);
                             // Towards RAM
                             LL_DMA_SetDataTransferDirection(pDmaReg, dmaStream,
@@ -794,7 +812,9 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                                                           LL_DMA_PRIORITY_LOW);
                             // Circular
                             LL_DMA_SetMode(pDmaReg, dmaStream, LL_DMA_MODE_CIRCULAR);
-                            // Byte-wise transfers
+                            // Byte-wise transfers from a fixed
+                            // register in a peripheral to an
+                            // incrementing location in memory
                             LL_DMA_SetPeriphIncMode(pDmaReg, dmaStream,
                                                     LL_DMA_PERIPH_NOINCREMENT);
                             LL_DMA_SetMemoryIncMode(pDmaReg, dmaStream,
@@ -808,17 +828,13 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
 
                             // Attach the DMA to the UART at one end
                             LL_DMA_SetPeriphAddress(pDmaReg, dmaStream,
-                                                    (uint32_t) (pUartReg->DR));
+                                                    (uint32_t) (&(pUartReg->DR)));
 
                             // ...and to the RAM buffer at the other end
                             LL_DMA_SetMemoryAddress(pDmaReg, dmaStream,
                                                     (uint32_t) (uartData.pRxBufferStart));
                             LL_DMA_SetDataLength(pDmaReg, dmaStream,
                                                  CELLULAR_PORT_UART_RX_BUFFER_SIZE);
-
-                            // Set DMA priority
-                            NVIC_SetPriority(gpDmaStreamIrq[dmaEngine][dmaStream],
-                                             NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
 
                             // Clear all the DMA flags and the DMA pending IRQ from any previous
                             // session first, or an unexpected interrupt may result
@@ -827,20 +843,25 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                             gpLlDmaClearFlagTe[dmaStream](pDmaReg);
                             gpLlDmaClearFlagDme[dmaStream](pDmaReg);
                             gpLlDmaClearFlagFe[dmaStream](pDmaReg);
-                            NVIC_ClearPendingIRQ(gpDmaStreamIrq[dmaEngine][dmaStream]);
+                            NVIC_ClearPendingIRQ(dmaIrq);
 
-                            // Enable half full and transmit complete interrupts
+                            // Enable half full and transmit complete DMA interrupts
                             LL_DMA_EnableIT_HT(pDmaReg, dmaStream);
                             LL_DMA_EnableIT_TC(pDmaReg, dmaStream);
 
-                            // Go!
-                            NVIC_EnableIRQ(gpDmaStreamIrq[dmaEngine][dmaStream]);
+                            // Set DMA priority
+                            NVIC_SetPriority(dmaIrq,
+                                             NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
 
-                            // Initialise the USART
+                            // Go!
+                            NVIC_EnableIRQ(dmaIrq);
+
+                            // Initialise the UART/USART
                             usartInitStruct.BaudRate = baudRate;
                             usartInitStruct.DataWidth = LL_USART_DATAWIDTH_8B;
                             usartInitStruct.StopBits = LL_USART_STOPBITS_1;
                             usartInitStruct.Parity = LL_USART_PARITY_NONE;
+                            // Both transmit and received enabled
                             usartInitStruct.TransferDirection = LL_USART_DIRECTION_TX_RX;
                             // TODO: need to connect flow control to DMA?
                             usartInitStruct.HardwareFlowControl = LL_USART_HWCONTROL_NONE;
@@ -857,20 +878,24 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                             platformError = LL_USART_Init(pUartReg, &usartInitStruct);
                         }
 
-                        // STILL more stuff to configure...
+                        // Connect it all together
                         if (platformError == SUCCESS) {
+                            // Asynchronous UART/USART with DMA on the receive
+                            // and include only the idle line interrupt,
+                            // DMA does the rest
                             LL_USART_ConfigAsyncMode(pUartReg);
                             LL_USART_EnableDMAReq_RX(pUartReg);
                             LL_USART_EnableIT_IDLE(pUartReg);
 
-                            // Enable USART interrupt
-                            NVIC_SetPriority(irq,
+                            // Enable the UART/USART interrupt
+                            NVIC_SetPriority(uartIrq,
                                              NVIC_EncodePriority(NVIC_GetPriorityGrouping(),
                                                                  5, 1));
-                            NVIC_ClearPendingIRQ(irq);
-                            NVIC_EnableIRQ(irq);
+                            LL_USART_ClearFlag_IDLE(pUartReg);
+                            NVIC_ClearPendingIRQ(uartIrq);
+                            NVIC_EnableIRQ(uartIrq);
 
-                            // Enable USART and DMA
+                            // Enable DMA and UART/USART
                             LL_DMA_EnableStream(pDmaReg, dmaStream);
                             LL_USART_Enable(pUartReg);
                         }
@@ -905,15 +930,14 @@ int32_t cellularPortUartDeinit(int32_t uart)
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
     CellularPortUartData_t *pUartData;
     USART_TypeDef *pUartReg;
-    int32_t dmaEngine;
-    int32_t dmaStream;
+    uint32_t dmaEngine;
+    uint32_t dmaStream;
 
     if ((uart > 0) && (uart <= CELLULAR_PORT_MAX_NUM_UARTS)) {
         pUartData = pGetUart(uart);
         errorCode = CELLULAR_PORT_SUCCESS;
         if (pUartData != NULL) {
 
-            errorCode = CELLULAR_PORT_PLATFORM_ERROR;
             pUartReg = gUartCfg[uart].pReg;
             dmaEngine = gUartCfg[uart].dmaEngine;
             dmaStream = gUartCfg[uart].dmaStream;
@@ -924,13 +948,15 @@ int32_t cellularPortUartDeinit(int32_t uart)
 
             // TODO check this
 
-            // Disable DMA interrupt
+            // Disable DMA and UART/USART interrupts
             NVIC_DisableIRQ(gpDmaStreamIrq[dmaEngine][dmaStream]);
-
-            // Disable USART interrupt
             NVIC_DisableIRQ(gUartCfg[uart].irq);
-            // Disable DMA and USART
+
+            // Disable DMA and USART, waiting for DMA to be
+            // disabled first according to the note in
+            // section 10.3.17 of ST's RM0090.
             LL_DMA_DisableStream(gpDmaReg[dmaEngine], dmaStream);
+            while (LL_DMA_IsEnabledStream(gpDmaReg[dmaEngine], dmaStream)) {}
             LL_USART_Disable(pUartReg);
             LL_USART_DeInit(pUartReg);
 
@@ -951,14 +977,14 @@ int32_t cellularPortUartDeinit(int32_t uart)
 
 // Push a UART event onto the UART event queue.
 int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
-                                  int32_t sizeBytes)
+                                  int32_t sizeBytesOrError)
 {
     int32_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
-    CellularPortUartEventData_t uartEvent;
+    CellularPortUartEventData_t uartSizeOrError;
 
     if (queueHandle != NULL) {
-        uartEvent = sizeBytes;
-        errorCode = cellularPortQueueSend(queueHandle, (void *) &uartEvent);
+        uartSizeOrError = sizeBytesOrError;
+        errorCode = cellularPortQueueSend(queueHandle, (void *) &uartSizeOrError);
     }
 
     return errorCode;
@@ -968,12 +994,12 @@ int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
 int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle)
 {
     int32_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
-    CellularPortUartEventData_t uartEvent;
+    CellularPortUartEventData_t uartSizeOrError;
 
     if (queueHandle != NULL) {
         sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
-        if (cellularPortQueueReceive(queueHandle, &uartEvent) == 0) {
-            sizeOrErrorCode = uartEvent;
+        if (cellularPortQueueReceive(queueHandle, &uartSizeOrError) == 0) {
+            sizeOrErrorCode = uartSizeOrError;
         }
     }
 
