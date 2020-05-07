@@ -184,6 +184,16 @@ static const IRQn_Type *gpDmaStreamIrq[] = {NULL, // This to avoid having to -1 
                                             gDma1StreamIrq,
                                             gDma2StreamIrq};
 
+// Table of LL_DMA_CHANNEL_x per channel
+static const int32_t gLlDmaChannel[] = {LL_DMA_CHANNEL_0,
+                                        LL_DMA_CHANNEL_1,
+                                        LL_DMA_CHANNEL_2,
+                                        LL_DMA_CHANNEL_3,
+                                        LL_DMA_CHANNEL_4,
+                                        LL_DMA_CHANNEL_5,
+                                        LL_DMA_CHANNEL_6,
+                                        LL_DMA_CHANNEL_7};
+
 // Table of functions LL_DMA_ClearFlag_HTx(DMA_TypeDef *DMAx) for each stream.
 static const void (*gpLlDmaClearFlagHt[]) (DMA_TypeDef *)  = {LL_DMA_ClearFlag_HT0,
                                                               LL_DMA_ClearFlag_HT1,
@@ -470,7 +480,7 @@ void uartIrqHandler(CellularPortUartData_t *pUartData)
                           LL_DMA_GetDataLength(gpDmaReg[pUartCfg->dmaEngine],
                                                pUartCfg->dmaStream);
         // Move the write pointer on
-        pUartData->pRxBufferWrite += uartEvent;
+        pUartData->pRxBufferWrite += uartSizeOrError;
         if (pUartData->pRxBufferWrite >= pUartData->pRxBufferStart +
                                          CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
             pUartData->pRxBufferWrite = pUartData->pRxBufferWrite -
@@ -803,7 +813,8 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
                         // Configure DMA
                         if (platformError == SUCCESS) {
                             // Set the channel on our DMA/Stream
-                            LL_DMA_SetChannelSelection(pDmaReg, dmaStream, dmaChannel);
+                            LL_DMA_SetChannelSelection(pDmaReg, dmaStream,
+                                                       gLlDmaChannel[dmaChannel]);
                             // Towards RAM
                             LL_DMA_SetDataTransferDirection(pDmaReg, dmaStream,
                                                             LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
@@ -828,7 +839,7 @@ int32_t cellularPortUartInit(int32_t pinTx, int32_t pinRx,
 
                             // Attach the DMA to the UART at one end
                             LL_DMA_SetPeriphAddress(pDmaReg, dmaStream,
-                                                    (uint32_t) (&(pUartReg->DR)));
+                                                    (uint32_t) &(pUartReg->DR));
 
                             // ...and to the RAM buffer at the other end
                             LL_DMA_SetMemoryAddress(pDmaReg, dmaStream,
