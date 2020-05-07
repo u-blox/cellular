@@ -67,6 +67,11 @@
 			<locationURI>$%7BUBX_PATH%7D/port/clib/cellular_port_clib.c</locationURI>
 		</link>
 		<link>
+			<name>Cellular/U-Blox/cellular_port_clib_strok_r.c</name>
+			<type>1</type>
+			<locationURI>$%7BUBX_PATH%7D/port/clib/cellular_port_clib_strtok_r.c</locationURI>
+		</link>
+		<link>
 			<name>Cellular/U-Blox/cellular_port_debug.c</name>
 			<type>1</type>
 			<locationURI>$%7BPLATFORM_PATH%7D/src/cellular_port_debug.c</locationURI>
