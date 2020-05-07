@@ -849,6 +849,78 @@ static void cellular_ctrl_at_unlock_no_data_check()
     cellularPortMutexUnlock(_mtx_stream);
 }
 
+// Convert a string which should contain
+// something like "7587387289371387" (and
+// be NULL terminated) into a uint64_t
+// Any leading crap is ignored and conversion
+// stops when a non-numeric character is reached.
+static uint64_t strToUint64(char *buf)
+{
+    uint64_t uint64 = 0;
+    int32_t length;
+    const char *numerals = "0123456789";
+    uint64_t multiplier;
+
+    // Skip things that aren't numerals
+    buf += cellularPort_strcspn(buf, numerals);
+    // Determine the length of the numerals part
+    length = cellularPort_strspn(buf, numerals);
+    while (length > 0) {
+        multiplier = (uint64_t) cellularPort_pow(10, (length - 1));
+        uint64 += (*buf - '0') * multiplier;
+        length--;
+        buf++;
+    }
+
+    return uint64;
+}
+
+// Convert a uint64_t into a string,
+// returning the length of string that
+// would be required even if bufLen were
+// too small (i.e. just like snprintf() would).
+static int32_t uint64ToStr(char *buf, size_t bufLen,
+                           uint64_t uint64)
+{
+    int32_t sizeOrError = -1;
+    int32_t x;
+    // Max value of a uint64_t is
+    // 18,446,744,073,709,551,616,
+    // so maximum divisor is
+    // 10,000,000,00,000,000,000.
+    uint64_t divisor = 10000000000000000000U;
+
+    if (bufLen > 0) {
+        sizeOrError = 0;
+        // Cut the divisor down to size
+        while (uint64 < divisor) {
+            divisor /= 10;
+        }
+        if (divisor == 0) {
+            divisor = 1;
+        }
+
+        // Reduce bufLen by 1 to allow for the terminator
+        bufLen--;
+        // Now write the numerals
+        while (divisor > 0) {
+            x = uint64 / divisor;
+            if (bufLen > 0) {
+                *buf = x + '0';
+            }
+            uint64 -= x * divisor;
+            sizeOrError++;
+            bufLen--;
+            buf++;
+            divisor /= 10;
+        }
+        // Add the terminator
+        *buf = '\0';
+    }
+
+    return sizeOrError;
+}
+
 // Task to find urc's from the AT response, triggered through
 // something being written to _queue_uart.
 // If an invalid event (e.g. a negative size) is received, the
@@ -1544,7 +1616,11 @@ int32_t cellular_ctrl_at_read_uint64(uint64_t *uint64)
                                      false) == 0) {
         return -1;
     } else {
-        cellularPort_sscanf(buff, "%llu", uint64);
+        // Would use sscanf() here but we cannot
+        // rely on there being 64 bit sscanf() support
+        // in the underlying library, hence
+        // we do our own thing
+        *uint64 = strToUint64(buff);
     }
 
     return 0;
@@ -1771,7 +1847,7 @@ void cellular_ctrl_at_write_uint64(uint64_t param)
     // write the integer sub-parameter
     const int32_t str_len = 24;
     char number_string[str_len];
-    int32_t result = cellularPort_sprintf(number_string, "%llu", param);
+    int32_t result = uint64ToStr(number_string, str_len, param);
     if (result > 0 && result < str_len) {
         (void) write(number_string, cellularPort_strlen(number_string));
     }

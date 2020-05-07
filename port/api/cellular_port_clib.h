@@ -192,6 +192,25 @@ char *pCellularPort_strtok_r(char *pStr, const char *pDelimiters,
 int32_t cellularPort_sscanf(const char *pStr, const char *pFormat,
                             ...);
 
+/** strspn().
+ *
+ * @param pStr1   the string to scan.
+ * @param pStr2   the characters to scan for.
+ * @return        the number of characters at the start
+ *                of pStr1 which consist only of characters
+ *                from pStr2.
+ */
+size_t cellularPort_strspn(const char *pStr1, const char *pStr2);
+
+/** strcspn().
+ *
+ * @param pStr1   the string to scan.
+ * @param pStr2   the characters to scan for.
+ * @return        the number of characters at the start
+ *                of pStr1 which do not include any of pStr2.
+ */
+size_t cellularPort_strcspn(const char *pStr1, const char *pStr2);
+
 /* ----------------------------------------------------------------
  * FUNCTIONS: CHARACTER CLASSIFICATION
  * -------------------------------------------------------------- */
@@ -307,8 +326,9 @@ double cellularPort_log10(double x);
 
 /** pow().
  *
- * @param base the number to which exponent will be the power.
- * @return     base to the power exponent.
+ * @param base     the number to which exponent will be the power.
+ * @param exponent the power.
+ * @return         base to the power exponent.
  */
 double cellularPort_pow(double base, double exponent);
 

@@ -211,8 +211,8 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
         timeMs = cellularPortGetTickTimeMs() - timeMs;
         if (timeMs < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 1000) {
             timeMs = (CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 1000) - timeMs;
-            cellularPortLog("CELLULAR_CTRL_TEST: waiting another %lld second(s) to be sure of a clean power off as there's no VInt pin to tell us...\n",
-                            (timeMs / 1000) + 1);
+            cellularPortLog("CELLULAR_CTRL_TEST: waiting another %d second(s) to be sure of a clean power off as there's no VInt pin to tell us...\n",
+                            (int32_t) ((timeMs / 1000) + 1));
             cellularPortTaskBlock(timeMs);
         }
 #endif
@@ -249,8 +249,8 @@ static void cellularCtrlTestPowerAliveVInt(int32_t pinVint)
         timeMs = cellularPortGetTickTimeMs() - timeMs;
         if (!trulyHardPowerOff && (timeMs < CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 1000)) {
             timeMs = (CELLULAR_CTRL_POWER_DOWN_WAIT_SECONDS * 1000) - timeMs;
-            cellularPortLog("CELLULAR_CTRL_TEST: waiting another %lld second(s) to be sure of a clean power off as there's no VInt pin to tell us...\n",
-                            (timeMs / 1000) + 1);
+            cellularPortLog("CELLULAR_CTRL_TEST: waiting another %d second(s) to be sure of a clean power off as there's no VInt pin to tell us...\n",
+                            (int32_t) ((timeMs / 1000) + 1));
             cellularPortTaskBlock(timeMs);
         }
 #endif
@@ -527,12 +527,18 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestGetBandMask(),
                                                gUartQueueHandle) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
-    cellularPortLog("CELLULAR_CTRL_TEST: getting band mask...\n");
+    cellularPortLog("CELLULAR_CTRL_TEST: getting band mask(s)...\n");
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CTRL_RAT_CATM1,
                                                       &mask1, &mask2) == 0);
+    cellularPortLog("CELLULAR_CTRL_TEST: band mask for cat-M1 is 0x%08x%08x %08x%08x...\n",
+                    (uint32_t) (mask2 >> 32), (uint32_t) mask2,
+                    (uint32_t) (mask1 >> 32), (uint32_t) mask1);
 #if CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CTRL_RAT_NB1,
                                                       &mask1, &mask2) == 0);
+    cellularPortLog("CELLULAR_CTRL_TEST: band mask for NB1 is 0x%08x%08x %08x%08x...\n",
+                    (uint32_t) (mask2 >> 32), (uint32_t) mask2,
+                    (uint32_t) (mask1 >> 32), (uint32_t) mask1);
 #endif
 
     cellularCtrlPowerOff(NULL);
@@ -593,9 +599,11 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
                                                       &originalMask1Nb1,
                                                       &originalMask2Nb1) == 0);
 #endif
-    cellularPortLog("CELLULAR_CTRL_TEST: setting cat-M1 band mask to 0x%016llx %016llx...\n",
-                    originalMask2CatM1 & 0xaaaaaaaaaaaaaaaaULL,
-                    originalMask1CatM1 & 0xaaaaaaaaaaaaaaaaULL);
+    cellularPortLog("CELLULAR_CTRL_TEST: setting cat-M1 band mask to 0x%08x%08x %08x%08x...\n",
+                    (uint32_t) ((originalMask2CatM1 & 0xaaaaaaaaaaaaaaaaULL) >> 32),
+                    (uint32_t) (originalMask2CatM1 & 0xaaaaaaaaaaaaaaaaULL),
+                    (uint32_t) ((originalMask1CatM1 & 0xaaaaaaaaaaaaaaaaULL) >> 32),
+                    (uint32_t) (originalMask1CatM1 & 0xaaaaaaaaaaaaaaaaULL));
     // Take the existing values and mask off every other bit
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CTRL_RAT_CATM1,
                                                       originalMask1CatM1 &
@@ -603,9 +611,11 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
                                                       originalMask2CatM1 &
                                                       0xaaaaaaaaaaaaaaaaULL) == 0);
 #if CELLULAR_CTRL_TEST_NB1_IS_SUPPORTED
-    cellularPortLog("CELLULAR_CTRL_TEST: setting NB1 band mask to 0x%016llx %016llx...\n",
-                    originalMask2Nb1 & 0xaaaaaaaaaaaaaaaaULL,
-                    originalMask1Nb1 & 0xaaaaaaaaaaaaaaaaULL);
+    cellularPortLog("CELLULAR_CTRL_TEST: setting NB1 band mask to 0x%08x%08x %08x%08x...\n",
+                    (uint32_t) ((originalMask2Nb1 & 0xaaaaaaaaaaaaaaaaULL) >> 32),
+                    (uint32_t) ((originalMask2Nb1 & 0xaaaaaaaaaaaaaaaaULL)),
+                    (uint32_t) ((originalMask1Nb1 & 0xaaaaaaaaaaaaaaaaULL) >> 32),
+                    (uint32_t) (originalMask1Nb1 & 0xaaaaaaaaaaaaaaaaULL));
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CTRL_RAT_NB1,
                                                       originalMask1Nb1 &
                                                       0xaaaaaaaaaaaaaaaaULL,
@@ -618,8 +628,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CTRL_RAT_CATM1,
                                                       &newMask1CatM1,
                                                       &newMask2CatM1) == 0);
-    cellularPortLog("CELLULAR_CTRL_TEST: new cat-M1 band mask is 0x%016llx %016llx...\n",
-                    newMask2CatM1, newMask1CatM1);
+    cellularPortLog("CELLULAR_CTRL_TEST: new cat-M1 band mask is 0x%08x%08x %08x%08x...\n",
+                    (uint32_t) (newMask2CatM1 >> 32), (uint32_t) newMask2CatM1,
+                    (uint32_t) (newMask1CatM1 >> 32), (uint32_t) newMask1CatM1);
     CELLULAR_PORT_TEST_ASSERT(newMask1CatM1 == (originalMask1CatM1 &
                                                 0xaaaaaaaaaaaaaaaaULL));
     CELLULAR_PORT_TEST_ASSERT(newMask2CatM1 == (originalMask2CatM1 &
@@ -629,8 +640,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CTRL_RAT_NB1,
                                                       &newMask1Nb1,
                                                       &newMask2Nb1) == 0);
-    cellularPortLog("CELLULAR_CTRL_TEST: new NB1 band mask is 0x%016llx %016llx...\n",
-                    newMask2Nb1, newMask1Nb1);
+    cellularPortLog("CELLULAR_CTRL_TEST: new NB1 band mask is 0x%08x%08x %08x%08x...\n",
+                    (uint32_t) (newMask2Nb1 >> 32), (uint32_t) newMask2Nb1,
+                    (uint32_t) (newMask1Nb1 >> 32), (uint32_t) newMask1Nb1);
     CELLULAR_PORT_TEST_ASSERT(newMask1Nb1 == (originalMask1Nb1 &
                                               0xaaaaaaaaaaaaaaaaULL));
     CELLULAR_PORT_TEST_ASSERT(newMask2Nb1 == (originalMask2Nb1 &
@@ -1067,10 +1079,12 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
                                                       &originalMask1,
                                                       &originalMask2) == 0);
 
-    cellularPortLog("CELLULAR_CTRL_TEST: setting sole RAT to %d and bandmask to 0x%016llx %016llx so that we can register with a network...\n",
+    cellularPortLog("CELLULAR_CTRL_TEST: setting sole RAT to %d and bandmask to 0x%08x%08x %08x%08x so that we can register with a network...\n",
                     CELLULAR_CFG_TEST_RAT,
-                    CELLULAR_CFG_TEST_BANDMASK2,
-                    CELLULAR_CFG_TEST_BANDMASK1);
+                    (uint32_t) (CELLULAR_CFG_TEST_BANDMASK2 >> 32),
+                    (uint32_t) CELLULAR_CFG_TEST_BANDMASK2,
+                    (uint32_t) (CELLULAR_CFG_TEST_BANDMASK1 >> 32),
+                    (uint32_t) CELLULAR_CFG_TEST_BANDMASK1);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRat(CELLULAR_CFG_TEST_RAT) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT,
                                                       CELLULAR_CFG_TEST_BANDMASK1,
@@ -1188,10 +1202,12 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
                                                       &originalMask1,
                                                       &originalMask2) == 0);
 
-    cellularPortLog("CELLULAR_CTRL_TEST: setting sole RAT to %d and bandmask to 0x%016llx %016llx so that we can register with a network...\n",
+    cellularPortLog("CELLULAR_CTRL_TEST: setting sole RAT to %d and bandmask to 0x%08x%08x %08x%08x so that we can register with a network...\n",
                     CELLULAR_CFG_TEST_RAT,
-                    CELLULAR_CFG_TEST_BANDMASK2,
-                    CELLULAR_CFG_TEST_BANDMASK1);
+                    (uint32_t) (CELLULAR_CFG_TEST_BANDMASK2 >> 32),
+                    (uint32_t) CELLULAR_CFG_TEST_BANDMASK2,
+                    (uint32_t) (CELLULAR_CFG_TEST_BANDMASK1 >> 32),
+                    (uint32_t) CELLULAR_CFG_TEST_BANDMASK1);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRat(CELLULAR_CFG_TEST_RAT) == 0);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT,
                                                       CELLULAR_CFG_TEST_BANDMASK1,
