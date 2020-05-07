@@ -322,8 +322,8 @@ static CellularPortUartData_t *gpDmaUart[(CELLULAR_PORT_MAX_NUM_DMA_ENGINES + 1)
 
 // Add a UART data structure to the list.
 // The required memory is malloc()ed.
-CellularPortUartData_t *pAddUart(int32_t uart,
-                                 CellularPortUartData_t *pUartData)
+static CellularPortUartData_t *pAddUart(int32_t uart,
+                                        CellularPortUartData_t *pUartData)
 {
     CellularPortUartData_t **ppUartData = &gpUartDataHead;
 
@@ -351,7 +351,7 @@ CellularPortUartData_t *pAddUart(int32_t uart,
 }
 
 // Find the UART data structure for a given UART.
-CellularPortUartData_t *pGetUart(int32_t uart)
+static CellularPortUartData_t *pGetUart(int32_t uart)
 {
     CellularPortUartData_t *pUartData = gpUartDataHead;
     bool found = false;
@@ -369,7 +369,7 @@ CellularPortUartData_t *pGetUart(int32_t uart)
 
 // Remove a UART from the list.
 // The memory occupied is free()ed.
-bool removeUart(int32_t uart)
+static bool removeUart(int32_t uart)
 {
     CellularPortUartData_t **ppUartData = &gpUartDataHead;
     CellularPortUartData_t *pTmp = NULL;
@@ -404,6 +404,51 @@ bool removeUart(int32_t uart)
     return found;
 }
 
+// Deal with data already received by the DMA; this
+// code is run in INTERRUPT CONTEXT.
+static inline void dataIrqHandler(CellularPortUartData_t *pUartData,
+                                  char *pRxBufferWriteDma)
+{
+    CellularPortUartEventData_t uartSizeOrError = 0;
+
+    // Work out how much new data there is
+    if (pUartData->pRxBufferWrite < pRxBufferWriteDma) {
+        // The current write pointer is behind the DMA write pointer,
+        // the number of bytes received is simply the difference
+        uartSizeOrError = pRxBufferWriteDma - pUartData->pRxBufferWrite;
+    } else if (pUartData->pRxBufferWrite > pRxBufferWriteDma) {
+        // The current write pointer is ahead of the DMA
+        // write pointer, the number of bytes received
+        // is up to the end of the buffer then wrap
+        // around to the DMA write pointer pointer
+        uartSizeOrError = (pUartData->pRxBufferStart +
+                           CELLULAR_PORT_UART_RX_BUFFER_SIZE -
+                           pUartData->pRxBufferWrite) +
+                          (pRxBufferWriteDma - pUartData->pRxBufferStart);
+    }
+
+    // Move the write pointer on
+    pUartData->pRxBufferWrite += uartSizeOrError;
+    if (pUartData->pRxBufferWrite >= pUartData->pRxBufferStart +
+                                     CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
+        pUartData->pRxBufferWrite = pUartData->pRxBufferWrite -
+                                    CELLULAR_PORT_UART_RX_BUFFER_SIZE;
+    }
+
+    // If there is new data and the user wanted to know
+    // then send a message to let them know.
+    if ((uartSizeOrError > 0) && pUartData->userNeedsNotify) {
+        BaseType_t yield = false;
+
+        xQueueSendFromISR((QueueHandle_t) (pUartData->queue),
+                          &uartSizeOrError, &yield);
+        pUartData->userNeedsNotify = false;
+
+        // Required for correct FreeRTOS operation
+        portEND_SWITCHING_ISR(yield);
+    }
+}
+
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS: INTERRUPT HANDLERS
  * -------------------------------------------------------------- */
@@ -431,35 +476,19 @@ void dmaIrqHandler(uint32_t dmaEngine, uint32_t dmaStream)
     }
 
     if (pUartData != NULL) {
-        CellularPortUartEventData_t uartSizeOrError;
+        char *pRxBufferWriteDma;
 
         // Stuff has arrived: how much?
+        // Get the new DMA pointer
         // LL_DMA_GetDataLength() returns a value in the sense
         // of "number of bytes left to be transmitted", so for
         // an Rx DMA we have to subtract the number from
         // the Rx buffer size
-        uartSizeOrError = CELLULAR_PORT_UART_RX_BUFFER_SIZE -
-                          LL_DMA_GetDataLength(pDmaReg, dmaStream);
-        // Move the write pointer on, wrapping
-        // around the end of the buffer circularlarly
-        pUartData->pRxBufferWrite += uartSizeOrError;
-        if (pUartData->pRxBufferWrite >= pUartData->pRxBufferStart +
-                                         CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
-            pUartData->pRxBufferWrite = pUartData->pRxBufferWrite -
-                                        CELLULAR_PORT_UART_RX_BUFFER_SIZE;
-        }
-
-        // If the user wanted to know then send a message
-        if (pUartData->userNeedsNotify) {
-            BaseType_t yield = false;
-
-            xQueueSendFromISR((QueueHandle_t) (pUartData->queue),
-                              &uartSizeOrError, &yield);
-            pUartData->userNeedsNotify = false;
-
-            // Required for correct FreeRTOS operation
-            portEND_SWITCHING_ISR(yield);
-        }
+        pRxBufferWriteDma = pUartData->pRxBufferStart +
+                            CELLULAR_PORT_UART_RX_BUFFER_SIZE -
+                            LL_DMA_GetDataLength(pDmaReg, dmaStream);
+        // Deal with the data
+        dataIrqHandler(pUartData, pRxBufferWriteDma);
     }
 }
 
@@ -472,33 +501,22 @@ void uartIrqHandler(CellularPortUartData_t *pUartData)
     // Check for IDLE line interrupt
     if (LL_USART_IsEnabledIT_IDLE(pUartReg) &&
         LL_USART_IsActiveFlag_IDLE(pUartReg)) {
-        CellularPortUartEventData_t uartSizeOrError;
+        char *pRxBufferWriteDma;
 
         // Clear flag
         LL_USART_ClearFlag_IDLE(pUartReg);
-        uartSizeOrError = CELLULAR_PORT_UART_RX_BUFFER_SIZE -
-                          LL_DMA_GetDataLength(gpDmaReg[pUartCfg->dmaEngine],
-                                               pUartCfg->dmaStream);
-        // Move the write pointer on
-        pUartData->pRxBufferWrite += uartSizeOrError;
-        if (pUartData->pRxBufferWrite >= pUartData->pRxBufferStart +
-                                         CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
-            pUartData->pRxBufferWrite = pUartData->pRxBufferWrite -
-                                        CELLULAR_PORT_UART_RX_BUFFER_SIZE;
-        }
 
-        // If there is new data and the user wanted to know
-        // then send a message to let them know.
-        if ((uartSizeOrError > 0) && pUartData->userNeedsNotify) {
-            BaseType_t yield = false;
-
-            xQueueSendFromISR((QueueHandle_t) (pUartData->queue),
-                              &uartSizeOrError, &yield);
-            pUartData->userNeedsNotify = false;
-
-            // Required for correct FreeRTOS operation
-            portEND_SWITCHING_ISR(yield);
-        }
+        // Get the new DMA pointer
+        // LL_DMA_GetDataLength() returns a value in the sense
+        // of "number of bytes left to be transmitted", so for
+        // an Rx DMA we have to subtract the number from
+        // the Rx buffer size
+        pRxBufferWriteDma = pUartData->pRxBufferStart +
+                            CELLULAR_PORT_UART_RX_BUFFER_SIZE -
+                            LL_DMA_GetDataLength(gpDmaReg[pUartCfg->dmaEngine],
+                                                 pUartCfg->dmaStream);
+        // Deal with the data
+        dataIrqHandler(pUartData, pRxBufferWriteDma);
     }
 }
 
@@ -1061,10 +1079,10 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
     const volatile char *pRxBufferWrite;
 
     if (pUartData != NULL) {
-        sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
 
         CELLULAR_PORT_MUTEX_LOCK(pUartData->mutex);
 
+        sizeOrErrorCode = 0;
         pRxBufferWrite = pUartData->pRxBufferWrite;
         if (pUartData->pRxBufferRead < pRxBufferWrite) {
             // Read pointer is behind write, just take as much
@@ -1075,11 +1093,8 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
             }
             pCellularPort_memcpy(pBuffer, pUartData->pRxBufferRead,
                                  sizeOrErrorCode);
+            // Move the pointer on
             pUartData->pRxBufferRead += sizeOrErrorCode;
-            if (pUartData->pRxBufferRead >= pUartData->pRxBufferStart +
-                                            CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
-                pUartData->pRxBufferRead = pUartData->pRxBufferStart;
-            }
         } else if (pUartData->pRxBufferRead > pRxBufferWrite) {
             // Read pointer is ahead of write, first take up to the
             // end of the buffer as far as the user allows
@@ -1100,8 +1115,8 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
                                             CELLULAR_PORT_UART_RX_BUFFER_SIZE) {
                 pUartData->pRxBufferRead = pUartData->pRxBufferStart;
             }
-            // If there is still room in the user buffer then take
-            // up to the write pointer
+            // If there is still room in the user buffer then
+            // carry on taking up to the write pointer
             if (sizeBytes > 0) {
                 thisSize = pRxBufferWrite - pUartData->pRxBufferRead;
                 if (thisSize > sizeBytes) {
@@ -1115,8 +1130,6 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
                 // Move the read pointer on
                 pUartData->pRxBufferRead += thisSize;
             }
-        } else {
-            sizeOrErrorCode = 0;
         }
 
         CELLULAR_PORT_MUTEX_UNLOCK(pUartData->mutex);
