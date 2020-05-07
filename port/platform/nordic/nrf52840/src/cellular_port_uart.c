@@ -133,8 +133,8 @@
  } CellularPortUartState_t;
 
 /** A UART event.  Since we only ever need to signal
- * size or -1 then on this platform the CellularPortUartEventData_t
- * can simply be an int32_t.
+ * size or error then on this platform the
+ * CellularPortUartEventData_t can simply be an int32_t.
  */
 typedef int32_t CellularPortUartEventData_t;
 
@@ -265,10 +265,10 @@ static void rxIrqHandler(CellularPortUartData_t *pUartData)
         // If there is at least some data and the user needs to
         // be notified, let them know
         if ((pRxBuffer->toRead > 0) && pUartData->userNeedsNotify) {
-            CellularPortUartEventData_t uartEvent;
-            uartEvent = pRxBuffer->toRead;
+            CellularPortUartEventData_t uartSizeOrError;
+            uartSizeOrError = pRxBuffer->toRead;
             xQueueSendFromISR((QueueHandle_t) (pUartData->queue),
-                              &uartEvent, &yield);
+                              &uartSizeOrError, &yield);
             pUartData->userNeedsNotify = false;
         }
     } else if (nrf_uarte_event_check(pReg, NRF_UARTE_EVENT_RXSTARTED)) {
@@ -648,14 +648,14 @@ int32_t cellularPortUartDeinit(int32_t uart)
 
 // Push a UART event onto the UART event queue.
 int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
-                                  int32_t sizeBytes)
+                                  int32_t sizeBytesOrError)
 {
     int32_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
-    CellularPortUartEventData_t uartEvent;
+    CellularPortUartEventData_t uartSizeOrError;
 
     if (queueHandle != NULL) {
-        uartEvent = sizeBytes;
-        errorCode = cellularPortQueueSend(queueHandle, (void *) &uartEvent);
+        uartSizeOrError = sizeBytesOrError;
+        errorCode = cellularPortQueueSend(queueHandle, (void *) &uartSizeOrError);
     }
 
     return errorCode;
@@ -665,12 +665,12 @@ int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
 int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle)
 {
     int32_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
-    CellularPortUartEventData_t uartEvent;
+    CellularPortUartEventData_t uartSizeOrError;
 
     if (queueHandle != NULL) {
         sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
-        if (cellularPortQueueReceive(queueHandle, &uartEvent) == 0) {
-            sizeOrErrorCode = uartEvent;
+        if (cellularPortQueueReceive(queueHandle, &uartSizeOrError) == 0) {
+            sizeOrErrorCode = uartSizeOrError;
         }
     }
 
