@@ -37,13 +37,13 @@
 /** The bandmask 1 to use during testing. 0x080092 is bands
  * 2, 5, 8 and 20.
  */
-# define CELLULAR_CFG_TEST_BANDMASK1   0x080092
+# define CELLULAR_CFG_TEST_BANDMASK1   0x080092ULL
 #endif
 
 #ifndef CELLULAR_CFG_TEST_BANDMASK2
 /** The bandmask 2 to use during testing.
  */
-# define CELLULAR_CFG_TEST_BANDMASK2   0
+# define CELLULAR_CFG_TEST_BANDMASK2   0ULL
 #endif
 
 #ifndef CELLULAR_CFG_TEST_APN
