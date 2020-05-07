@@ -94,13 +94,14 @@ int32_t cellularPortUartDeinit(int32_t uart);
  * an invalid receive event to be sent which can be detected
  * by the receive thread and used to shut it down cleanly.
  *
- * @param queueHandle the handle for the UART event queue.
- * @param sizeBytes   the number of bytes of received data
- *                    to be signalled
+ * @param queueHandle      the handle for the UART event queue.
+ * @param sizeBytesOrError the number of bytes of received data
+ *                         to be signalled or negative to signal
+ *                         an error.
  * @return            zero on success else negative error code.
  */
 int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
-                                  int32_t sizeBytes);
+                                  int32_t sizeBytesOrError);
 
 /** Receive a UART event, blocking until one turns up.
  *

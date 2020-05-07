@@ -170,17 +170,21 @@ int32_t cellularPortUartDeinit(int32_t uart)
 
 // Push an invalid UART event onto the UART event queue.
 int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
-                                  int32_t sizeBytes)
+                                  int32_t sizeBytesOrError)
 {
     int32_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
     uart_event_t uartEvent;
 
     if (queueHandle != NULL) {
+        // On this platform uartEvent.size is of type
+        // size_t so an error is signalled
+        // by setting uartEvent.type to an
+        // illegal value
         uartEvent.type = UART_EVENT_MAX;
         uartEvent.size = 0;
-        if (sizeBytes >= 0) {
+        if (sizeBytesOrError >= 0) {
             uartEvent.type = UART_DATA;
-            uartEvent.size = sizeBytes;
+            uartEvent.size = sizeBytesOrError;
         }
         errorCode = cellularPortQueueSend(queueHandle, (void *) &uartEvent);
     }
