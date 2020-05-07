@@ -146,6 +146,18 @@ int32_t cellularPort_sscanf(const char *pStr, const char *pFormat,
     return result;
 }
 
+// strspn().
+size_t cellularPort_strspn(const char *pStr1, const char *pStr2)
+{
+    return strspn(pStr1, pStr2);
+}
+
+// strcspn().
+size_t cellularPort_strcspn(const char *pStr1, const char *pStr2)
+{
+    return strcspn(pStr1, pStr2);
+}
+
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS: CHARACTER CLASSIFICATION
  * -------------------------------------------------------------- */

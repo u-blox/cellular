@@ -1096,10 +1096,11 @@ int32_t cellularCtrlSetBandMask(CellularCtrlRat_t rat,
         if ((rat == CELLULAR_CTRL_RAT_CATM1) ||
             (rat == CELLULAR_CTRL_RAT_NB1)) {
             errorCode = CELLULAR_CTRL_AT_ERROR;
-            cellularPortLog("CELLULAR_CTRL: setting band mask for RAT %d (in module terms %d) to 0x%016llx %016llx.\n",
+            cellularPortLog("CELLULAR_CTRL: setting band mask for RAT %d (in module terms %d) to 0x%08x%08x %08x%08x.\n",
                             rat, gCellularRatToLocalRat[rat] -
                                  gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1],
-                                 bandMask2, bandMask1);
+                                 (uint32_t) (bandMask2 >> 32), (uint32_t) bandMask2,
+                                 (uint32_t) (bandMask1 >> 32), (uint32_t) bandMask1);
             cellular_ctrl_at_lock();
             // Note: the RAT numbering for this AT command is NOT the same
             // as the RAT numbering for all the other AT commands:
@@ -1242,9 +1243,11 @@ int32_t cellularCtrlGetBandMask(CellularCtrlRat_t rat,
                 if (rats[x] == rat) {
                     *pBandMask1 = masks[x][0];
                     *pBandMask2 = masks[x][1];
-                    cellularPortLog("CELLULAR_CTRL: band mask for RAT %d (in module terms %d) is 0x%016llx %016llx.\n",
+                    cellularPortLog("CELLULAR_CTRL: band mask for RAT %d (in module terms %d) is 0x%08x%08x %08x%08x.\n",
                                     rat, gCellularRatToLocalRat[rat] -
-                                         gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1], *pBandMask2, *pBandMask1);
+                                         gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1],
+                                         (uint32_t) (*pBandMask2 >> 32), (uint32_t) (*pBandMask2),
+                                         (uint32_t) (*pBandMask1 >> 32), (uint32_t) (*pBandMask1));
                     errorCode = CELLULAR_CTRL_SUCCESS;
                 }
             }
@@ -1522,11 +1525,11 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
                          pKeepGoingCallback());
 
                 if (errorCode == CELLULAR_CTRL_SUCCESS) {
-                    cellularPortLog("CELLULAR_CTRL: connected after %lld second(s).\n",
-                                    (cellularPortGetTickTimeMs() - startTime) / 1000);
+                    cellularPortLog("CELLULAR_CTRL: connected after %d second(s).\n",
+                                    (int32_t) ((cellularPortGetTickTimeMs() - startTime) / 1000));
                 } else {
-                    cellularPortLog("CELLULAR_CTRL: connection attempt stopped after %lld second(s).\n",
-                                    (cellularPortGetTickTimeMs() - startTime) / 1000);
+                    cellularPortLog("CELLULAR_CTRL: connection attempt stopped after %d second(s).\n",
+                                    (int32_t) ((cellularPortGetTickTimeMs() - startTime) / 1000));
                 }
                 // This to avoid warnings about unused variables when 
                 // cellularPortLog() is compiled out
