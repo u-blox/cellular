@@ -55,6 +55,14 @@ typedef struct {
     void *pParam;
 } CellularCtrlCallback_t;
 
+/** Type to accommodate the types of registration query.
+ */
+typedef struct {
+    CellularCtrlRan_t ran;
+    const char *pQueryStr;
+    const char *pResponseStr;
+} CellularCtrlRegTypes_t;
+
 /* ----------------------------------------------------------------
  * VARIABLES
  * -------------------------------------------------------------- */
@@ -86,9 +94,9 @@ static int32_t gUart;
  */
 static int32_t gAtNumConsecutiveTimeouts;
 
-/** The current registration status.
+/** The current registration statuses, one for each RAN.
  */
-static CellularCtrlNetworkStatus_t gNetworkStatus;
+static CellularCtrlNetworkStatus_t gNetworkStatus[CELLULAR_CTRL_MAX_NUM_RANS];
 
 /** The RSSI of the serving cell.
  */
@@ -134,23 +142,26 @@ static const CellularCtrlNetworkStatus_t gStatus3gppToCellularNetworkStatus[] =
  */
 static const uint8_t gCellularRatToLocalRat[] =
     {255, // dummy value for CELLULAR_CTRL_RAT_UNKNOWN
-     7,   // CELLULAR_CTRL_RAT_CATM1
-     8};  // CELLULAR_CTRL_RAT_NB1
+     9,   // CELLULAR_CTRL_RAT_GPRS  - GPRS single mode (TODO: only correct for SARA-R4)
+     2,   // CELLULAR_CTRL_RAT_UMTS  - UMTS single mode
+     3,   // CELLULAR_CTRL_RAT_LTE   - LTE single mode
+     7,   // CELLULAR_CTRL_RAT_CATM1 - LTE cat.M1
+     8};  // CELLULAR_CTRL_RAT_NB1   - LTE cat.NB1
 
 /** Table to convert the RAT values used in the module to
  * CellularCtrlRat_t.
  */
 static const CellularCtrlRat_t gLocalRatToCellularRat[] =
-    {CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,  // GSM / GPRS / eGPRS (single mode)
-     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,  // GSM / UMTS (dual mode)
-     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,  // UMTS (single mode)
-     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,  // LTE (single mode)
-     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,  // GSM / UMTS / LTE (tri mode)
-     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,  // GSM / LTE (dual mode)
-     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,  // UMTS / LTE (dual mode)
-     CELLULAR_CTRL_RAT_CATM1,                // LTE cat.M1
-     CELLULAR_CTRL_RAT_NB1,                  // LTE cat.NB1
-     CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED}; // GPRS / eGPRS
+    {CELLULAR_CTRL_RAT_GPRS,   // 0: GSM / GPRS / eGPRS (single mode)
+     CELLULAR_CTRL_RAT_UMTS,   // 1: GSM / UMTS (dual mode)
+     CELLULAR_CTRL_RAT_UMTS,   // 2: UMTS (single mode)
+     CELLULAR_CTRL_RAT_LTE,    // 3: LTE (single mode)
+     CELLULAR_CTRL_RAT_LTE,    // 4: GSM / UMTS / LTE (tri mode)
+     CELLULAR_CTRL_RAT_LTE,    // 5: GSM / LTE (dual mode)
+     CELLULAR_CTRL_RAT_LTE,    // 6: UMTS / LTE (dual mode)
+     CELLULAR_CTRL_RAT_CATM1,  // 7: LTE cat.M1
+     CELLULAR_CTRL_RAT_NB1,    // 8: LTE cat.NB1
+     CELLULAR_CTRL_RAT_GPRS};  // 9: GPRS / eGPRS
 
 /** Array to convert the LTE RSSI number from AT+CSQ into a
  * dBm value rounded up to the nearest whole number.
@@ -160,18 +171,33 @@ static const int32_t gRssiConvertLte[] = {-118, -115, -113, -110, -108, -105, -1
                                           -78,  -76,  -74,  -73,  -71,  -69,  -68,  -65,   /* 16 - 23 */
                                           -63,  -61,  -60,  -59,  -58,  -55,  -53,  -48};  /* 24 - 31 */
 
-/** Array to convert the RAT emited by AT+COPS to one of our RATs.
+/** Array to convert the RAT emitted by AT+COPS to one of our RATs.
  */
-static const CellularCtrlRat_t gCopsRatToCellularRat[] = {CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                          CELLULAR_CTRL_RAT_CATM1, // 7 is CATM1
-                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
-                                                          CELLULAR_CTRL_RAT_NB1};  // 9 is NB1
+static const CellularCtrlRat_t gCopsRatToCellularRat[] = {CELLULAR_CTRL_RAT_GPRS,                // 0: GSM
+                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED, // 1: GSM Compact
+                                                          CELLULAR_CTRL_RAT_UMTS,                // 2: UTRAN
+                                                          CELLULAR_CTRL_RAT_GPRS,                // 3: EDGE
+                                                          CELLULAR_CTRL_RAT_UMTS,                // 4: UTRAN with HSDPA
+                                                          CELLULAR_CTRL_RAT_UMTS,                // 5: UTRAN with HSUPA
+                                                          CELLULAR_CTRL_RAT_UMTS,                // 6: UTRAN with HSDPA and HSUPA
+                                                          CELLULAR_CTRL_RAT_LTE,                 // 7: LTE or CAT-M1
+                                                          CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED, // 8: EC_GSM
+                                                          CELLULAR_CTRL_RAT_NB1};                // 9: NB1
+
+/** The possible registration query strings.
+ */
+static const CellularCtrlRegTypes_t gRegTypes[] = {{CELLULAR_CTRL_RAN_GERAN, "AT+CREG?", "+CREG"},
+                                                   {CELLULAR_CTRL_RAN_GERAN, "AT+CGREG?", "+CGREG"},
+                                                   {CELLULAR_CTRL_RAN_EUTRAN, "AT+CEREG?", "+CEREG"},
+};
+
+// Return the RAN for the given RAT
+static const CellularCtrlRan_t gRanForRat[] = {CELLULAR_CTRL_RAN_UNKNOWN_OR_NOT_USED, // CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED
+                                               CELLULAR_CTRL_RAN_GERAN,               // CELLULAR_CTRL_RAT_GPRS
+                                               CELLULAR_CTRL_RAN_UTRAN,               // CELLULAR_CTRL_RAT_UMTS
+                                               CELLULAR_CTRL_RAN_EUTRAN,              // CELLULAR_CTRL_RAT_LTE
+                                               CELLULAR_CTRL_RAN_EUTRAN,              // CELLULAR_CTRL_RAT_CATM1
+                                               CELLULAR_CTRL_RAN_EUTRAN};             // CELLULAR_CTRL_RAT_NB1
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS: URCS AND RELATED FUNCTIONS
@@ -180,7 +206,7 @@ static const CellularCtrlRat_t gCopsRatToCellularRat[] = {CELLULAR_CTRL_RAT_UNKN
 // Set the current network status.
 // Deliberately using VERY short debug strings as this
 // might be called from a URC.
-static void setNetworkStatus(int32_t status)
+static void setNetworkStatus(int32_t status, CellularCtrlRan_t ran)
 {
     switch (status) {
         case 0:
@@ -232,26 +258,48 @@ static void setNetworkStatus(int32_t status)
 
     if ((status >= 0) && (status < sizeof(gStatus3gppToCellularNetworkStatus) /
                                    sizeof(gStatus3gppToCellularNetworkStatus[0]))) {
-        gNetworkStatus = gStatus3gppToCellularNetworkStatus[status];
+        gNetworkStatus[ran] = gStatus3gppToCellularNetworkStatus[status];
     }
 }
 
-// Registration on cat-M1/NBIoT (AT+CEREG).
-static void CEREG_urc(void *pUnused)
+// Registration on a network (AT+CREG/CGREG/CEREG).
+static inline void CXREG_urc(CellularCtrlRan_t ran)
 {
     int32_t status;
-
-    (void) pUnused;
 
     // Read status
     status = cellular_ctrl_at_read_int();
     // Check that status was there AND there is no
     // subsequent character: if there is this wasn't a URC
-    // it was the +CEREG:x,y response to an AT+CEREG?,
+    // it was the +CxREG:x,y response to an AT+CxREG?,
     // which got into here by mistake
     if ((status >= 0) && (cellular_ctrl_at_read_int() < 0)) {
-        setNetworkStatus(status);
+        setNetworkStatus(status, ran);
     }
+}
+
+// Registration on a GSM network (AT+CREG).
+static void CREG_urc(void *pUnused)
+{
+    (void) pUnused;
+
+    CXREG_urc(CELLULAR_CTRL_RAN_GERAN);
+}
+
+// Registration on a GPRS network (AT+CGREG).
+static void CGREG_urc(void *pUnused)
+{
+    (void) pUnused;
+
+    CXREG_urc(CELLULAR_CTRL_RAN_GERAN);
+}
+
+// Registration on an EUTRAN (LTE) network (AT+CEREG).
+static void CEREG_urc(void *pUnused)
+{
+    (void) pUnused;
+
+    CXREG_urc(CELLULAR_CTRL_RAN_EUTRAN);
 }
 
 /* ----------------------------------------------------------------
@@ -426,33 +474,48 @@ static bool prepareConnect()
 
     cellularPortLog("CELLULAR_CTRL: preparing to connect...\n");
     // Make sure URC handler is registered
+    cellular_ctrl_at_set_urc_handler("+CREG:", CREG_urc, NULL);
+    cellular_ctrl_at_set_urc_handler("+CGREG:", CGREG_urc, NULL);
     cellular_ctrl_at_set_urc_handler("+CEREG:", CEREG_urc, NULL);
 
-    // Switch on the unsolicited result code for registration
-    // on NB1/Cat-M1.
+    // Switch on the unsolicited result codes for registration
     cellular_ctrl_at_lock();
-    cellular_ctrl_at_cmd_start("AT+CEREG=1");
+    cellular_ctrl_at_cmd_start("AT+CREG=1");
     cellular_ctrl_at_cmd_stop_read_resp();
     if (cellular_ctrl_at_unlock_return_error() == 0) {
         cellular_ctrl_at_lock();
-        // See if we are already in automatic mode
-        cellular_ctrl_at_cmd_start("AT+COPS?");
-        cellular_ctrl_at_cmd_stop();
-        cellular_ctrl_at_resp_start("+COPS:", false);
-        status = cellular_ctrl_at_read_int();
-        cellular_ctrl_at_resp_stop();
-        if (status != 0) {
-            // If we aren't, set it
-            cellular_ctrl_at_cmd_start("AT+COPS=0");
-            cellular_ctrl_at_cmd_stop_read_resp();
-        }
+        cellular_ctrl_at_cmd_start("AT+CGREG=1");
+        cellular_ctrl_at_cmd_stop_read_resp();
         if (cellular_ctrl_at_unlock_return_error() == 0) {
-            success = true;
+            cellular_ctrl_at_lock();
+            cellular_ctrl_at_cmd_start("AT+CEREG=1");
+            cellular_ctrl_at_cmd_stop_read_resp();
+            if (cellular_ctrl_at_unlock_return_error() == 0) {
+                cellular_ctrl_at_lock();
+                // See if we are already in automatic mode
+                cellular_ctrl_at_cmd_start("AT+COPS?");
+                cellular_ctrl_at_cmd_stop();
+                cellular_ctrl_at_resp_start("+COPS:", false);
+                status = cellular_ctrl_at_read_int();
+                cellular_ctrl_at_resp_stop();
+                if (status != 0) {
+                    // If we aren't, set it
+                    cellular_ctrl_at_cmd_start("AT+COPS=0");
+                    cellular_ctrl_at_cmd_stop_read_resp();
+                }
+                if (cellular_ctrl_at_unlock_return_error() == 0) {
+                    success = true;
+                } else {
+                    cellularPortLog("CELLULAR_CTRL: unable to set automatic network selection mode.\n");
+                }
+            } else {
+                cellularPortLog("CELLULAR_CTRL: unable to set +CEREG URCs.\n");
+            }
         } else {
-            cellularPortLog("CELLULAR_CTRL: unable to set automatic network selection mode.\n");
+            cellularPortLog("CELLULAR_CTRL: unable to set +CGREG URC.\n");
         }
     } else {
-        cellularPortLog("CELLULAR_CTRL: unable to set URCs.\n");
+        cellularPortLog("CELLULAR_CTRL: unable to set +CREG URC.\n");
     }
 
     return success;
@@ -468,6 +531,7 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
     bool keepGoing = true;
     bool attached = false;
     bool activated = false;
+    int32_t regType;
     int32_t status;
     char buffer[64];
 
@@ -511,32 +575,32 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
     cellular_ctrl_at_unlock();
     // Wait for registration to succeed
     errorCode = CELLULAR_CTRL_NOT_REGISTERED;
-    while (keepGoing && pKeepGoingCallback() &&
-           (cellularCtrlGetNetworkStatus() != CELLULAR_CTRL_NETWORK_STATUS_REGISTERED)) {
+    regType = 0;
+    while (keepGoing && pKeepGoingCallback() && !cellularCtrlIsRegistered()) {
         // Prod the modem anyway, we've nout much else to do
         cellular_ctrl_at_lock();
         cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
-        cellular_ctrl_at_cmd_start("AT+CEREG?");
+        cellular_ctrl_at_cmd_start(gRegTypes[regType].pQueryStr);
         cellular_ctrl_at_cmd_stop();
-        cellular_ctrl_at_resp_start("+CEREG:", false);
+        cellular_ctrl_at_resp_start(gRegTypes[regType].pResponseStr, false);
         // Ignore the first parameter
         cellular_ctrl_at_read_int();
         status = cellular_ctrl_at_read_int();
         if (status >= 0) {
-            setNetworkStatus(status);
+            setNetworkStatus(status, gRegTypes[regType].ran);
         } else {
             // Dodge for SARA-R4: it's not supposed to
-            // but SARA-R4 can spit-out a "+CEREG: y" URC
-            // while we're waiting for the "+CEREG: x,y"
-            // response from the AT+CEREG command.
+            // but SARA-R4 can spit-out a "+CxREG: y" URC
+            // while we're waiting for the "+CxREG: x,y"
+            // response from the AT+CxREG command.
             // If that happens status will be -1 'cos
             // there's only a single integer in the URC.
             // So now wait for the actual response
-            cellular_ctrl_at_resp_start("+CEREG:", false);
+            cellular_ctrl_at_resp_start(gRegTypes[regType].pResponseStr, false);
             cellular_ctrl_at_read_int();
             status = cellular_ctrl_at_read_int();
             if (status >= 0) {
-                setNetworkStatus(status);
+                setNetworkStatus(status, gRegTypes[regType].ran);
             }
         }
         cellular_ctrl_at_resp_stop();
@@ -544,12 +608,16 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
         if (cellular_ctrl_at_unlock_return_error() != 0) {
             keepGoing = false;
         } else {
-            cellularPortTaskBlock(1000);
+            cellularPortTaskBlock(300);
+        }
+        regType++;
+        if (regType >= sizeof(gRegTypes) / sizeof(gRegTypes[0])) {
+            regType = 0;
         }
     }
 
     if (keepGoing && pKeepGoingCallback()) {
-        if ((cellularCtrlGetNetworkStatus() == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED)) {
+        if (cellularCtrlIsRegistered()) {
             if (cellularCtrlGetOperatorStr(buffer, sizeof(buffer)) >= 0) {
                 cellularPortLog("Registered on \"%s\".\n", buffer);
             }
@@ -833,7 +901,9 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
                             gPinPwrOn = pinPwrOn;
                             gPinVInt = pinVInt;
                             gUart = uart;
-                            gNetworkStatus = CELLULAR_CTRL_NETWORK_STATUS_UNKNOWN;
+                            for (size_t x = 0; x < sizeof(gNetworkStatus) / sizeof(gNetworkStatus[0]); x++) {
+                                gNetworkStatus[x] = CELLULAR_CTRL_NETWORK_STATUS_UNKNOWN;
+                            }
                             clearRadioParameters();
                             gAtNumConsecutiveTimeouts = 0;
                             cellular_ctrl_at_set_at_timeout_callback(atTimeoutCallback);
@@ -1231,8 +1301,8 @@ int32_t cellularCtrlGetBandMask(CellularCtrlRat_t rat,
             // Convert the RAT numbering to keep things simple on the brain
             for (size_t x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
                 if ((rats[x] >= 0) &&
-                    ((rats[x] + CELLULAR_CTRL_RAT_CATM1) < sizeof(gLocalRatToCellularRat) /
-                                                           sizeof(gLocalRatToCellularRat[0]))) {
+                    ((rats[x] + gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1]) < sizeof(gLocalRatToCellularRat) /
+                                                                                   sizeof(gLocalRatToCellularRat[0]))) {
                     rats[x] = gLocalRatToCellularRat[rats[x] +
                                                      gCellularRatToLocalRat[CELLULAR_CTRL_RAT_CATM1]];
                 }
@@ -1283,6 +1353,14 @@ int32_t cellularCtrlSetRat(CellularCtrlRat_t rat)
 }
 
 // Set the radio access technology at the given rank.
+// TODO: this code works for SARA-R4 and SARA-R5 but it
+// won't work for modules which have more of a "mode"
+// select URAT command where the RAT in the AT+URAT
+// command is multiple, e.g. TOBY where you can select
+// GSM / UMTS / LTE (tri mode).  For those kinds of
+// modules this code will need revisiting: will need
+// to read out what's there and make the RAT/rank
+// selection based on that knowledge.  Somehow.
 int32_t cellularCtrlSetRatRank(CellularCtrlRat_t rat, int32_t rank)
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_INITIALISED;
@@ -1439,7 +1517,7 @@ int32_t cellularCtrlSetMnoProfile(int32_t mnoProfile)
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_CONNECTED;
-        if (cellularCtrlGetNetworkStatus() != CELLULAR_CTRL_NETWORK_STATUS_REGISTERED) {
+        if (!cellularCtrlIsRegistered()) {
             errorCode = CELLULAR_CTRL_AT_ERROR;
             cellular_ctrl_at_lock();
             cellular_ctrl_at_cmd_start("AT+UMNOPROF=");
@@ -1585,27 +1663,30 @@ int32_t cellularCtrlDisconnect()
             if (cellular_ctrl_at_unlock_return_error() == 0) {
                 errorCode = CELLULAR_CTRL_CONNECTED;
                 for (int32_t count = 10;
-                     (cellularCtrlGetNetworkStatus() == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED) &&
-                     (count > 0);
+                     cellularCtrlIsRegistered() && (count > 0);
                      count--) {
-                    // Prod the modem to see if it's done
-                    cellular_ctrl_at_lock();
-                    cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
-                    cellular_ctrl_at_cmd_start("AT+CEREG?");
-                    cellular_ctrl_at_cmd_stop();
-                    cellular_ctrl_at_resp_start("+CEREG:", false);
-                    // Ignore the first parameter
-                    cellular_ctrl_at_read_int();
-                    status = cellular_ctrl_at_read_int();
-                    if (status >= 0) {
-                        setNetworkStatus(status);
+                    for (int32_t x = 0; x < sizeof(gRegTypes) / sizeof(gRegTypes[0]); x++) {
+                        // Prod the modem to see if it's done
+                        cellular_ctrl_at_lock();
+                        cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
+                        cellular_ctrl_at_cmd_start(gRegTypes[x].pQueryStr);
+                        cellular_ctrl_at_cmd_stop();
+                        cellular_ctrl_at_resp_start(gRegTypes[x].pResponseStr, false);
+                        // Ignore the first parameter
+                        cellular_ctrl_at_read_int();
+                        status = cellular_ctrl_at_read_int();
+                        if (status >= 0) {
+                            setNetworkStatus(status, gRegTypes[x].ran);
+                        }
+                        cellular_ctrl_at_resp_stop();
+                        cellular_ctrl_at_restore_at_timeout();
+                        cellular_ctrl_at_unlock();
+                        cellularPortTaskBlock(300);
                     }
-                    cellular_ctrl_at_resp_stop();
-                    cellular_ctrl_at_restore_at_timeout();
-                    cellular_ctrl_at_unlock();
-                    cellularPortTaskBlock(1000);
                 }
-                if (cellularCtrlGetNetworkStatus() != CELLULAR_CTRL_NETWORK_STATUS_REGISTERED) {
+                if (!cellularCtrlIsRegistered()) {
+                    cellular_ctrl_at_remove_urc_handler("+CREG:");
+                    cellular_ctrl_at_remove_urc_handler("+CGREG:");
                     cellular_ctrl_at_remove_urc_handler("+CEREG:");
                     errorCode = CELLULAR_CTRL_SUCCESS;
                     cellularPortLog("CELLULAR_CTRL: disconnected.\n");
@@ -1624,11 +1705,54 @@ int32_t cellularCtrlDisconnect()
     return (int32_t) errorCode;
 }
 
-// Get the current network registration status.
-CellularCtrlNetworkStatus_t cellularCtrlGetNetworkStatus()
+// Get the current network registration status on a given RAN.
+CellularCtrlNetworkStatus_t cellularCtrlGetNetworkStatus(CellularCtrlRan_t ran)
 {
-    cellularPortLog("CELLULAR_CTRL: network status %d.\n", gNetworkStatus);
-    return gNetworkStatus;
+    CellularCtrlErrorCode_t errorCodeOrNetworkStatus = CELLULAR_CTRL_NOT_INITIALISED;
+
+    if (gInitialised) {
+        errorCodeOrNetworkStatus = CELLULAR_CTRL_INVALID_PARAMETER;
+        if ((ran > 0) && (ran < sizeof(gNetworkStatus) / sizeof(gNetworkStatus[0]))) {
+            errorCodeOrNetworkStatus = gNetworkStatus[ran];
+            cellularPortLog("CELLULAR_CTRL: network status on RAN %d is %d.\n",
+                            ran, errorCodeOrNetworkStatus);
+        }
+    }
+
+    return errorCodeOrNetworkStatus;
+}
+
+// Get the RAN for the given RAT.
+int32_t cellularCtrlGetRanForRat(CellularCtrlRat_t rat)
+{
+    CellularCtrlErrorCode_t errorCodeOrRan = CELLULAR_CTRL_INVALID_PARAMETER;
+
+    if ((rat > 0) && (rat < sizeof(gRanForRat) / sizeof(gRanForRat[0]))) {
+        errorCodeOrRan = gRanForRat[rat];
+    }
+
+    return (int32_t) errorCodeOrRan;
+}
+
+// Get whether we are registered on any RAN or not.
+bool cellularCtrlIsRegistered()
+{
+    bool isRegistered = false;
+    size_t x;
+
+    if (gInitialised) {
+        for (x = 0; !isRegistered &&
+                    (x < sizeof(gNetworkStatus) / sizeof(gNetworkStatus[0])); x++) {
+            isRegistered = (gNetworkStatus[x] == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED);
+        }
+        if (isRegistered) {
+            cellularPortLog("CELLULAR_CTRL: registered on RAN %d.\n", x - 1);
+        } else {
+            cellularPortLog("CELLULAR_CTRL: not registered.\n");
+        }
+    }
+
+    return isRegistered;
 }
 
 // Get the current RAT.
@@ -1831,7 +1955,7 @@ int32_t cellularCtrlRefreshRadioParameters()
 
     if (gInitialised) {
         errorCode = CELLULAR_CTRL_NOT_REGISTERED;
-        if (cellularCtrlGetNetworkStatus() == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED) {
+        if (cellularCtrlIsRegistered()) {
             errorCode = CELLULAR_CTRL_AT_ERROR;
             gRssiDbm = 0;
             gRsrpDbm = 0;
@@ -1924,35 +2048,41 @@ int32_t cellularCtrlRefreshRadioParameters()
                 }
 #endif
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
-                // SARA-R4 only supports UCGED=5"
-                cellular_ctrl_at_lock();
-                cellular_ctrl_at_cmd_start("AT+UCGED?");
-                cellular_ctrl_at_cmd_stop();
-                cellular_ctrl_at_resp_start("+RSRP:", false);
-                gCellId = cellular_ctrl_at_read_int();
-                gEarfcn = cellular_ctrl_at_read_int();
-                if (cellular_ctrl_at_read_string(buf, sizeof(buf), false) > 0) {
-                    rsrx = cellularPort_strtof(buf, NULL);
-                    if (rsrx >= 0) {
-                        gRsrpDbm = (int32_t) (rsrx + 0.5);
-                    } else {
-                        gRsrpDbm = (int32_t) (rsrx - 0.5);
+                // SARA-R4 only supports UCGED=5, and it only
+                // supports UCGED at all in EUTRAN mode
+                if (cellularCtrlGetNetworkStatus(CELLULAR_CTRL_RAN_EUTRAN) == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED) {
+                    cellular_ctrl_at_lock();
+                    cellular_ctrl_at_cmd_start("AT+UCGED?");
+                    cellular_ctrl_at_cmd_stop();
+                    cellular_ctrl_at_resp_start("+RSRP:", false);
+                    gCellId = cellular_ctrl_at_read_int();
+                    gEarfcn = cellular_ctrl_at_read_int();
+                    if (cellular_ctrl_at_read_string(buf, sizeof(buf), false) > 0) {
+                        rsrx = cellularPort_strtof(buf, NULL);
+                        if (rsrx >= 0) {
+                            gRsrpDbm = (int32_t) (rsrx + 0.5);
+                        } else {
+                            gRsrpDbm = (int32_t) (rsrx - 0.5);
+                        }
                     }
-                }
-                cellular_ctrl_at_resp_start("+RSRQ:", false);
-                // Skip past cell ID and EARFCN since they will be the same
-                cellular_ctrl_at_skip_param(2);
-                if (cellular_ctrl_at_read_string(buf, sizeof(buf), false) > 0) {
-                    rsrx = cellularPort_strtof(buf, NULL);
-                    if (rsrx >= 0) {
-                        gRsrqDb = (int32_t) (rsrx + 0.5);
-                    } else {
-                        gRsrqDb = (int32_t) (rsrx - 0.5);
+                    cellular_ctrl_at_resp_start("+RSRQ:", false);
+                    // Skip past cell ID and EARFCN since they will be the same
+                    cellular_ctrl_at_skip_param(2);
+                    if (cellular_ctrl_at_read_string(buf, sizeof(buf), false) > 0) {
+                        rsrx = cellularPort_strtof(buf, NULL);
+                        if (rsrx >= 0) {
+                            gRsrqDb = (int32_t) (rsrx + 0.5);
+                        } else {
+                            gRsrqDb = (int32_t) (rsrx - 0.5);
+                        }
                     }
-                }
-                cellular_ctrl_at_resp_stop();
-                if (cellular_ctrl_at_unlock_return_error() == 0) {
-                    errorCode = CELLULAR_CTRL_SUCCESS;
+                    cellular_ctrl_at_resp_stop();
+                    if (cellular_ctrl_at_unlock_return_error() == 0) {
+                        errorCode = CELLULAR_CTRL_SUCCESS;
+                    }
+                } else {
+                    // Can't use AT+UCGED, that's all we can get
+                     errorCode = CELLULAR_CTRL_SUCCESS;
                 }
 #endif
             }

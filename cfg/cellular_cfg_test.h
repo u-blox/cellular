@@ -50,7 +50,7 @@
 /** The APN to use when testing connectivity, NULL for unspecified,
  * "" for empty.
  */
-# define CELLULAR_CFG_TEST_APN        "internet"
+# define CELLULAR_CFG_TEST_APN        NULL
 #endif
 
 #ifndef CELLULAR_CFG_TEST_USERNAME

@@ -37,6 +37,51 @@
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
+/**  The bit in a CELLULAR_CTRL_SUPPORTED_RATS bitmap that denotes GPRS.
+ * IMPORTANT: DO NOT CONFUSE THIS WITH CELLULAR_CTRL_RAT_GPRS,
+ * it is NOT the same thing.  This value is solely for use in
+ * the CELLULAR_CTRL_SUPPORTED_RATS_BITMAP value for a module.
+ */
+#define _CELLULAR_CTRL_SUPPORTED_RATS_BIT_GPRS 0x01
+
+/**  The bit in a CELLULAR_CTRL_SUPPORTED_RATS bitmap that denotes UMTS.
+ * IMPORTANT: DO NOT CONFUSE THIS WITH CELLULAR_CTRL_RAT_UMTS,
+ * it is NOT the same thing.  This value is solely for use in
+ * the CELLULAR_CTRL_SUPPORTED_RATS_BITMAP value for a module.
+ */
+#define _CELLULAR_CTRL_SUPPORTED_RATS_BIT_UMTS  0x02
+
+/**  The bit in a CELLULAR_CTRL_SUPPORTED_RATS bitmap that denotes LTE.
+ * IMPORTANT: DO NOT CONFUSE THIS WITH CELLULAR_CTRL_RAT_LTE,
+ * it is NOT the same thing.  This value is solely for use in
+ * the CELLULAR_CTRL_SUPPORTED_RATS_BITMAP value for a module.
+ */
+#define _CELLULAR_CTRL_SUPPORTED_RATS_BIT_LTE  0x04
+
+/**  The bit in a CELLULAR_CTRL_SUPPORTED_RATS bitmap that denotes CATM1.
+ * IMPORTANT: DO NOT CONFUSE THIS WITH CELLULAR_CTRL_RAT_CATM1,
+ * it is NOT the same thing.  This value is solely for use in
+ * the CELLULAR_CTRL_SUPPORTED_RATS_BITMAP value for a module.
+ */
+#define _CELLULAR_CTRL_SUPPORTED_RATS_BIT_CATM1 0x08
+
+/**  The bit in a CELLULAR_CTRL_SUPPORTED_RATS bitmap that denotes NB1.
+ * IMPORTANT: DO NOT CONFUSE THIS WITH CELLULAR_CTRL_RAT_NB1,
+ * it is NOT the same thing.  This value is solely for use in
+ * the CELLULAR_CTRL_SUPPORTED_RATS_BITMAP value for a module.
+ */
+#define _CELLULAR_CTRL_SUPPORTED_RATS_BIT_NB1   0x10
+
+/** Get a CellularCtrlRat_t value based on a single bit
+ * from the supported RAT bitmap.
+ */
+#define CELLULAR_CTRL_RAT_FROM_SUPPORTED_BITMAP(bit) ((bit & _CELLULAR_CTRL_SUPPORTED_RATS_BIT_GPRS)  ? 1 /* CELLULAR_CTRL_RAT_GPRS */  :  \
+                                                      (bit & _CELLULAR_CTRL_SUPPORTED_RATS_BIT_UMTS)  ? 2 /* CELLULAR_CTRL_RAT_UMTS */  :  \
+                                                      (bit & _CELLULAR_CTRL_SUPPORTED_RATS_BIT_LTE)   ? 3 /* CELLULAR_CTRL_RAT_LTE */   :  \
+                                                      (bit & _CELLULAR_CTRL_SUPPORTED_RATS_BIT_CATM1) ? 4 /* CELLULAR_CTRL_RAT_CATM1 */ :  \
+                                                      (bit & _CELLULAR_CTRL_SUPPORTED_RATS_BIT_NB1)   ? 5 /* CELLULAR_CTRL_RAT_NB1 */   :  \
+                                                      CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED)
+
 /** The North American bands for cat-M1, band mask bits 1 to 64.
  */
 #define CELLULAR_CTRL_BAND_MASK_1_NORTH_AMERICA_CATM1_DEFAULT 0x000000400B0F189FLL
@@ -85,6 +130,12 @@
  */
 #ifndef CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS
 # error CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS must be defined in cellular_cfg_module.h.
+#endif
+
+/**A bitmap of the RATs supported by the cellular module.
+ */
+#ifndef CELLULAR_CTRL_SUPPORTED_RATS_BITMAP
+# error CELLULAR_CTRL_SUPPORTED_RATS_BITMAP must be defined in cellular_cfg_module.h.
 #endif
 
 /** The PDP context ID to use.
@@ -143,6 +194,16 @@ typedef enum {
                                             // also
 } CellularCtrlErrorCode_t;
 
+/** The possible radio access networks.
+ */
+typedef enum {
+    CELLULAR_CTRL_RAN_UNKNOWN_OR_NOT_USED = 0,
+    CELLULAR_CTRL_RAN_GERAN,
+    CELLULAR_CTRL_RAN_UTRAN,
+    CELLULAR_CTRL_RAN_EUTRAN,
+    CELLULAR_CTRL_MAX_NUM_RANS
+} CellularCtrlRan_t;
+
 /** The possible radio access technologies.
  */
 typedef enum {
@@ -154,7 +215,10 @@ typedef enum {
                                   //< underlying type of unsigned and hence
                                   //< < 0 checks will always be false and you
                                   //< might not be warned of this.
-    CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED,
+    CELLULAR_CTRL_RAT_UNKNOWN_OR_NOT_USED = 0,
+    CELLULAR_CTRL_RAT_GPRS,
+    CELLULAR_CTRL_RAT_UMTS,
+    CELLULAR_CTRL_RAT_LTE,
     CELLULAR_CTRL_RAT_CATM1,
     CELLULAR_CTRL_RAT_NB1,
     CELLULAR_CTRL_MAX_NUM_RATS
@@ -502,11 +566,26 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
  */
 int32_t cellularCtrlDisconnect();
 
-/** Get the current network registration status.
+/** Get the current network registration status on the given RAN.
  *
- * @return the current status.
+ * @param ran the Radio Access Network to check for registration status on.
+ * @return    the current status or negative if there is an error determining
+ *            the network status.
  */
-CellularCtrlNetworkStatus_t cellularCtrlGetNetworkStatus();
+CellularCtrlNetworkStatus_t cellularCtrlGetNetworkStatus(CellularCtrlRan_t ran);
+
+/** Get the RAN for the given RAT.
+ *
+ * @param rat the Radio Access Technology.
+ * @return    the corresponding Radio Access Network or negative error code.
+ */
+int32_t cellularCtrlGetRanForRat(CellularCtrlRat_t rat);
+
+/** Get whether we are registered on an network.
+ *
+ * @return    true if registered, else false.
+ */
+bool cellularCtrlIsRegistered();
 
 /** Return the RAT that is currently in use.
  *
