@@ -467,15 +467,23 @@ static void networkConnect(const char *pApn,
     for (size_t x = 0; x < sizeof (gOriginalRats) / sizeof (gOriginalRats[0]); x++) {
         gOriginalRats[x] = cellularCtrlGetRat(x);
     }
-    // Then read out the existing band masks
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CFG_TEST_RAT,
-                                                      &gOriginalMask1, &gOriginalMask2) == 0);
-
+    if ((CELLULAR_CFG_TEST_RAT == CELLULAR_CTRL_RAT_CATM1) || (CELLULAR_CFG_TEST_RAT == CELLULAR_CTRL_RAT_NB1)) {
+        // Then read out the existing band masks
+       CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetBandMask(CELLULAR_CFG_TEST_RAT,
+                                                         &gOriginalMask1, &gOriginalMask2) == 0);
+    }
     cellularPortLog("CELLULAR_SOCK_TEST: setting sole RAT to %d...\n", CELLULAR_CFG_TEST_RAT);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetRat(CELLULAR_CFG_TEST_RAT) == 0);
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT,
-                                                      CELLULAR_CFG_TEST_BANDMASK1,
-                                                      CELLULAR_CFG_TEST_BANDMASK2) == 0);
+    if ((CELLULAR_CFG_TEST_RAT == CELLULAR_CTRL_RAT_CATM1) || (CELLULAR_CFG_TEST_RAT == CELLULAR_CTRL_RAT_NB1)) {
+        cellularPortLog("CELLULAR_CTRL_TEST: setting bandmask to 0x%08x%08x %08x%08x...\n",
+                        (uint32_t) (CELLULAR_CFG_TEST_BANDMASK2 >> 32),
+                        (uint32_t) CELLULAR_CFG_TEST_BANDMASK2,
+                        (uint32_t) (CELLULAR_CFG_TEST_BANDMASK1 >> 32),
+                        (uint32_t) CELLULAR_CFG_TEST_BANDMASK1);
+        CELLULAR_PORT_TEST_ASSERT(cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT,
+                                                          CELLULAR_CFG_TEST_BANDMASK1,
+                                                          CELLULAR_CFG_TEST_BANDMASK2) == 0);
+    }
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlReboot() == 0);
 
     cellularPortLog("CELLULAR_SOCK_TEST: connecting...\n");
@@ -483,8 +491,9 @@ static void networkConnect(const char *pApn,
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlConnect(keepGoingCallback,
                                                   pApn, pUsername, pPassword) == 0);
     cellularPortLog("CELLULAR_SOCK_TEST: RAT %d, cellularCtrlGetNetworkStatus() %d.\n",
-                    CELLULAR_CFG_TEST_RAT, cellularCtrlGetNetworkStatus());
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetNetworkStatus() == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED);
+                    CELLULAR_CFG_TEST_RAT, cellularCtrlGetNetworkStatus(cellularCtrlGetRanForRat(CELLULAR_CFG_TEST_RAT)));
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetNetworkStatus(cellularCtrlGetRanForRat(CELLULAR_CFG_TEST_RAT)) == CELLULAR_CTRL_NETWORK_STATUS_REGISTERED);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlIsRegistered());
 }
 
 // Disconnect from the network and restore teh saved settings.
@@ -494,17 +503,20 @@ static void networkDisconnect()
 
     cellularPortLog("CELLULAR_SOCK_TEST: disconnecting...\n");
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlDisconnect() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetNetworkStatus(cellularCtrlGetRanForRat(CELLULAR_CFG_TEST_RAT)) != CELLULAR_CTRL_NETWORK_STATUS_REGISTERED);
+    CELLULAR_PORT_TEST_ASSERT(!cellularCtrlIsRegistered());
 
     cellularPortLog("CELLULAR_SOCK_TEST: restoring saved settings...\n");
-    // No asserts here, we need it to plough on and succeed
-    if (cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT, gOriginalMask1,
-                                                       gOriginalMask2) != 0) {
-        cellularPortLog("CELLULAR_SOCK_TEST: !!! ATTENTION: the band mask for RAT %d on the module under test may have been left screwy, please check!!!\n", CELLULAR_CFG_TEST_RAT);
+    if ((CELLULAR_CFG_TEST_RAT == CELLULAR_CTRL_RAT_CATM1) || (CELLULAR_CFG_TEST_RAT == CELLULAR_CTRL_RAT_NB1)) {
+        // No asserts here, we need it to plough on and succeed
+        if (cellularCtrlSetBandMask(CELLULAR_CFG_TEST_RAT, gOriginalMask1,
+                                                           gOriginalMask2) != 0) {
+            cellularPortLog("CELLULAR_SOCK_TEST: !!! ATTENTION: the band mask for RAT %d on the module under test may have been left screwy, please check!!!\n", CELLULAR_CFG_TEST_RAT);
+        }
     }
     for (size_t x = 0; x < sizeof (gOriginalRats) / sizeof (gOriginalRats[0]); x++) {
         cellularCtrlSetRatRank(gOriginalRats[x], x);
     }
-    cellularCtrlReboot();
     for (size_t x = 0; x < sizeof (gOriginalRats) / sizeof (gOriginalRats[0]); x++) {
         if (cellularCtrlGetRat(x) != gOriginalRats[x]) {
             screwy = true;
@@ -513,6 +525,7 @@ static void networkDisconnect()
     if (screwy) {
         cellularPortLog("CELLULAR_SOCK_TEST: !!! ATTENTION: the RAT settings of the module under test may have been left screwy, please check!!!\n");
     }
+    cellularCtrlReboot();
 }
 
 // Perform the standard preamble to any data test

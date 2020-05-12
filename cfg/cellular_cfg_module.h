@@ -87,6 +87,12 @@
  */
 # define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 1
 
+/** Supported RATs: a bitmap of the _CELLULAR_CTRL_RAT_BIT_x values
+ * defined in cellular_ctrl.h, for this case
+ * _CELLULAR_CTRL_RAT_BIT_CATM1 = 0x08.
+ */
+#define CELLULAR_CTRL_SUPPORTED_RATS_BITMAP 0x08UL
+
 #endif // CELLULAR_CFG_MODULE_SARA_R5
 
 /* ----------------------------------------------------------------
@@ -127,7 +133,14 @@
 /** The maximum number of simultaneous radio access technologies
  *  supported by the cellular module.
  */
-# define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 2
+# define CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS 3
+
+/** Supported RATs: a bitmap of the _CELLULAR_CTRL_RAT_BIT_x values
+ * defined in cellular_ctrl.h, for this case
+ * _CELLULAR_CTRL_RAT_BIT_GPRS | _CELLULAR_CTRL_RAT_BIT_CATM1 |
+ * _CELLULAR_CTRL_RAT_BIT_NB1 = 0x19.
+ */
+#define CELLULAR_CTRL_SUPPORTED_RATS_BITMAP 0x19UL
 
 #endif // CELLULAR_CFG_MODULE_SARA_R4
 
