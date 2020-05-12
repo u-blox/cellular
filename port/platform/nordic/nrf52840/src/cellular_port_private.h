@@ -20,6 +20,10 @@
 /** Stuff private to the NRF52840 porting layer.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -113,6 +117,10 @@ void cellularPortPrivateTickTimeUartMode();
  * or cellularPortPrivateGetTickTimeMs().
  */
 void cellularPortPrivateTickTimeNormalMode();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_PORT_PRIVATE_H_
 

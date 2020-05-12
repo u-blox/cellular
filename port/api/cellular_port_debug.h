@@ -22,6 +22,10 @@
 /** Porting layer for debug functions.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -49,6 +53,10 @@
  * @param ...     variable argument list.
  */
 void cellularPortLogF(const char *pFormat, ...);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_PORT_DEBUG_H_
 

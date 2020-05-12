@@ -21,6 +21,10 @@
  * platform.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -41,6 +45,10 @@
  * @return            the next occurrence of pDelimiter in pStr.
  */
 char *strtok_r(char *pStr, const char *pDelimiters, char **ppSave);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_PORT_CLIB_PLATFORM_SPECIFIC_H_
 

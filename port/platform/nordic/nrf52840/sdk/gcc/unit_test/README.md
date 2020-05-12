@@ -27,5 +27,6 @@ With that done `cd` to this directory and enter:
 
 This will build the code assuming a SARA-R4 module and download it to a connected NRF52840 development board.  If the pins you have connected between the NRF52840 and the cellular module are different to the defaults, just add the necessary overrides to the `CFLAGS` line, e.g.:
 
-`make flash CFLAGS=-DCELLULAR_CFG_MODULE_SARA_R4 -DCELLULAR_CFG_PIN_VINT=-1`
+`make flash CFLAGS="-DCELLULAR_CFG_MODULE_SARA_R4 -DCELLULAR_CFG_PIN_VINT=-1"`
 
+...noting the use of quotation marks (otherwise the second `-D` will appear as another parameter to `make` which will just cause it to pause for 30 seconds). 

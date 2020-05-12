@@ -31,6 +31,10 @@
    google: https://www.google.de/search?q=APN+list
 ---------------------------------------------------------------- */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -209,5 +213,9 @@ const char *apnconfig(const char *imsi)
     }
     return config;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 // End of file

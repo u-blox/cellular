@@ -23,6 +23,10 @@
 
 #include "unity.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -109,6 +113,10 @@ void cellularPortUnityPrintAll(const char *pPrefix);
  * @param pPrefix prefix string to print at start of line.
  */
 void cellularPortUnityRunAll(const char *pPrefix);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_PORT_UNITY_ADDONS_H_
 

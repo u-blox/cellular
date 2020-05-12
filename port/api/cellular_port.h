@@ -22,6 +22,10 @@
 /** Common stuff for porting layer.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -102,6 +106,10 @@ void cellularPortDeinit();
  * @return the current OS tick converted to milliseconds.
  */
 int64_t cellularPortGetTickTimeMs();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_PORT_H_
 

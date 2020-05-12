@@ -20,6 +20,10 @@
 /** Stuff private to the STM32F4 porting layer.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -64,6 +68,10 @@ GPIO_TypeDef *pCellularPortPrivateGpioGetReg(int32_t pin);
  * @param pin the pin number.
  */
 void cellularPortPrivateGpioEnableClock(int32_t pin);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_PORT_PRIVATE_H_
 

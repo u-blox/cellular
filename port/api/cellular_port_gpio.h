@@ -23,6 +23,10 @@
  * are thread-safe.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -114,6 +118,10 @@ int32_t cellularPortGpioSet(int32_t pin, int32_t level);
  * @return      on success the level (0 or 1) else negative error code.
  */
 int32_t cellularPortGpioGet(int32_t pin);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_PORT_GPIO_H_
 

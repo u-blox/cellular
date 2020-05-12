@@ -23,6 +23,10 @@
  * are threadsafe.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -165,6 +169,10 @@ bool cellularPortIsRtsFlowControlEnabled(int32_t uart);
  *                  on this UART, else false.
  */
 bool cellularPortIsCtsFlowControlEnabled(int32_t uart);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_PORT_UART_H_
 

@@ -23,6 +23,10 @@
  * thread-safe.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -196,6 +200,10 @@ int32_t cellularPortMutexTryLock(const CellularPortMutexHandle_t mutexHandle,
  * @return              zero on success else negative error code.
  */
 int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_PORT_OS_H_
 

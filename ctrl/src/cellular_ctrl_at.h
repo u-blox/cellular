@@ -25,6 +25,10 @@
  * UART in use at any one time.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -450,6 +454,10 @@ bool cellular_ctrl_at_wait_char(char chr);
  * @return last 3GPP error code.
  */
 int32_t cellular_ctrl_at_get_3gpp_error();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_CTRL_AT_H_
 

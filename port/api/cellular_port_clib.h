@@ -33,6 +33,10 @@
 #include "limits.h"
 #include "cellular_port_clib_platform_specific.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -366,6 +370,10 @@ void cellularPort_errno_set(int32_t _errno);
  * @return a random number.
  */
 int32_t cellularPort_rand();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLLAR_PORT_CLIB_H_
 

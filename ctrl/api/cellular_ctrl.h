@@ -33,6 +33,10 @@
  * COVID 19 permitting.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -842,6 +846,10 @@ int32_t cellularCtrlGetFirmwareVersionStr(char *pStr, size_t size);
  * @return  on success the Unix UTC time, else negative error code.
  */
 int32_t cellularCtrlGetTimeUtc();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _CELLULAR_CTRL_H_
 
