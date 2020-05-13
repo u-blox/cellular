@@ -677,6 +677,23 @@ int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle
     return sizeOrErrorCode;
 }
 
+// Receive a UART event with a timeout.
+int32_t cellularPortUartEventTryReceive(const CellularPortQueueHandle_t queueHandle,
+                                        int32_t waitMs)
+{
+    int32_t sizeOrErrorCode = CELLULAR_PORT_INVALID_PARAMETER;
+    CellularPortUartEventData_t uartSizeOrError;
+
+    if (queueHandle != NULL) {
+        sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        if (cellularPortQueueTryReceive(queueHandle, waitMs, &uartSizeOrError) == 0) {
+            sizeOrErrorCode = uartSizeOrError;
+        }
+    }
+
+    return sizeOrErrorCode;
+}
+
 // Get the number of bytes waiting in the receive buffer.
 int32_t cellularPortUartGetReceiveSize(int32_t uart)
 {

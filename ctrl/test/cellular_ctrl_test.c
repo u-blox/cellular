@@ -703,16 +703,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
 }
 #endif // CELLULAR_CTRL_SUPPORTED_RATS_BITMAP & (_CELLULAR_CTRL_SUPPORTED_RATS_BIT_NB1 | _CELLULAR_CTRL_SUPPORTED_RATS_BIT_CATM1)
 
-/* TODO: removing this test for SARA-R4 for now:
- * for reasons that flummox me, powering SARA-R4
- * off doesn't work properly, it comes up in a
- * strange state and all subsequent tests fail
- * as the module stops responding to AT commands
- * very early on during initialisation (e.g.
- * responding to AT+CMEE? with just OK and
- * then not responding to ATE0 at all).
- */
-#ifndef CELLULAR_CFG_MODULE_SARA_R4
 /** Test power on/off and aliveness.
  * Note: it may seem more logical to put this test early on, however
  * in that case that the previous test run failed, the
@@ -728,11 +718,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestPowerAlive(),
 {
     // Should work with and without a VInt pin connected
     cellularCtrlTestPowerAliveVInt(-1);
-# if CELLULAR_CFG_PIN_VINT >= 0
+#if CELLULAR_CFG_PIN_VINT >= 0
     cellularCtrlTestPowerAliveVInt(CELLULAR_CFG_PIN_VINT);
-# endif
-}
 #endif
+}
 
 /** Test set/get RAT.
  */

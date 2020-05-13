@@ -198,16 +198,13 @@ static const char gSendData[] =  "_____0000:012345678901234567890123456789012345
                                  "01234567890123456789012345678901234567890123456789";
 
 // A string of all possible characters, including strings
-// that might appear as terminators in the AT interface,
-// and including an 'x' on the end which should be overwritten
-// with a NULL before sending in order to test that NULLs are
-// carried through also
+// that might appear as terminators in the AT interface
 static const char gAllChars[] = "the quick brown fox jumps over the lazy dog "
                                 "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG 0123456789 "
                                 "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e"
                                 "\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c"
                                 "\x1d\x1e!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~\x7f"
-                                "\r\nOK\r\n \r\nERROR\r\nx";
+                                "\r\nOK\r\n \r\nERROR\r\n";
 
 // Queue on which to send notifications of data arrival.
 static CellularPortQueueHandle_t gQueueHandleDataReceived = NULL;
@@ -223,6 +220,9 @@ static int32_t gAsyncReturnCode;
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS: SOCKET OPTIONS RELATED
+ * These functions are not marked as static as they are only used
+ * as callbacks in a table: the compiler can't tell they are
+ * are being used and complains if they are marked as static.
  * -------------------------------------------------------------- */
 
 // Compare two int32_t values.

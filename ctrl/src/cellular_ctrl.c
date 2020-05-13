@@ -409,6 +409,8 @@ static CellularCtrlErrorCode_t moduleConfigure(int32_t uart)
 #endif
         // TODO switch off power saving until it is integrated into this API
         moduleConfigureOne(uart, "AT+CPSMS=0") && 
+        // TODO switch off UART power saving until it is integrated into this API
+        moduleConfigureOne(uart, "AT+UPSV=0") &&
         // Stay in airplane mode until commanded to connect
         moduleConfigureOne(uart, "AT+CFUN=4")) {
         // TODO: check if AT&K3 requires both directions

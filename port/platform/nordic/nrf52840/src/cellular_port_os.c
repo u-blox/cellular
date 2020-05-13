@@ -156,7 +156,7 @@ int32_t cellularPortQueueSend(const CellularPortQueueHandle_t queueHandle,
     return (int32_t) errorCode;
 }
 
-// Receive from the given queue.
+// Receive from the given queue, blocking.
 int32_t cellularPortQueueReceive(const CellularPortQueueHandle_t queueHandle,
                                  void *pEventData)
 {
@@ -167,6 +167,24 @@ int32_t cellularPortQueueReceive(const CellularPortQueueHandle_t queueHandle,
         if (xQueueReceive((QueueHandle_t) queueHandle,
                           pEventData,
                           (portTickType) portMAX_DELAY) == pdTRUE) {
+            errorCode = CELLULAR_PORT_SUCCESS;
+       }
+    }
+
+    return (int32_t) errorCode;
+}
+
+// Receive from the given queue, with a wait time.
+int32_t cellularPortQueueTryReceive(const CellularPortQueueHandle_t queueHandle,
+                                    int32_t waitMs, void *pEventData)
+{
+    CellularPortErrorCode_t errorCode = CELLULAR_PORT_INVALID_PARAMETER;
+
+    if ((queueHandle != NULL) && (pEventData != NULL)) {
+        errorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        if (xQueueReceive((QueueHandle_t) queueHandle,
+                          pEventData,
+                          waitMs / portTICK_PERIOD_MS) == pdTRUE) {
             errorCode = CELLULAR_PORT_SUCCESS;
        }
     }

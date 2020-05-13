@@ -23,10 +23,6 @@
  * thread-safe.
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -149,7 +145,7 @@ int32_t cellularPortQueueDelete(const CellularPortQueueHandle_t queueHandle);
 int32_t cellularPortQueueSend(const CellularPortQueueHandle_t queueHandle,
                               const void *pEventData);
 
-/** Receive from the given queue.
+/** Receive from the given queue, blocking until something is received.
  *
  * @param queueHandle the handle of the queue.
  * @param pEventData  pointer to a place to put incoming data.
@@ -157,6 +153,18 @@ int32_t cellularPortQueueSend(const CellularPortQueueHandle_t queueHandle,
  */
 int32_t cellularPortQueueReceive(const CellularPortQueueHandle_t queueHandle,
                                  void *pEventData);
+
+/** Try to receive from the given queue, waiting for the given time
+ * for something to arrive.
+ *
+ * @param queueHandle the handle of the queue.
+ * @param waitMs      the amount of time to wait in milliseconds.
+ * @param pEventData  pointer to a place to put incoming data.
+ * @return            zero if someting is received else negative
+ *                    error code.
+ */
+int32_t cellularPortQueueTryReceive(const CellularPortQueueHandle_t queueHandle,
+                                    int32_t waitMs, void *pEventData);
 
 /* ----------------------------------------------------------------
  * FUNCTIONS: MUTEXES
@@ -200,10 +208,6 @@ int32_t cellularPortMutexTryLock(const CellularPortMutexHandle_t mutexHandle,
  * @return              zero on success else negative error code.
  */
 int32_t cellularPortMutexUnlock(const CellularPortMutexHandle_t mutexHandle);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // _CELLULAR_PORT_OS_H_
 

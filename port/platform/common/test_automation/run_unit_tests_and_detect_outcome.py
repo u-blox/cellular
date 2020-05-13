@@ -155,9 +155,8 @@ def pwar_readline(in_handle, connection_type, terminator = None):
                 print prompt + str(type(ex).__name__) + " while accessing " \
                       "port" + in_handle.name + ": " + str(ex.message) + "."
             except UnicodeDecodeError as ex:
-                print prompt + str(type(ex).__name__) + " while decoding " \
-                      "data from " + in_handle.name + ": " + str(ex.message) + \
-                      "this probably means the thing at the other end has crashed."
+                # Just ignore it.
+                pass
             return line
         else:
             return None

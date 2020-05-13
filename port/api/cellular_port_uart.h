@@ -23,10 +23,6 @@
  * are threadsafe.
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -116,6 +112,17 @@ int32_t cellularPortUartEventSend(const CellularPortQueueHandle_t queueHandle,
  */
 int32_t cellularPortUartEventReceive(const CellularPortQueueHandle_t queueHandle);
 
+/** Receive a UART event with a timeout.
+ *
+ * @param queueHandle the handle for the UART event queue.
+ * @param waitMs      the time to wait in milliseconds.
+ * @return            if the event was a receive event then
+ *                    the length of the data received by the`
+ *                    UART, else a negative number.
+ */
+int32_t cellularPortUartEventTryReceive(const CellularPortQueueHandle_t queueHandle,
+                                        int32_t waitMs);
+
 /** Get the number of bytes waiting in the receive buffer.
  *
  * @param uart      the UART number to use.
@@ -169,10 +176,6 @@ bool cellularPortIsRtsFlowControlEnabled(int32_t uart);
  *                  on this UART, else false.
  */
 bool cellularPortIsCtsFlowControlEnabled(int32_t uart);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // _CELLULAR_PORT_UART_H_
 
