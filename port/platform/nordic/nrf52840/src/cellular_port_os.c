@@ -184,7 +184,7 @@ int32_t cellularPortQueueTryReceive(const CellularPortQueueHandle_t queueHandle,
         errorCode = CELLULAR_PORT_PLATFORM_ERROR;
         if (xQueueReceive((QueueHandle_t) queueHandle,
                           pEventData,
-                          waitMs / portTICK_PERIOD_MS) == pdTRUE) {
+                          waitMs) == pdTRUE) {
             errorCode = CELLULAR_PORT_SUCCESS;
        }
     }

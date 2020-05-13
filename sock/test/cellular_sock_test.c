@@ -1106,6 +1106,27 @@ static void checkSetOption(CellularSockDescriptor_t sockDescriptor,
     cellularPort_free(pValueRead);
 }
 
+// Release OS resources that may have been left hanging
+// by a failed test
+void osCleanup()
+{
+    if ((gTaskHandleDataReceived != NULL) &&
+        (gMutexHandleDataReceivedTaskRunning != NULL) &&
+        (gQueueHandleDataReceived != NULL)) {
+        asyncTestTaskJoin(1000, gMutexHandleDataReceivedTaskRunning,
+                          gQueueHandleDataReceived);
+        gTaskHandleDataReceived = NULL;
+    }
+
+    if (gMutexHandleDataReceivedTaskRunning != NULL) {
+        cellularPortMutexDelete(gMutexHandleDataReceivedTaskRunning);
+    }
+
+    if (gQueueHandleDataReceived != NULL) {
+        cellularPortQueueDelete(gQueueHandleDataReceived);
+    }
+}
+
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS: TESTS
  * -------------------------------------------------------------- */
@@ -1222,6 +1243,11 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoBasic(),
     int32_t errorCode;
     size_t sizeBytes;
 
+
+    // Call clean up to release OS resources that may
+    // have been left hanging by a previous failed test
+    osCleanup();
+
     stdDataTestInit(CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_UDP_SERVER_PORT,
                     &remoteAddress,
@@ -1315,6 +1341,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoBasic(),
     int32_t x;
     char *pDataReceived;
     int64_t startTimeMs;
+
+    // Call clean up to release OS resources that may
+    // have been left hanging by a previous failed test
+    osCleanup();
 
     stdDataTestInit(CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT,
@@ -1444,6 +1474,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
     CellularSockAddress_t remoteAddress;
     CellularSockDescriptor_t sockDescriptor[CELLULAR_SOCK_MAX + 1];
     int32_t errorCode;
+
+    // Call clean up to release OS resources that may
+    // have been left hanging by a previous failed test
+    osCleanup();
 
     // Call this here in case a previous test failed:
     // we're about to call cellularCtrlInit() which will
@@ -1579,6 +1613,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
     int64_t timeoutMs;
     int64_t elapsedMs;
 
+    // Call clean up to release OS resources that may
+    // have been left hanging by a previous failed test
+    osCleanup();
+
     // Has to be a TCP socket since some socket options
     // only apply to TCP sockets
     stdDataTestInit(CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
@@ -1697,6 +1735,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     CellularPort_timeval timeout;
     int64_t timeoutMs;
     int32_t value;
+
+    // Call clean up to release OS resources that may
+    // have been left hanging by a previous failed test
+    osCleanup();
 
     // Open a TCP socket so that we can test both UDP and TCP
     stdDataTestInit(CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
@@ -1938,6 +1980,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoNonPingPong(),
     char *pDataReceived;
     int64_t startTimeMs;
 
+    // Call clean up to release OS resources that may
+    // have been left hanging by a previous failed test
+    osCleanup();
+
     stdDataTestInit(CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_UDP_SERVER_PORT,
                     &remoteAddress,
@@ -2032,6 +2078,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoAsyncMayMayFailDueToInte
     int32_t x = 0;
     void *pParam = &sockDescriptor;
 
+    // Call clean up to release OS resources that may
+    // have been left hanging by a previous failed test
+    osCleanup();
+
     stdDataTestInit(CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_UDP_SERVER_PORT,
                     &remoteAddress,
@@ -2096,6 +2146,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoAsyncMayMayFailDueToInte
     // Wait for the spawned task to finish receiving the packets
     asyncTestTaskJoin(20, gMutexHandleDataReceivedTaskRunning,
                       gQueueHandleDataReceived);
+    gTaskHandleDataReceived = NULL;
 
     CELLULAR_PORT_TEST_ASSERT(gAsyncReturnCode == 0);
 
@@ -2118,6 +2169,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
     char *pDataReceived;
     int32_t errorCode;
     void *pParam = &params;
+
+    // Call clean up to release OS resources that may
+    // have been left hanging by a previous failed test
+    osCleanup();
 
     stdDataTestInit(CELLULAR_CFG_TEST_ECHO_TCP_SERVER_DOMAIN_NAME,
                     CELLULAR_CFG_TEST_ECHO_TCP_SERVER_PORT,
@@ -2166,6 +2221,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
     // Wait for the spawned task to finish
     asyncTestTaskJoin(20, gMutexHandleDataReceivedTaskRunning,
                       gQueueHandleDataReceived);
+    gTaskHandleDataReceived = NULL;
 
     // Check result
     CELLULAR_PORT_TEST_ASSERT(gAsyncReturnCode == 0);
@@ -2185,6 +2241,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
     // Wait for the spawned task to finish
     asyncTestTaskJoin(20, gMutexHandleDataReceivedTaskRunning,
                       gQueueHandleDataReceived);
+    gTaskHandleDataReceived = NULL;
 
     // Check result
     CELLULAR_PORT_TEST_ASSERT(gAsyncReturnCode == 0);
@@ -2206,6 +2263,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
         // Wait for the spawned task to finish
         asyncTestTaskJoin(20, gMutexHandleDataReceivedTaskRunning,
                           gQueueHandleDataReceived);
+        gTaskHandleDataReceived = NULL;
 
         // Check result
         CELLULAR_PORT_TEST_ASSERT(gAsyncReturnCode == 0);
@@ -2239,7 +2297,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
     stdDataTestDeinit(params.sockDescriptor);
 }
 
-
 /** Clean-up to be run at the end of this round of tests, just
  * in case there were test failures which would have resulted
  * in the deinitialisation being skipped.
@@ -2248,6 +2305,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestCleanUp(),
                             "sockCleanUp",
                             "sock")
 {
+
+    osCleanup();
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();

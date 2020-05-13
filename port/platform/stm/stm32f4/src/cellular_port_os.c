@@ -243,7 +243,7 @@ int32_t cellularPortMutexLock(const CellularPortMutexHandle_t mutexHandle)
 
     if (mutexHandle != NULL) {
         errorCode = CELLULAR_PORT_PLATFORM_ERROR;
-        if (osMutexWait((osMutexId) mutexHandle, 0) == osOK) {
+        if (osMutexWait((osMutexId) mutexHandle, osWaitForever) == osOK) {
             errorCode = CELLULAR_PORT_SUCCESS;
         }
     }

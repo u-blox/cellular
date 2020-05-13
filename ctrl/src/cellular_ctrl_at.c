@@ -103,28 +103,37 @@
 // will be sizeof(cellular_ctrl_at_callback_t) bytes big.
 #define CELLULAR_CTRL_AT_CALLBACK_QUEUE_LENGTH 10
 
-/** The stack size for the URC task.
- */
+// The queue length for controlling the URC task, actually
+// just telling it to exit.
+#define CELLULAR_CTRL_AT_URC_CONTROL_QUEUE_LENGTH 5
+
+// The time for the URC task to wait on the UART event queue.
+#define CELLULAR_CTRL_AT_URC_EVENT_UART_WAIT_MS 1000
+
+// The time for the URC task to wait on the control event queue.
+#define CELLULAR_CTRL_AT_URC_EVENT_CONTROL_WAIT_MS 10
+
+// Guard for the URC task data receive loop to make sure
+// it can't be drowned by the UART interrupt, preventing
+// control commands from getting in.
+#define CELLULAR_CTRL_AT_URC_DATA_LOOP_GUARD 100
+
+// The stack size for the URC task.
 #ifndef CELLULAR_CTRL_AT_TASK_URC_STACK_SIZE_BYTES
 # error CELLULAR_CTRL_AT_TASK_URC_STACK_SIZE_BYTES must be defined in cellular_cfg_os_platform_specific.h
 #endif
 
-/** The task priority for the URC handler.
- */
+// The task priority for the URC handler.
 #ifndef CELLULAR_CTRL_AT_TASK_URC_PRIORITY
 # error CELLULAR_CTRL_AT_TASK_URC_PRIORITY must be defined in cellular_cfg_os_platform_specific.h
 #endif
 
-/** The stack size of the task in the context of which callbacks
- * will be run.  5 kbytes should be plenty of room.
- */
+// The stack size of the task in the context of which callbacks will be run.
 #ifndef CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES
 # error CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES must be defined in cellular_cfg_os_platform_specific.h
 #endif
 
-/** The task priority for any callback made via
- * cellular_ctrl_at_callback().
- */
+// The task priority for any callback made via cellular_ctrl_at_callback().
 #ifndef CELLULAR_CTRL_TASK_CALLBACK_PRIORITY
 # error CELLULAR_CTRL_TASK_CALLBACK_PRIORITY must be defined in cellular_cfg_os_platform_specific.h
 #endif
@@ -181,6 +190,12 @@ typedef struct {
     void *param;
 } cellular_ctrl_at_callback_t;
 
+// Control of the URC task.
+typedef enum {
+    CELLULAR_CTRL_AT_CONTROL_NONE,
+    CELLULAR_CTRL_AT_CONTROL_TERMINATE
+} cellular_ctrl_at_control_t;
+
 /* ----------------------------------------------------------------
  * VARIABLES
  * -------------------------------------------------------------- */
@@ -211,8 +226,11 @@ static CellularPortMutexHandle_t _mtx_callbacks_task_running;
 // Queue to feed the call-backs task.
 static CellularPortQueueHandle_t _queue_callbacks;
 
-// Queue to feed the URC task.
+// Queue to feed the URC task with UART data.
 static CellularPortQueueHandle_t _queue_uart;
+
+// Queue to control the URC task.
+static CellularPortQueueHandle_t _queue_urc_control;
 
 // The UART port to use, -1 means not initialised.
 static int32_t _uart = -1;
@@ -928,16 +946,30 @@ static int32_t uint64ToStr(char *buf, size_t bufLen,
 static void task_urc(void *parameters)
 {
     int32_t data_size_or_error = 0;
+    cellular_ctrl_at_control_t control = CELLULAR_CTRL_AT_CONTROL_NONE;
 
     CELLULAR_PORT_MUTEX_LOCK(_mtx_urc_task_running);
 
     (void) parameters;
 
+    // Pause to let the function that created
+    // this task return and fill in the parameter
+    // _task_handle_urc, otherwise the call to
+    // cellularPortTaskIsThis(_task_handle_urc)
+    // in fill_buffer() will not work and, should
+    // data be arriving from the UART when we
+    // start, we'll end up sitting around for
+    // an 8 second or so AT command timeout to
+    // expire rather than the really short URC
+    // timeout.
+    cellularPortTaskBlock(100);
+
     cellularPortLog("CELLULAR_AT: task_urc() started.\n");
 
-    while (data_size_or_error >= 0) {
-        data_size_or_error = cellularPortUartEventReceive(_queue_uart);
-        if (data_size_or_error >= 0) {
+    while (control != CELLULAR_CTRL_AT_CONTROL_TERMINATE) {
+        data_size_or_error = cellularPortUartEventTryReceive(_queue_uart,
+                                                             CELLULAR_CTRL_AT_URC_EVENT_UART_WAIT_MS);
+        if (data_size_or_error > 0) {
 
             cellular_ctrl_at_lock();
 
@@ -947,7 +979,9 @@ static void task_urc(void *parameters)
                                     _buf.recv_len - _buf.recv_pos);
                 }
                 _current_scope = CELLULAR_CTRL_AT_SCOPE_TYPE_NOT_SET;
-                while (true) {
+                for (int32_t data_loop_count = 0;
+                     data_loop_count < CELLULAR_CTRL_AT_URC_DATA_LOOP_GUARD;
+                     data_loop_count++) {
                     if (match_urc()) {
                         data_size_or_error = cellularPortUartGetReceiveSize(_uart);
                         if (!(data_size_or_error > 0) ||
@@ -979,19 +1013,25 @@ static void task_urc(void *parameters)
             // sure that's safe
             cellular_ctrl_at_unlock_no_data_check();
         }
+
+        // Check if there's anything for us on the control queue
+        cellularPortQueueTryReceive(_queue_urc_control,
+                                    CELLULAR_CTRL_AT_URC_EVENT_CONTROL_WAIT_MS,
+                                    (void *) &control);
     }
 
     CELLULAR_PORT_MUTEX_UNLOCK(_mtx_urc_task_running);
 
-    // Delete ourself: only valid way out in Free RTOS
-    cellularPortTaskDelete(NULL);
-
     cellularPortLog("CELLULAR_AT: task_urc() ended.\n");
+
+    // Delete ourself
+    cellularPortTaskDelete(NULL);
 }
 
 // Dummy function that should never be called, just used in the
 // implementation of taskCallbacks().
-static void dummy(void *param) {
+static void dummy(void *param)
+{
     (void) param;
     cellularPort_assert(false);
 }
@@ -1022,10 +1062,10 @@ static void task_callbacks(void *parameters)
 
     CELLULAR_PORT_MUTEX_UNLOCK(_mtx_callbacks_task_running);
 
+    cellularPortLog("CELLULAR_AT: task_callbacks() ended.\n");
+
     // Delete ourself
     cellularPortTaskDelete(NULL);
-
-    cellularPortLog("CELLULAR_AT: task_callbacks() ended.\n");
 }
 
 /* ----------------------------------------------------------------
@@ -1036,6 +1076,8 @@ static void task_callbacks(void *parameters)
 cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
                                                     CellularPortQueueHandle_t queue_uart)
 {
+    cellular_ctrl_at_control_t ctrl = CELLULAR_CTRL_AT_CONTROL_TERMINATE;
+
     if (_uart >= 0) {
         return CELLULAR_CTRL_AT_SUCCESS;
     }
@@ -1105,6 +1147,17 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
         return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
     }
 
+    // Start a queue to control the URC task
+    if (cellularPortQueueCreate(CELLULAR_CTRL_AT_URC_CONTROL_QUEUE_LENGTH,
+                                sizeof(cellular_ctrl_at_control_t),
+                                &_queue_urc_control) != 0) {
+        cellularPortMutexDelete(_mtx_stream);
+        cellularPortMutexDelete(_mtx_urc_task_running);
+        cellularPortMutexDelete(_mtx_callbacks_task_running);
+        cellularPortQueueDelete(_queue_callbacks);
+        return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
+    }
+
     // Start a task to handle out of band responses
     if (cellularPortTaskCreate(task_urc, "at_task_urc",
                                CELLULAR_CTRL_AT_TASK_URC_STACK_SIZE_BYTES,
@@ -1114,7 +1167,8 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
         cellularPortMutexDelete(_mtx_stream);
         cellularPortMutexDelete(_mtx_urc_task_running);
         cellularPortMutexDelete(_mtx_callbacks_task_running);
-        cellularPortMutexDelete(_queue_callbacks);
+        cellularPortQueueDelete(_queue_callbacks);
+        cellularPortQueueDelete(_queue_urc_control);
         return CELLULAR_CTRL_AT_OUT_OF_MEMORY;
     }
 
@@ -1123,20 +1177,21 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
     // required by some RTOSs (e.g. FreeRTOS).
     cellularPortTaskBlock(100);
 
-    // Start a task to run callbacks and a queue to feed it
+    // Start a task to run callbacks
     if (cellularPortTaskCreate(task_callbacks, "at_callbacks",
                                CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES,
                                NULL,
                                CELLULAR_CTRL_TASK_CALLBACK_PRIORITY,
                                &_task_handle_callbacks) != 0) {
         // Get urc task to exit
-        cellularPortUartEventSend(_queue_uart, -1);
+        cellularPortQueueSend(_queue_urc_control, (void *) &ctrl);
         CELLULAR_PORT_MUTEX_LOCK(_mtx_urc_task_running);
         CELLULAR_PORT_MUTEX_UNLOCK(_mtx_urc_task_running);
         cellularPortMutexDelete(_mtx_stream);
         cellularPortMutexDelete(_mtx_urc_task_running);
         cellularPortMutexDelete(_mtx_callbacks_task_running);
-        cellularPortMutexDelete(_queue_callbacks);
+        cellularPortQueueDelete(_queue_callbacks);
+        cellularPortQueueDelete(_queue_urc_control);
         // Pause here to allow the task deletion that was
         // requested above to actually occur in the idle thread,
         // required by some RTOSs (e.g. FreeRTOS)
@@ -1159,13 +1214,14 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
 void cellular_ctrl_at_deinit()
 {
     cellular_ctrl_at_callback_t cb;
+    cellular_ctrl_at_control_t ctrl = CELLULAR_CTRL_AT_CONTROL_TERMINATE;
 
     if (_uart >= 0) {
         // The caller needs to make sure that no read/write
         // is in progress when this function is called.
 
         // Get urc task to exit
-        cellularPortUartEventSend(_queue_uart, -1);
+        cellularPortQueueSend(_queue_urc_control, (void *) &ctrl);
         CELLULAR_PORT_MUTEX_LOCK(_mtx_urc_task_running);
         CELLULAR_PORT_MUTEX_UNLOCK(_mtx_urc_task_running);
 
@@ -1188,6 +1244,7 @@ void cellular_ctrl_at_deinit()
         cellularPortMutexDelete(_mtx_urc_task_running);
         cellularPortMutexDelete(_mtx_callbacks_task_running);
         cellularPortQueueDelete(_queue_callbacks);
+        cellularPortQueueDelete(_queue_urc_control);
         cellularPort_assert(CELLULAR_CTRL_AT_GUARD_CHECK(_buf));
 
         // Pause here to allow the tidy-up to occur in the idle thread,
