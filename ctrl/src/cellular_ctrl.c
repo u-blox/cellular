@@ -837,7 +837,7 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
         } else {
             cellularPortLog("not connected, ");
         }
-        cellularPortLog("PWR_ON pin %d (0x%02x), ", pinPwrOn, pinPwrOn);
+        cellularPortLog("PWR_ON pin %d (0x%02x)", pinPwrOn, pinPwrOn);
         if (leavePowerAlone) {
             cellularPortLog(", leaving the level of both those pins alone");
         }

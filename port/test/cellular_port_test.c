@@ -74,6 +74,8 @@ static const char *gpTaskParameter = "Boo!";
 // Stuff to send to OS test task, must all be positive numbers.
 static int32_t gStuffToSend[] = {0, 100, 25, 3};
 
+#if (CELLULAR_PORT_TEST_PIN_UART_TXD >= 0) && (CELLULAR_PORT_TEST_PIN_UART_RXD >= 0)
+
 // The number of bytes correctly received during UART testing.
 static int32_t gUartBytesReceived = 0;
 
@@ -101,6 +103,8 @@ static const char gUartTestData[] =  "_____0000:01234567890123456789012345678901
 
 // A buffer to receive UART data into
 static char gUartBuffer[1024];
+
+#endif // (CELLULAR_PORT_TEST_PIN_UART_TXD >= 0) && (CELLULAR_PORT_TEST_PIN_UART_RXD >= 0)
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS
@@ -159,6 +163,8 @@ static int32_t sendToQueue(CellularPortQueueHandle_t gQueueHandle,
 {
     return cellularPortQueueSend(gQueueHandle, &thing);
 }
+
+#if (CELLULAR_PORT_TEST_PIN_UART_TXD >= 0) && (CELLULAR_PORT_TEST_PIN_UART_RXD >= 0)
 
 // The test task for UART stuff.
 static void uartTestTask(void *pParameters)
@@ -343,6 +349,8 @@ static void runUartTest(int32_t size, int32_t speed, bool flowControlOn)
 
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_PORT_TEST_UART) == 0);
 }
+
+#endif // (CELLULAR_PORT_TEST_PIN_UART_TXD >= 0) && (CELLULAR_PORT_TEST_PIN_UART_RXD >= 0)
 
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS: TESTS
