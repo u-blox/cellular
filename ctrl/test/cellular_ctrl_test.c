@@ -517,7 +517,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
 /** Get bandmasks.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestGetBandMask(),
-                            "getBandMask",
+                            "ctrlGetBandMask",
                             "ctrl")
 {
     uint64_t mask1;
@@ -571,7 +571,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestGetBandMask(),
 /** Set bandmasks.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
-                            "setBandMask",
+                            "ctrlSetBandMask",
                             "ctrl")
 {
     int32_t y;
@@ -713,7 +713,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetBandMask(),
  * consequential failures.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestPowerAlive(),
-                            "powerAndAliveness",
+                            "ctrlPowerAndAliveness",
                             "ctrl")
 {
     // Should work with and without a VInt pin connected
@@ -836,7 +836,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRat(),
 /** Test set/get RAT rank.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
-                            "setGetRatRank",
+                            "ctrlSetGetRatRank",
                             "ctrl")
 {
     CellularCtrlRat_t originalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
@@ -1083,7 +1083,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSetGetRatRank(),
 /** Test connected things on the default test RAT.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestConnectedThings(),
-                            "connectedThings",
+                            "ctrlConnectedThings",
                             "ctrl")
 {
     connectDisconnect(CELLULAR_CFG_TEST_RAT);
@@ -1094,7 +1094,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestConnectedThings(),
  * setting of an MNO profile is not allowed when connected.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
-                            "getSetMnoProfile",
+                            "ctrlGetSetMnoProfile",
                             "ctrl")
 {
     CellularCtrlRat_t originalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
@@ -1224,7 +1224,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
 /** Test reading the radio parameters.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
-                            "readRadioParameters",
+                            "ctrlReadRadioParameters",
                             "ctrl")
 {
     CellularCtrlRat_t originalRats[CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS];
@@ -1370,7 +1370,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadRadioParameters(),
 /** Get IMEI etc.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestReadImeiEtc(),
-                            "readImeiEtc",
+                            "ctrlReadImeiEtc",
                             "ctrl")
 {
     char buffer[64];

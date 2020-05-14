@@ -833,16 +833,16 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
         errorCode = CELLULAR_CTRL_PLATFORM_ERROR;
         cellularPortLog("CELLULAR_CTRL: initialising with enable power pin ");
         if (pinEnablePower >= 0) {
-            cellularPortLog("%d, ", pinEnablePower);
+            cellularPortLog("%d (0x%02x), ", pinEnablePower, pinEnablePower);
         } else {
             cellularPortLog("not connected, ");
         }
-        cellularPortLog("PWR_ON pin %d", pinPwrOn);
+        cellularPortLog("PWR_ON pin %d (0x%02x), ", pinPwrOn, pinPwrOn);
         if (leavePowerAlone) {
             cellularPortLog(", leaving the level of both those pins alone");
         }
         if (pinVInt >= 0) {
-            cellularPortLog(" and VInt pin %d.\n", pinVInt);
+            cellularPortLog(" and VInt pin %d (0x%02x).\n", pinVInt, pinVInt);
         } else {
             cellularPortLog(", VInt pin not connected.\n");
         }
@@ -875,12 +875,12 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
                         }
                         platformError = cellularPortGpioSet(pinEnablePower, enablePowerAtStart);
                         if (platformError != 0) {
-                            cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for enable power pin %d returned error code %d.\n",
-                                            pinEnablePower, platformError);
+                            cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for enable power pin %d (0x%02x) returned error code %d.\n",
+                                            pinEnablePower, pinEnablePower, platformError);
                         }
                     } else {
-                        cellularPortLog("CELLULAR_CTRL: cellularPortGpioConfig() for enable power pin %d returned error code %d.\n",
-                                        pinEnablePower, platformError);
+                        cellularPortLog("CELLULAR_CTRL: cellularPortGpioConfig() for enable power pin %d (0x%02x) returned error code %d.\n",
+                                        pinEnablePower, pinEnablePower, platformError);
                     }
                 }
                 if (platformError == 0) {
@@ -890,8 +890,8 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
                         gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_INPUT;
                         platformError = cellularPortGpioConfig(&gpioConfig);
                         if (platformError != 0) {
-                            cellularPortLog("CELLULAR_CTRL: cellularPortGpioConfig() for VInt pin %d returned error code %d.\n",
-                                            pinVInt, platformError);
+                            cellularPortLog("CELLULAR_CTRL: cellularPortGpioConfig() for VInt pin %d (0x%02x) returned error code %d.\n",
+                                            pinVInt, pinVInt, platformError);
                         }
                     }
                     if (platformError == 0) {
@@ -914,12 +914,12 @@ int32_t cellularCtrlInit(int32_t pinEnablePower,
                     }
                 }
             } else {
-                cellularPortLog("CELLULAR_CTRL: cellularPortGpioConfig() for PWR_ON pin %d returned error code %d.\n",
-                                pinPwrOn, platformError);
+                cellularPortLog("CELLULAR_CTRL: cellularPortGpioConfig() for PWR_ON pin %d (0x%02x) returned error code %d.\n",
+                                pinPwrOn, pinPwrOn, platformError);
             }
         } else {
-            cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for PWR_ON pin %d returned error code %d.\n",
-                            pinPwrOn, platformError);
+            cellularPortLog("CELLULAR_CTRL: cellularPortGpioSet() for PWR_ON pin %d (0x%02x) returned error code %d.\n",
+                            pinPwrOn, pinPwrOn, platformError);
         }
     } else {
         errorCode = CELLULAR_CTRL_SUCCESS;

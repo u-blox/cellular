@@ -27,6 +27,7 @@
 #include "cellular_port.h"
 #include "cellular_port_debug.h"
 #include "cellular_port_os.h"
+#include "cellular_port_gpio.h"
 #include "cellular_port_uart.h"
 #include "cellular_port_test_platform_specific.h"
 
@@ -47,31 +48,66 @@
  * TYPES
  * -------------------------------------------------------------- */
 
+// Type to hold the stuff that the UART test task needs to know about
+typedef struct {
+    CellularPortMutexHandle_t runningMutexHandle;
+    CellularPortQueueHandle_t uartQueueHandle;
+    CellularPortQueueHandle_t controlQueueHandle;
+} UartTestTaskData_t;
+
 /* ----------------------------------------------------------------
  * VARIABLES
  * -------------------------------------------------------------- */
 
-// Mutex handle.
+// OS test mutex handle.
 static CellularPortMutexHandle_t gMutexHandle = NULL;
 
-// Queue handle.
+// OS test queue handle.
 static CellularPortQueueHandle_t gQueueHandle = NULL;
 
-// Task handle.
+// OS test task handle.
 static CellularPortTaskHandle_t gTaskHandle = NULL;
 
-// Task parameter.
+// OS task parameter.
 static const char *gpTaskParameter = "Boo!";
 
-// Stuff to send to task, must all be positive numbers.
+// Stuff to send to OS test task, must all be positive numbers.
 static int32_t gStuffToSend[] = {0, 100, 25, 3};
+
+// The number of bytes correctly received during UART testing.
+static int32_t gUartBytesReceived = 0;
+
+// The data to send during UART testing.
+static const char gUartTestData[] =  "_____0000:0123456789012345678901234567890123456789"
+                                     "01234567890123456789012345678901234567890123456789"
+                                     "_____0100:0123456789012345678901234567890123456789"
+                                     "01234567890123456789012345678901234567890123456789"
+                                     "_____0200:0123456789012345678901234567890123456789"
+                                     "01234567890123456789012345678901234567890123456789"
+                                     "_____0300:0123456789012345678901234567890123456789"
+                                     "01234567890123456789012345678901234567890123456789"
+                                     "_____0400:0123456789012345678901234567890123456789"
+                                     "01234567890123456789012345678901234567890123456789"
+                                     "_____0500:0123456789012345678901234567890123456789"
+                                     "01234567890123456789012345678901234567890123456789"
+                                     "_____0600:0123456789012345678901234567890123456789"
+                                     "01234567890123456789012345678901234567890123456789"
+                                     "_____0700:0123456789012345678901234567890123456789"
+                                     "01234567890123456789012345678901234567890123456789"
+                                     "_____0800:0123456789012345678901234567890123456789"
+                                     "01234567890123456789012345678901234567890123456789"
+                                     "_____0900:0123456789012345678901234567890123456789"
+                                     "01234567890123456789012345678901234567890123456789";
+
+// A buffer to receive UART data into
+static char gUartBuffer[1024];
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS
  * -------------------------------------------------------------- */
 
-// The test task.
-static void testTask(void *pParameters)
+// The test task for OS stuff.
+static void osTestTask(void *pParameters)
 {
     int32_t queueItem = 0;
     int32_t index = 0;
@@ -124,6 +160,190 @@ static int32_t sendToQueue(CellularPortQueueHandle_t gQueueHandle,
     return cellularPortQueueSend(gQueueHandle, &thing);
 }
 
+// The test task for UART stuff.
+static void uartTestTask(void *pParameters)
+{
+    UartTestTaskData_t *pUartTaskData = (UartTestTaskData_t *) pParameters;
+    int32_t control = 0;
+    int32_t receiveSize;
+    int32_t dataSize;
+    int32_t blockNumber = 0;
+    int32_t indexInBlock = 0;
+    char *pReceive = gUartBuffer;
+
+    CELLULAR_PORT_MUTEX_LOCK(pUartTaskData->runningMutexHandle);
+
+    cellularPortLog("CELLULAR_PORT_UART_TEST_TASK: task started.\n");
+
+    // Run until the control queue sends us a non-zero thing
+    // or we spot an error
+    while (control == 0) {
+        // Wait for notification of UART data
+        dataSize = cellularPortUartEventTryReceive(pUartTaskData->uartQueueHandle,
+                                                   1000);
+        // Note: can't assert on cellularPortUartGetReceiveSize()
+        // being larger than or equal to dataSize since dataSize
+        // might be an old queued value.
+        while (dataSize > 0) {
+            receiveSize = cellularPortUartGetReceiveSize(CELLULAR_PORT_TEST_UART);
+            dataSize = cellularPortUartRead(CELLULAR_PORT_TEST_UART,
+                                            pReceive,
+                                            gUartBuffer + sizeof(gUartBuffer) - pReceive);
+            // dataSize will be smaller than receiveSize
+            // if our data buffer is smaller than the UART receive
+            // buffer but something might also have been received
+            // between the two calls, making it larger.  Just
+            // can't easily check cellularPortUartGetReceiveSize()
+            // for accuracy, so instead do a range check here
+            CELLULAR_PORT_TEST_ASSERT(receiveSize >= 0);
+            CELLULAR_PORT_TEST_ASSERT(receiveSize < CELLULAR_PORT_UART_RX_BUFFER_SIZE);
+            // Compare the data with the expected data
+            for (size_t x = 0; x < dataSize; x++) {
+                if (gUartTestData[indexInBlock] == *pReceive) {
+                    gUartBytesReceived++;
+                    indexInBlock++;
+                    // -1 below to omit gUartTestData string terminator
+                    if (indexInBlock >= sizeof(gUartTestData) - 1) {
+                        indexInBlock = 0;
+                        blockNumber++;
+                    }
+                    pReceive++;
+                    if (pReceive >= gUartBuffer + sizeof(gUartBuffer)) {
+                        pReceive = gUartBuffer;
+                    }
+                } else {
+                    control = -2;
+                }
+            }
+        }
+
+        // Check if there's anything for us on the control queue
+        cellularPortQueueTryReceive(pUartTaskData->controlQueueHandle,
+                                    10, (void *) &control);
+    }
+
+    if (control == -2) {
+        cellularPortLog("CELLULAR_PORT_UART_TEST_TASK: error after %d character(s), %d block(s).\n",
+                        gUartBytesReceived, blockNumber);
+        cellularPortLog("CELLULAR_PORT_UART_TEST_TASK: expected %c (0x%02x), received %c (0x%02x).\n",
+                        gUartTestData[indexInBlock], gUartTestData[indexInBlock],
+                        *pReceive, *pReceive);
+    } else {
+        cellularPortLog("CELLULAR_PORT_UART_TEST_TASK: %d character(s), %d block(s) received.\n",
+                        gUartBytesReceived, blockNumber);
+    }
+
+    CELLULAR_PORT_MUTEX_UNLOCK(pUartTaskData->runningMutexHandle);
+
+    cellularPortLog("CELLULAR_PORT_UART_TEST_TASK: task ended.\n");
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortTaskDelete(NULL) == 0);
+}
+
+// Run a UART test at the given baud rate and with/without flow control.
+static void runUartTest(int32_t size, int32_t speed, bool flowControlOn)
+{
+    UartTestTaskData_t uartTestTaskData;
+    CellularPortTaskHandle_t uartTaskHandle;
+    int32_t control;
+    int32_t bytesSent = 0;
+    int32_t pinCts = -1;
+    int32_t pinRts = -1;
+    CellularPortGpioConfig_t gpioConfig = CELLULAR_PORT_GPIO_CONFIG_DEFAULT;
+
+    gUartBytesReceived = 0;
+
+    if (flowControlOn) {
+        pinCts = CELLULAR_PORT_TEST_PIN_UART_CTS;
+        pinRts = CELLULAR_PORT_TEST_PIN_UART_RTS;
+    } else {
+        // If we want to test with flow control off
+        // but the flow control pins are actually
+        // connected then they need to be set
+        // to "get on with it"
+#if (CELLULAR_PORT_TEST_PIN_UART_CTS >= 0)
+            // Make it an output pin and low
+            CELLULAR_PORT_TEST_ASSERT(cellularPortGpioSet(CELLULAR_PORT_TEST_PIN_UART_CTS, 0) == 0);
+            gpioConfig.pin = CELLULAR_PORT_TEST_PIN_UART_CTS;
+            gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
+            CELLULAR_PORT_TEST_ASSERT(cellularPortGpioConfig(&gpioConfig) == 0);
+            cellularPortTaskBlock(1);
+#endif
+#if (CELLULAR_PORT_TEST_PIN_UART_RTS >= 0)
+            // Make it an output pin and low
+            CELLULAR_PORT_TEST_ASSERT(cellularPortGpioSet(CELLULAR_PORT_TEST_PIN_UART_RTS, 0) == 0);
+            gpioConfig.pin = CELLULAR_PORT_TEST_PIN_UART_RTS;
+            gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
+            CELLULAR_PORT_TEST_ASSERT(cellularPortGpioConfig(&gpioConfig) == 0);
+            cellularPortTaskBlock(1);
+#endif
+    }
+
+    cellularPortLog("CELLULAR_PORT_TEST: testing UART loop-back, %d byte(s) at %d bits/s with flow control %s.\n",
+                    size, speed, ((pinCts >= 0) && (pinRts >= 0)) ? "on" : "off");
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_PORT_TEST_PIN_UART_TXD,
+                                                   CELLULAR_PORT_TEST_PIN_UART_RXD,
+                                                   pinCts, pinRts,
+                                                   speed,
+                                                   CELLULAR_PORT_TEST_UART_RTS_THRESHOLD,
+                                                   CELLULAR_PORT_TEST_UART,
+                                                   &(uartTestTaskData.uartQueueHandle)) == 0);
+
+    cellularPortLog("CELLULAR_PORT_TEST: creating OS items to test UART...\n");
+
+    // Create a mutex so that we can tell if the UART receive task is running
+    CELLULAR_PORT_TEST_ASSERT(cellularPortMutexCreate(&(uartTestTaskData.runningMutexHandle)) == 0);
+
+    // Start a queue to control the UART receive task;
+    // will send it -1 to exit
+    CELLULAR_PORT_TEST_ASSERT(cellularPortQueueCreate(5, sizeof(int32_t),
+                                                      &(uartTestTaskData.controlQueueHandle)) == 0);
+
+    // Start the UART receive task
+    CELLULAR_PORT_TEST_ASSERT(cellularPortTaskCreate(uartTestTask, "uartTestTask",
+                                                     CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES,
+                                                     (void *) &uartTestTaskData,
+                                                     CELLULAR_PORT_TEST_OS_TASK_PRIORITY,
+                                                     &uartTaskHandle) == 0);
+    // Pause here to allow the task to start.
+    cellularPortTaskBlock(100);
+
+    // Send data over the UART N times, Rx task will check it
+    while (bytesSent < size) {
+        // -1 below to omit gUartTestData string terminator
+        CELLULAR_PORT_TEST_ASSERT(cellularPortUartWrite(CELLULAR_PORT_TEST_UART,
+                                                        gUartTestData,
+                                                        sizeof(gUartTestData) - 1) == sizeof(gUartTestData) - 1);
+        bytesSent += sizeof(gUartTestData) - 1;
+        cellularPortLog("CELLULAR_PORT_TEST: %d byte(s) sent.\n", bytesSent);
+    }
+
+    // Wait long enough for everything to have been received
+    cellularPortTaskBlock(1000);
+    cellularPortLog("CELLULAR_PORT_TEST: at end of test %d byte(s) sent, %d byte(s) received.\n",
+                    bytesSent, gUartBytesReceived);
+    CELLULAR_PORT_TEST_ASSERT(gUartBytesReceived == bytesSent);
+
+    cellularPortLog("CELLULAR_PORT_TEST: tidying up after UART test...\n");
+
+    // Tell the UART Rx task to exit
+    control = -1;
+    CELLULAR_PORT_TEST_ASSERT(cellularPortQueueSend(uartTestTaskData.controlQueueHandle,
+                                                    (void *) &control) == 0);
+    // Wait for it to exit
+    CELLULAR_PORT_MUTEX_LOCK(uartTestTaskData.runningMutexHandle);
+    CELLULAR_PORT_MUTEX_UNLOCK(uartTestTaskData.runningMutexHandle);
+    // Pause to allow it to be destroyed in the idle task
+    cellularPortTaskBlock(100);
+
+    // Tidy up the rest
+    cellularPortQueueDelete(uartTestTaskData.controlQueueHandle);
+    cellularPortMutexDelete(uartTestTaskData.runningMutexHandle);
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_PORT_TEST_UART) == 0);
+}
+
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS: TESTS
  * -------------------------------------------------------------- */
@@ -141,7 +361,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestInitialisation(),
 /** Test: all the OS stuff.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
-                            "os",
+                            "portOs",
                             "port")
 {
     int32_t errorCode;
@@ -174,7 +394,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
                     CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES,
                     CELLULAR_PORT_TEST_OS_TASK_PRIORITY,
                     &gpTaskParameter, gpTaskParameter);
-    errorCode = cellularPortTaskCreate(testTask, "test_task",
+    errorCode = cellularPortTaskCreate(osTestTask, "osTestTask",
                                        CELLULAR_PORT_TEST_OS_TASK_STACK_SIZE_BYTES,
                                        (void *) gpTaskParameter,
                                        CELLULAR_PORT_TEST_OS_TASK_PRIORITY,
@@ -257,7 +477,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestOs(),
 /** Test: strtok_r since we have our own implementation for some platforms.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularPortTest_strtok_r(),
-                            "strtok_r",
+                            "portStrtok_r",
                             "port")
 {
     char *pSave;
@@ -298,6 +518,140 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTest_strtok_r(),
 
     cellularPortDeinit();
 }
+
+#if (CELLULAR_PORT_TEST_PIN_A >= 0) && (CELLULAR_PORT_TEST_PIN_B >= 0) && \
+    (CELLULAR_PORT_TEST_PIN_C >= 0)
+/** Test GPIOs.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestGpio(),
+                            "portGpio",
+                            "port")
+{
+    CellularPortGpioConfig_t gpioConfig = CELLULAR_PORT_GPIO_CONFIG_DEFAULT;
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
+
+    cellularPortLog("CELLULAR_PORT_TEST: testing GPIOs.\n");
+    cellularPortLog("CELLULAR_PORT_TEST: pin A (%d, 0x%02x) must be connected to pin B (%d, 0x%02x) via a 1k resistor.\n",
+                    CELLULAR_PORT_TEST_PIN_A, CELLULAR_PORT_TEST_PIN_A,
+                    CELLULAR_PORT_TEST_PIN_B, CELLULAR_PORT_TEST_PIN_B);
+    cellularPortLog("CELLULAR_PORT_TEST: pin C (%d, 0x%02x) must be connected to pin B (%d, 0x%02x).\n",
+                    CELLULAR_PORT_TEST_PIN_C, CELLULAR_PORT_TEST_PIN_C,
+                    CELLULAR_PORT_TEST_PIN_B, CELLULAR_PORT_TEST_PIN_B);
+
+    // Make pins B and C inputs, no pull
+    gpioConfig.pin = CELLULAR_PORT_TEST_PIN_B;
+    gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_INPUT;
+    gpioConfig.pullMode =  CELLULAR_PORT_GPIO_PULL_MODE_NONE;
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioConfig(&gpioConfig) == 0);
+    gpioConfig.pin = CELLULAR_PORT_TEST_PIN_C;
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioConfig(&gpioConfig) == 0);
+
+    // Set pin A high
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioSet(CELLULAR_PORT_TEST_PIN_A, 1) == 0);
+    // Make it an output pin
+    gpioConfig.pin = CELLULAR_PORT_TEST_PIN_A;
+    gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioConfig(&gpioConfig) == 0);
+    cellularPortTaskBlock(1);
+
+    // Pins B and C should read 1
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_B) == 1);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_C) == 1);
+
+    // Set pin A low
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioSet(CELLULAR_PORT_TEST_PIN_A, 0) == 0);
+    cellularPortTaskBlock(1);
+
+    // Pins B and C should read 0
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_B) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_C) == 0);
+
+    // Make pin B an output, low, open drain
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioSet(CELLULAR_PORT_TEST_PIN_B, 0) == 0);
+    gpioConfig.pin = CELLULAR_PORT_TEST_PIN_B;
+    gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_OUTPUT;
+    gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN;
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioConfig(&gpioConfig) == 0);
+    cellularPortTaskBlock(1);
+
+    // Pin C should still read 0
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_C) == 0);
+
+    // Set pin A high
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioSet(CELLULAR_PORT_TEST_PIN_A, 1) == 0);
+    cellularPortTaskBlock(1);
+
+    // Pin C should still read 0
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_C) == 0);
+
+    // Set pin B high
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioSet(CELLULAR_PORT_TEST_PIN_B, 1) == 0);
+    cellularPortTaskBlock(1);
+
+    // Pin C should now read 1
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_C) == 1);
+
+    // Make pin A an input/output pin
+    gpioConfig.pin = CELLULAR_PORT_TEST_PIN_A;
+    gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_INPUT_OUTPUT;
+    gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_NORMAL;
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioConfig(&gpioConfig) == 0);
+
+    // Pin A should read 1
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_A) == 1);
+
+    // Set pin A low
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioSet(CELLULAR_PORT_TEST_PIN_A, 0) == 0);
+    cellularPortTaskBlock(1);
+
+    // Pins A and C should read 0
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_A) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_C) == 0);
+
+    // Make pin B an input/output open-drain pin
+    gpioConfig.pin = CELLULAR_PORT_TEST_PIN_B;
+    gpioConfig.direction = CELLULAR_PORT_GPIO_DIRECTION_INPUT_OUTPUT;
+    gpioConfig.driveMode = CELLULAR_PORT_GPIO_DRIVE_MODE_OPEN_DRAIN;
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioConfig(&gpioConfig) == 0);
+
+    // All pins should read 0
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_A) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_B) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortGpioGet(CELLULAR_PORT_TEST_PIN_C) == 0);
+
+    // Note: it is impossible to check pull up/down
+    // of input pins reliably as boards have level shifters
+    // and protection resistors between the board pins and the
+    // chip pins that drown-out the effect of the pull up/down
+    // inside the chip.
+    // Also can't easily test drive strength and in any case
+    // it is not supported on all platforms.
+
+    cellularPortDeinit();
+}
+#endif
+
+#if (CELLULAR_PORT_TEST_PIN_UART_TXD >= 0) && (CELLULAR_PORT_TEST_PIN_UART_RXD >= 0)
+/** Test UART.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestUart(),
+                            "portUart",
+                            "port")
+{
+    CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
+
+    // Run a UART test at 115,200
+#if (CELLULAR_PORT_TEST_PIN_UART_CTS >= 0) && (CELLULAR_PORT_TEST_PIN_UART_RTS >= 0)
+    // ...with flow control
+    runUartTest(50000, 115200, true);
+#endif
+    // ...without flow control
+    runUartTest(50000, 115200, false);
+
+    cellularPortDeinit();
+}
+#endif
 
 /** Clean-up to be run at the end of this round of tests, just
  * in case there were test failures which would have resulted

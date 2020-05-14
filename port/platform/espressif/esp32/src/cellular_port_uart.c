@@ -223,7 +223,7 @@ int32_t cellularPortUartEventTryReceive(const CellularPortQueueHandle_t queueHan
     uart_event_t uartEvent;
 
     if (queueHandle != NULL) {
-        sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        sizeOrErrorCode = CELLULAR_PORT_TIMEOUT;
         if (cellularPortQueueTryReceive(queueHandle, waitMs, &uartEvent) == 0) {
             sizeOrErrorCode = CELLULAR_PORT_UNKNOWN_ERROR;
             if (uartEvent.type < UART_EVENT_MAX) {

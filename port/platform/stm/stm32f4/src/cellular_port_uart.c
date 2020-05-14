@@ -1043,7 +1043,7 @@ int32_t cellularPortUartEventTryReceive(const CellularPortQueueHandle_t queueHan
     CellularPortUartEventData_t uartSizeOrError;
 
     if (queueHandle != NULL) {
-        sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        sizeOrErrorCode = CELLULAR_PORT_TIMEOUT;
         if (cellularPortQueueTryReceive(queueHandle, waitMs, &uartSizeOrError) == 0) {
             sizeOrErrorCode = uartSizeOrError;
         }
@@ -1071,8 +1071,8 @@ int32_t cellularPortUartGetReceiveSize(int32_t uart)
             sizeOrErrorCode = pRxBufferWrite - pUartData->pRxBufferRead;
         } else if (pUartData->pRxBufferRead > pRxBufferWrite) {
             // Read pointer is ahead of write, bytes received
-            // is up to the end of the buffer then wrap
-            // around to the write pointer
+            // is from the read pointer up to the end of the buffer
+            // then wrap around to the write pointer
             sizeOrErrorCode = (pUartData->pRxBufferStart +
                                CELLULAR_PORT_UART_RX_BUFFER_SIZE -
                                pUartData->pRxBufferRead) +
@@ -1147,6 +1147,12 @@ int32_t cellularPortUartRead(int32_t uart, char *pBuffer,
                 // Move the read pointer on
                 pUartData->pRxBufferRead += thisSize;
             }
+        }
+
+        // If everything has been read, a notification
+        // is needed for the next one
+        if (pUartData->pRxBufferRead == pRxBufferWrite) {
+            pUartData->userNeedsNotify = true;
         }
 
         CELLULAR_PORT_MUTEX_UNLOCK(pUartData->mutex);

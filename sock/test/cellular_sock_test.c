@@ -1108,7 +1108,7 @@ static void checkSetOption(CellularSockDescriptor_t sockDescriptor,
 
 // Release OS resources that may have been left hanging
 // by a failed test
-void osCleanup()
+static void osCleanup()
 {
     if ((gTaskHandleDataReceived != NULL) &&
         (gMutexHandleDataReceivedTaskRunning != NULL) &&
@@ -1162,7 +1162,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestInitialisation(),
  * TODO: test for string overruns.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
-                            "addressStrings",
+                            "sockAddressStrings",
                             "sock")
 {
     char buffer[64];
@@ -1233,7 +1233,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
  * TODO: test error cases.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoBasic(),
-                            "udpEchoBasic",
+                            "sockUdpEchoBasic",
                             "sock")
 {
     CellularSockAddress_t remoteAddress;
@@ -1328,7 +1328,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoBasic(),
  * TODO: test error cases.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoBasic(),
-                            "tcpEchoBasic",
+                            "sockTcpEchoBasic",
                             "sock")
 {
     CellularSockAddress_t remoteAddress;
@@ -1468,7 +1468,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoBasic(),
 /** Test max num sockets.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
-                            "maxNumSockets",
+                            "sockMaxNumSockets",
                             "sock")
 {
     CellularSockAddress_t remoteAddress;
@@ -1598,7 +1598,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestMaxNumSockets(),
  * TODO: error cases.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
-                            "setGetOptions",
+                            "sockSetGetOptions",
                             "sock")
 {
     CellularSockAddress_t remoteAddress;
@@ -1688,15 +1688,15 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
     timeout.tv_sec = 0;
     timeout.tv_usec = 500000;
     timeoutMs = timeout.tv_sec * 1000 + timeout.tv_usec / 1000;
-    cellularPortLog("CELLULAR_SOCK_TEST: setting timeout to %.3f second(s)...\n",
-                    ((float) timeoutMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: setting timeout to %d millisecond(s)...\n",
+                    timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(cellularSockSetOption(sockDescriptor,
                                                     CELLULAR_SOCK_OPT_LEVEL_SOCK,
                                                     CELLULAR_SOCK_OPT_RCVTIMEO,
@@ -1707,8 +1707,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
 
@@ -1723,7 +1723,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestSetGetOptions(),
  * TODO: error cases.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
-                            "nonBlocking",
+                            "sockNonBlocking",
                             "sock")
 {
     CellularSockAddress_t remoteAddress;
@@ -1773,8 +1773,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
     startTime = cellularPortGetTickTimeMs();
@@ -1782,8 +1782,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
 
@@ -1819,16 +1819,16 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS);
     startTime = cellularPortGetTickTimeMs();
     CELLULAR_PORT_TEST_ASSERT(cellularSockRead(sockDescriptor, pData, sizeof(pData)) < 0);
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS);
 
     cellularPortLog("CELLULAR_SOCK_TEST: unset non-blocking state using cellularSockFcntl()...\n");
@@ -1854,8 +1854,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
     startTime = cellularPortGetTickTimeMs();
@@ -1863,8 +1863,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
 
@@ -1892,16 +1892,16 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS);
     startTime = cellularPortGetTickTimeMs();
     CELLULAR_PORT_TEST_ASSERT(cellularSockRead(sockDescriptor, pData, sizeof(pData)) < 0);
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < CELLULAR_SOCK_TEST_NON_BLOCKING_TIME_MS);
 
     cellularPortLog("CELLULAR_SOCK_TEST: unset non-blocking state using cellularSockIoctl()...\n");
@@ -1933,8 +1933,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockReceiveFrom() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
     startTime = cellularPortGetTickTimeMs();
@@ -1942,8 +1942,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
     elapsedMs = cellularPortGetTickTimeMs() - startTime;
     CELLULAR_PORT_TEST_ASSERT(cellularPort_errno_get() == CELLULAR_SOCK_EWOULDBLOCK);
     cellularPort_errno_set(0);
-    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %.3f second(s)...\n",
-                    ((float) elapsedMs) / 1000);
+    cellularPortLog("CELLULAR_SOCK_TEST: cellularSockRead() of nothing took %d millisecond(s)...\n",
+                    elapsedMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs >= timeoutMs);
     CELLULAR_PORT_TEST_ASSERT(elapsedMs < timeoutMs + CELLULAR_SOCK_TEST_TIME_MARGIN_MS);
 
@@ -1965,7 +1965,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestNonBlocking(),
  * TODO: test error cases.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoNonPingPong(),
-                            "udpEchoNonPingPong",
+                            "sockUdpEchoNonPingPong",
                             "sock")
 {
     CellularSockAddress_t remoteAddress;
@@ -2066,7 +2066,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoNonPingPong(),
 /** UDP echo test that does asynchronous receive.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoAsyncMayMayFailDueToInternetDatagramDrop(),
-                            "udpEchoAsyncMayFailDueToInternetDatagramDrop",
+                            "sockUdpEchoAsyncMayFailDueToInternetDatagramDrop",
                             "sock")
 {
     CellularSockAddress_t remoteAddress;
@@ -2161,7 +2161,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestUdpEchoAsyncMayMayFailDueToInte
 /** TCP echo test that does asynchronous receive.
  */
 CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestTcpEchoAsync(),
-                            "tcpEchoAsync",
+                            "sockTcpEchoAsync",
                             "sock")
 {
     CellularSockAddress_t remoteAddress;

@@ -79,8 +79,14 @@
 
 #ifndef CELLULAR_CFG_UART3_AVAILABLE
 /** Whether USART3 is available to the UART driver or not.
+ * This is set to 1 because the unit tests for the UART
+ * driver on this platform use UART3
+ * (see cellular_port_test_platform_specific.h), which comes
+ * out of the D0/D1/D2/D3 pins of the Arduino connector
+ * on a C030 board.  If you are not going to run
+ * the unit tests you can set this to 0.
  */
-# define CELLULAR_CFG_UART3_AVAILABLE  0
+# define CELLULAR_CFG_UART3_AVAILABLE  1
 #endif
 
 #ifndef CELLULAR_CFG_UART4_AVAILABLE

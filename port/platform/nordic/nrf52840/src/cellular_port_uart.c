@@ -685,7 +685,7 @@ int32_t cellularPortUartEventTryReceive(const CellularPortQueueHandle_t queueHan
     CellularPortUartEventData_t uartSizeOrError;
 
     if (queueHandle != NULL) {
-        sizeOrErrorCode = CELLULAR_PORT_PLATFORM_ERROR;
+        sizeOrErrorCode = CELLULAR_PORT_TIMEOUT;
         if (cellularPortQueueTryReceive(queueHandle, waitMs, &uartSizeOrError) == 0) {
             sizeOrErrorCode = uartSizeOrError;
         }

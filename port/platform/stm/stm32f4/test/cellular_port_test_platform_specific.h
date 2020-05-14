@@ -28,7 +28,7 @@
  */
 
 /* ----------------------------------------------------------------
- * COMPILE-TIME MACROS
+ * COMPILE-TIME MACROS: UNITY RELATED
  * -------------------------------------------------------------- */
 
 /** Macro to wrap a test assertion and map it to our Unity port.
@@ -39,6 +39,10 @@
  * map it to our Unity port.
  */
 #define CELLULAR_PORT_TEST_FUNCTION(function, name, group) CELLULAR_PORT_UNITY_TEST_FUNCTION(name, group)
+
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS: OS RELATED
+ * -------------------------------------------------------------- */
 
 /** The stack size to use for the test task created during OS testing.
  */
@@ -57,6 +61,69 @@
  * lower priority than the URC handler.
  */
 #define CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY (CELLULAR_CTRL_AT_TASK_URC_PRIORITY + 1)
+
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS: HW RELATED
+ * -------------------------------------------------------------- */
+
+/** Pin A for GPIO testing: should be connected to pin B via a 1k
+ * resistor.
+ */
+#ifndef CELLULAR_PORT_TEST_PIN_A
+# define CELLULAR_PORT_TEST_PIN_A         0x05 // AKA PA_5 or D5 on a C030 board
+#endif
+
+/** Pin B for GPIO testing: should be connected to pin A via a 1k
+ * resistor and also to pin C.
+ */
+#ifndef CELLULAR_PORT_TEST_PIN_B
+# define CELLULAR_PORT_TEST_PIN_B         0x18 // AKA PB_8 or D6 on a C030 board
+#endif
+
+/** Pin C for GPIO testing: should be connected to pin B.
+ */
+#ifndef CELLULAR_PORT_TEST_PIN_C
+# define CELLULAR_PORT_TEST_PIN_C         0x1f // AKA PB_15 or D7 on a C030 board
+#endif
+
+/** UART HW block for UART driver testing.
+ * Note: make sure that the corresponding
+ * CELLULAR_CFG_UARTx_AVAILABLE for this UART is
+ * set to 1 in cellular_cfg_hw_platform_specific.h
+ */
+#ifndef CELLULAR_PORT_TEST_UART
+# define CELLULAR_PORT_TEST_UART          3 // UART3
+#endif
+
+/** Handshake threshold for UART testing.
+ */
+#ifndef CELLULAR_PORT_TEST_UART_RTS_THRESHOLD
+# define CELLULAR_PORT_TEST_UART_RTS_THRESHOLD 0 // Not used on this platform
+#endif
+
+/** Tx pin for UART testing: should be connected to the Rx UART pin.
+ */
+#ifndef CELLULAR_PORT_TEST_PIN_UART_TXD
+# define CELLULAR_PORT_TEST_PIN_UART_TXD   0x38 // UART3 TX, PD_8 or D1 on a C030 board
+#endif
+
+/** Rx pin for UART testing: should be connected to the Tx UART pin.
+ */
+#ifndef CELLULAR_PORT_TEST_PIN_UART_RXD
+# define CELLULAR_PORT_TEST_PIN_UART_RXD   0x39 // UART3 RX, PD_9 or D0 on a C030 board
+#endif
+
+/** CTS pin for UART testing: should be connected to the RTS UART pin.
+ */
+#ifndef CELLULAR_PORT_TEST_PIN_UART_CTS
+# define CELLULAR_PORT_TEST_PIN_UART_CTS  0x3b // UART3 CTS, PD_11 or D2 on a C030 board
+#endif
+
+/** RTS pin for UART testing: should be connected to the CTS UART pin.
+ */
+#ifndef CELLULAR_PORT_TEST_PIN_UART_RTS
+# define CELLULAR_PORT_TEST_PIN_UART_RTS  0x1e // UART3 RTS, PB_14 or D3 on a C030 board
+#endif
 
 /* ----------------------------------------------------------------
  * FUNCTIONS
