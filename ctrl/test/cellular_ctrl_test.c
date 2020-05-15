@@ -1186,6 +1186,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestMnoProfile(),
     cellularPortLog("CELLULAR_CTRL_TEST: completed, tidying up...\n");
     // No asserts here, we need it to plough on and succeed
     cellularCtrlSetMnoProfile(originalMnoProfile);
+    cellularCtrlReboot();
     if (cellularCtrlGetMnoProfile() != originalMnoProfile) {
         cellularPortLog("CELLULAR_CTRL_TEST: !!! ATTENTION: the MNO profile of the module under test may have been left screwy, please check!!!\n");
     }
