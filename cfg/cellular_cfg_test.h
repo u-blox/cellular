@@ -122,7 +122,7 @@
 /** The number of retries to allow when sending
  * data over UDP.
  */
-# define CELLULAR_CFG_TEST_UDP_RETRIES 5
+# define CELLULAR_CFG_TEST_UDP_RETRIES 10
 #endif
 
 #endif // _CELLULAR_CFG_TEST_H_
