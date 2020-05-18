@@ -1,0 +1,3 @@
+repo.name: ublox-cellular
+repo.versions:
+    "0.0.0": "master"
