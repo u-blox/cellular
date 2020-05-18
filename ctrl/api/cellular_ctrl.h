@@ -564,10 +564,11 @@ int32_t cellularCtrlActivate(const char *pApn, const char *pUsername,
  * @return                   zero on success or negative error code on
  *                           failure.
  */
-int32_t cellularCtrlDeActivate();
+int32_t cellularCtrlDeactivate();
 
 /** Disconnect from the network. If there is an active PDP Context it 
- * will be deactivated.  
+ * will be deactivated. The state of the module will be that the 
+ * radio is in Airplane Mode (+CFUN=4). 
  * 
  * @param pKeepGoingCallback a callback function that governs how
  *                           long deregistration will continue for.
@@ -596,9 +597,9 @@ int32_t cellularCtrlSetRegistrationStatusCallback(
     void (*pRegistrationCallback) (void *, CellularCtrlNetworkStatus_t), 
     void *pParam);
 
-/** Enable or disable the Radio connection callback. This
- * callback will allow the application to know when the module has
- * a connection to a base station. 
+/** Enable or disable the module's basestation connection callback.
+ * This callback will allow the application to know when the module has
+ * a current connection to a base station.  
  * 
  * @param pRegistrationCallback pointer to the function to handle 
  *                              any registration state changes.   
@@ -607,7 +608,7 @@ int32_t cellularCtrlSetRegistrationStatusCallback(
  * @return                      zero on success or negative error code on
  *                              failure. 
  */
-int32_t cellularCtrlSetRadioConnectionStatusCallback(
+int32_t cellularCtrlSetBasestationConnectionStatusCallback(
     void (*pRadioConnectionStatusCallback) (void *, bool), 
     void *pParam);
 
@@ -617,11 +618,13 @@ int32_t cellularCtrlSetRadioConnectionStatusCallback(
  */
 CellularCtrlNetworkStatus_t cellularCtrlGetNetworkStatus();
 
-/** Get the current radio connection status.
+/** Get a value indicting whether the module is registered on 
+ * the network, roaming or home networks.
  *
- * @return the current status. True for connected, false otherwise.
+ * @return True if registered either on roaming or home networks, 
+ *         false otherwise
  */
-bool cellularCtrlGetRadioConnectionStatus();
+bool cellularCtrlIsRegistered();
 
 /** Return the RAT that is currently in use.
  *
@@ -700,7 +703,7 @@ int32_t cellularCtrlGetIpAddressStr(char *pStr);
  *                NOT including the terminator (i.e. as strlen()
  *                would return), on failure negative error code.
  */
-int32_t cellularCtrlGetDNSStr(char *pStrDNS_first, char *pStrDNS_second);
+int32_t cellularCtrlGetDnsStr(char *pStrDnsFirst, char *pStrDnsSecond);
 
 /** Get the APN currently in use.
  *
