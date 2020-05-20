@@ -21,7 +21,7 @@ cellular
 
 You may unzip it to a different location but, if you do so, when you open your chosen build you must go to `Project` -> `Properties` -> `Resource` -> `Linked Resources`, modify the path variable `STM32CUBE_FW_PATH` to point to the correct location and then refresh the project.
 
-BEFORE running the STM32Cube IDE you first need to define which module you are using (e.g. one of `CELLULAR_CFG_MODULE_SARA_R4` or `CELLULAR_CFG_MODULE_SARA_R5`).  To do this, create an environment variable called `CELLULAR_FLAG0` and set it to be that module name in the form:
+BEFORE running the STM32Cube IDE you first need to define which module you are using (e.g. one of `CELLULAR_CFG_MODULE_SARA_R412M_02B` or `CELLULAR_CFG_MODULE_SARA_R5`).  To do this, create an environment variable called `CELLULAR_FLAG0` and set it to be that module name in the form:
 
 ```
 set CELLULAR_FLAG0=-DCELLULAR_CFG_MODULE_SARA_R5

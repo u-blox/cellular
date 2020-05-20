@@ -9,7 +9,7 @@ https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html#get
 Only building/running the unit tests (which test absolutely everything) are supported at this moment.
 
 # Testing
-To build the unit tests, you first need to define which module you are using (e.g. one of `CELLULAR_CFG_MODULE_SARA_R4` or `CELLULAR_CFG_MODULE_SARA_R5`).  To do this, create an environment variable called `CELLULAR_FLAGS` and set it to be that module name in the form:
+To build the unit tests, you first need to define which module you are using (e.g. one of `CELLULAR_CFG_MODULE_SARA_R412M_03B` or `CELLULAR_CFG_MODULE_SARA_R5`).  To do this, create an environment variable called `CELLULAR_FLAGS` and set it to be that module name in the form:
 
 ```
 set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5

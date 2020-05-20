@@ -44,6 +44,12 @@
  */
 #define CELLULAR_CTRL_IS_ALIVE_ATTEMPTS_POWER_ON 10
 
+/** The maximum length of an APN, used when retrieving the current APN
+ * in order to use it with security services.  Includes room for a 
+ * NULL terminator.
+ */
+#define CELLULAR_CTRL_APN_LENGTH (64 + 1)
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -2353,6 +2359,176 @@ int32_t cellularCtrlGetTimeUtc()
     }
 
     return (errorCode == CELLULAR_CTRL_SUCCESS) ? timeUtc : (int32_t) errorCode;
+}
+
+// Request security sealing of a cellular module.
+int32_t cellularCtrlSetSecuritySeal(char *pDeviceInfoStr,
+                                    char *pDeviceSerialNumberStr,
+                                    bool (*pKeepGoingCallback) (void))
+{
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_SUPPORTED;
+
+#if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
+    errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    if (gInitialised) {
+        errorCode = CELLULAR_CTRL_INVALID_PARAMETER;
+        if ((pDeviceInfoStr != NULL) &&
+            (pDeviceSerialNumberStr != NULL)) {
+            errorCode = CELLULAR_CTRL_AT_ERROR;
+            cellular_ctrl_at_lock();
+            cellular_ctrl_at_cmd_start("AT+USECDEVINFO=");
+            cellular_ctrl_at_write_string(pDeviceInfoStr, true);
+            cellular_ctrl_at_write_string(pDeviceSerialNumberStr, true);
+            cellular_ctrl_at_cmd_stop_read_resp();
+            if (cellular_ctrl_at_unlock_return_error() == 0) {
+                while ((errorCode != CELLULAR_CTRL_SUCCESS) &&
+                       ((pKeepGoingCallback == NULL) ||
+                         pKeepGoingCallback())) {
+                    errorCode = cellularCtrlGetSecuritySeal();
+                }
+            } else {
+                cellularPortLog("CELLULAR_CTRL: request for security sealing refused.\n");
+            }
+        }
+    }
+#endif // CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
+
+    return (int32_t) errorCode;
+}
+
+// Get the security seal status of a cellular module.
+int32_t cellularCtrlGetSecuritySeal()
+{
+    CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_SUPPORTED;
+
+#if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
+    int32_t moduleIsRegistered;
+    int32_t deviceIsRegistered;
+    int32_t deviceIsActivated;
+# ifdef CELLULAR_CFG_MODULE_SARA_R5
+    char *pApn;
+# endif
+
+    errorCode = CELLULAR_CTRL_NOT_INITIALISED;
+    if (gInitialised) {
+# ifdef CELLULAR_CFG_MODULE_SARA_R5
+        errorCode = CELLULAR_CTRL_NO_MEMORY;
+        // On current SARA-R5 devices, need to tell
+        // the module which APN to use on the PDP
+        // context that it established for the
+        // security service functions
+        pApn = pCellularPort_malloc(CELLULAR_CTRL_APN_LENGTH);
+        if (pApn != NULL) {
+            errorCode = cellularCtrlGetApnStr(pApn, CELLULAR_CTRL_APN_LENGTH);
+            if (errorCode > 0) {
+                errorCode = CELLULAR_CTRL_AT_ERROR;
+                cellular_ctrl_at_lock();
+                cellular_ctrl_at_cmd_start("AT+USECOPCMD=");
+                cellular_ctrl_at_write_string("cfgpdn", true);
+                cellular_ctrl_at_write_string(pApn, true);
+                cellular_ctrl_at_cmd_stop_read_resp();
+                if (cellular_ctrl_at_unlock_return_error() == 0) {
+# else
+        errorCode = CELLULAR_CTRL_AT_ERROR;
+# endif // CELLULAR_CFG_MODULE_SARA_R5
+                    cellular_ctrl_at_lock();
+                    cellular_ctrl_at_cmd_start("AT+USECDEVINFO?");
+                    cellular_ctrl_at_cmd_stop();
+                    cellular_ctrl_at_resp_start("+USECDEVINFO:", false);
+                    moduleIsRegistered = cellular_ctrl_at_read_int();
+                    deviceIsRegistered = cellular_ctrl_at_read_int();
+                    deviceIsActivated = cellular_ctrl_at_read_int();
+                    cellular_ctrl_at_resp_stop();
+                    if (cellular_ctrl_at_unlock_return_error() == 0) {
+                        cellularPortLog("CELLULAR_CTRL: seal request status:\n");
+                        if (moduleIsRegistered != 1) {
+                            errorCode = CELLULAR_CTRL_SEC_SEAL_MODULE_NOT_REGISTERED;
+                            cellularPortLog("               module not registered.\n");
+                        } else if (deviceIsRegistered != 1) {
+                            cellularPortLog("               module registered but not device.\n");
+                            errorCode = CELLULAR_CTRL_SEC_SEAL_DEVICE_NOT_REGISTERED;
+                        } else if (deviceIsActivated != 1) {
+                            cellularPortLog("               module and device registered but not activated.\n");
+                            errorCode = CELLULAR_CTRL_SEC_SEAL_DEVICE_NOT_ACTIVATED;
+                        } else {
+                            cellularPortLog("               module and device registered and activated.\n");
+                            errorCode = CELLULAR_CTRL_SUCCESS;
+                        }
+                    }
+# ifdef CELLULAR_CFG_MODULE_SARA_R5
+                }
+            }
+            // Free memory
+            cellularPort_free(pApn);
+        }
+# endif // CELLULAR_CFG_MODULE_SARA_R5
+    }
+#endif // CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
+
+    return (int32_t) errorCode;
+}
+
+// Ask the cellular module to encrypt a block of data.
+int32_t cellularSecurityEndToEndEncrypt(const void *pDataIn,
+                                        void *pDataOut,
+                                        size_t dataSizeBytes)
+{
+    CellularCtrlErrorCode_t errorCodeOrSize = CELLULAR_CTRL_NOT_SUPPORTED;
+
+#if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
+    int32_t sizeOutBytes = 0;
+    uint8_t quoteMark;
+
+    errorCodeOrSize = CELLULAR_CTRL_NOT_INITIALISED;
+    if (gInitialised) {
+        if (dataSizeBytes > 0) {
+            errorCodeOrSize = CELLULAR_CTRL_INVALID_PARAMETER;
+            if ((pDataIn != NULL) &&
+                (pDataOut != NULL)) {
+                errorCodeOrSize = CELLULAR_CTRL_AT_ERROR;
+                cellular_ctrl_at_lock();
+                cellular_ctrl_at_cmd_start("AT+USECE2EDATAENC=");
+                cellular_ctrl_at_write_int(dataSizeBytes);
+                cellular_ctrl_at_cmd_stop();
+                // Wait for the prompt
+                if (cellular_ctrl_at_wait_char('>')) {
+                    // Wait for it...
+                    cellularPortTaskBlock(50);
+                    // Go!
+                    cellular_ctrl_at_write_bytes((uint8_t *) pDataIn,
+                                                 dataSizeBytes);
+                    // Grab the response
+                    cellular_ctrl_at_resp_start("+USECE2EDATAENC:", false);
+                    // Read the amount of data that has been encryptd
+                    sizeOutBytes = cellular_ctrl_at_read_int();
+                    if (sizeOutBytes > dataSizeBytes) {
+                        sizeOutBytes = dataSizeBytes;
+                    }
+                    // Don't stop for anything!
+                    cellular_ctrl_at_set_delimiter(0);
+                    cellular_ctrl_at_set_stop_tag(NULL);
+                    // Get the leading quote mark out of the way
+                    cellular_ctrl_at_read_bytes(&quoteMark, 1);
+                    // Now read the actual data
+                    cellular_ctrl_at_read_bytes((uint8_t *) pDataOut,
+                                                sizeOutBytes);
+                    cellular_ctrl_at_resp_stop();
+                    cellular_ctrl_at_set_default_delimiter();
+                    if (cellular_ctrl_at_unlock_return_error() == 0) {
+                        // All is good
+                        errorCodeOrSize = sizeOutBytes;
+                    }
+                } else {
+                    cellular_ctrl_at_unlock();
+                }
+            }
+        } else {
+            errorCodeOrSize = CELLULAR_CTRL_SUCCESS;
+        }
+    }
+#endif // CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
+
+    return (int32_t) errorCodeOrSize;
 }
 
 // End of file

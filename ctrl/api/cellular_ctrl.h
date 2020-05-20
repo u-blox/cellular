@@ -193,6 +193,10 @@ typedef enum {
     CELLULAR_CTRL_CONNECTED = -14, //!< This is an ERROR code used, for instance, to
                                    //! indicate that a disconnect attempt has failed.
     CELLULAR_CTRL_NOT_FOUND = -15,
+    CELLULAR_CTRL_NOT_SUPPORTED = -16,
+    CELLULAR_CTRL_SEC_SEAL_MODULE_NOT_REGISTERED = -17,
+    CELLULAR_CTRL_SEC_SEAL_DEVICE_NOT_REGISTERED = -18,
+    CELLULAR_CTRL_SEC_SEAL_DEVICE_NOT_ACTIVATED = -19,
     CELLULAR_CTRL_FORCE_32_BIT = 0x7FFFFFFF // Force this enum to be 32 bit
                                             // as it can be used as a size
                                             // also
@@ -846,6 +850,74 @@ int32_t cellularCtrlGetFirmwareVersionStr(char *pStr, size_t size);
  * @return  on success the Unix UTC time, else negative error code.
  */
 int32_t cellularCtrlGetTimeUtc();
+
+/** Request security sealing of a cellular module.  The cellular
+ * module must have an active cellular connection (i.e.
+ * cellularCtrlConnect() must have returned successfully) for
+ * the sealing process to succeed.  Sealing may take some time,
+ * hence pKeepGoingCallback is provided as a mean for the caller
+ * to stop waiting for the outcome.
+ * Can only be used once, will fail if the device is already security
+ * sealed; use cellularCtrlGetSecuritySeal() to check the security seal
+ * status.
+ *
+ * @param pDeviceInfoStr         the NULL terminated device
+ *                               information string provided by
+ *                               u-blox.
+ * @param pDeviceSerialNumberStr the NULL terminated device serial
+ *                               number string; you may chose what this
+ *                               is, noting that there may be an upper_bound
+ *                               length limit (e.g. 16 characters for 
+ *                               SARA-R4/SARA-R5).
+ * @param pKeepGoingCallback     a callback function that will be called
+ *                               periodically while waiting for
+ *                               security sealing to complete.  The
+ *                               callback should return true to
+ *                               continue waiting, else this function
+ *                               will return.  Note that this does
+ *                               not necessarily terminate the sealing
+ *                               process: that may continue in the
+ *                               background if there is a cellular
+ *                               connection.  This callback function
+ *                               may also be used to feed an
+ *                               application's watchdog timer.
+ *                               May be NULL, in which case this function
+ *                               will not return until a succesful
+ *                               security seal has been achieved.
+ * @return                       zero on success, else negative
+ *                               error code.
+ */
+int32_t cellularCtrlSetSecuritySeal(char *pDeviceInfoStr,
+                                    char *pDeviceSerialNumberStr,
+                                    bool (*pKeepGoingCallback) (void));
+
+/** Get the overall security seal status of the cellular module.
+ *
+ * @return  zero if the cellular module has been successfully
+ *          security sealed, else negative error code.
+ */
+int32_t cellularCtrlGetSecuritySeal();
+
+/** Ask the cellular module to encrypt a block of data.  Force
+ * this to work the cellular module must have previously been
+ * security sealed.  Data encrypted in this way can be decrypted
+ * on arrival at its destination by requesting the relevant
+ * security keys from u-blox.
+ *
+ * @param pDataIn        a pointer to dataSizeBytes of data to be
+ *                       encrypted, may be NULL, in which case this
+ *                       function does nothing.
+ * @param pDataOut       a pointer to a location dataSizeBytes in size
+ *                       to store the encrypted data, can only be
+ *                       NULL if pDataIn is NULL.
+ * @param dataSizeBytes  the number of bytes of data to encrypt;
+ *                       must be zero if pDataIn is NULL.
+ * @return               on success the number of bytes encrypted
+ *                       else negative error code.
+ */
+int32_t cellularSecurityEndToEndEncrypt(const void *pDataIn,
+                                        void *pDataOut,
+                                        size_t dataSizeBytes);
 
 #ifdef __cplusplus
 }

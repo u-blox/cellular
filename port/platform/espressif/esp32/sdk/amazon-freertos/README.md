@@ -19,7 +19,7 @@ Note: you may put this repo in a different location but if you do so you will ne
 
 With this done, find the `CMakeLists.txt` file in the `vendors\espressif\boards\esp32` directory of Amazon FreeRTOS.  Make a back-up of it and then overwrite it with the `CMakeLists.txt` file from this directory.
 
-To define which cellular module you are using (e.g. one of `CELLULAR_CFG_MODULE_SARA_R4` or `CELLULAR_CFG_MODULE_SARA_R5`).  Create an environment variaable called `CELLULAR_FLAGS` and set it to be that module name in the form:
+To define which cellular module you are using (e.g. one of `CELLULAR_CFG_MODULE_SARA_R412M_03B` or `CELLULAR_CFG_MODULE_SARA_R5`).  Create an environment variaable called `CELLULAR_FLAGS` and set it to be that module name in the form:
 
 ```
 set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5

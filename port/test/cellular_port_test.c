@@ -202,7 +202,7 @@ static void uartTestTask(void *pParameters)
             // can't easily check cellularPortUartGetReceiveSize()
             // for accuracy, so instead do a range check here
             CELLULAR_PORT_TEST_ASSERT(receiveSize >= 0);
-            CELLULAR_PORT_TEST_ASSERT(receiveSize < CELLULAR_PORT_UART_RX_BUFFER_SIZE);
+            CELLULAR_PORT_TEST_ASSERT(receiveSize <= CELLULAR_PORT_UART_RX_BUFFER_SIZE);
             // Compare the data with the expected data
             for (size_t x = 0; x < dataSize; x++) {
                 if (gUartTestData[indexInBlock] == *pReceive) {

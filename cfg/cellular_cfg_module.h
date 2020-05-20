@@ -29,12 +29,20 @@
 
 /* #define cross-checking.
  */
-#if defined(CELLULAR_CFG_MODULE_SARA_R4) && defined(CELLULAR_CFG_MODULE_SARA_R5)
+#if defined(CELLULAR_CFG_MODULE_SARA_R412M_02B) && defined(CELLULAR_CFG_MODULE_SARA_R5)
 # error More than one module type defined.
 #endif
 
-#if !defined(CELLULAR_CFG_MODULE_SARA_R4) && !defined(CELLULAR_CFG_MODULE_SARA_R5)
-# error Must define a module type (e.g. CELLULAR_CFG_MODULE_SARA_R4 or CELLULAR_CFG_MODULE_SARA_R5).
+#if defined(CELLULAR_CFG_MODULE_SARA_R412M_03B) && defined(CELLULAR_CFG_MODULE_SARA_R5)
+# error More than one module type defined.
+#endif
+
+#if defined(CELLULAR_CFG_MODULE_SARA_R412M_02B) && defined(CELLULAR_CFG_MODULE_SARA_R412M_03B)
+# error More than one module type defined.
+#endif
+
+#if !defined(CELLULAR_CFG_MODULE_SARA_R412M_02B) && !defined(CELLULAR_CFG_MODULE_SARA_R412M_03B) && !defined(CELLULAR_CFG_MODULE_SARA_R5)
+# error Must define a module type (e.g. CELLULAR_CFG_MODULE_SARA_R412M_03B or CELLULAR_CFG_MODULE_SARA_R5).
 #endif
 
 /* ----------------------------------------------------------------
@@ -93,13 +101,19 @@
  */
 #define CELLULAR_CTRL_SUPPORTED_RATS_BITMAP 0x08UL
 
+/** Whether u-blox root of trust is supported.
+ */
+# define CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST 1
+
 #endif // CELLULAR_CFG_MODULE_SARA_R5
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS FOR SARA-R4
  * -------------------------------------------------------------- */
 
-#ifdef CELLULAR_CFG_MODULE_SARA_R4
+#if defined(CELLULAR_CFG_MODULE_SARA_R412M_02B) || defined(CELLULAR_CFG_MODULE_SARA_R412M_03B)
+
+#define CELLULAR_CFG_MODULE_SARA_R4
 
 /** The time within which an AT command should complete.
  */
@@ -141,6 +155,14 @@
  * _CELLULAR_CTRL_RAT_BIT_NB1 = 0x19.
  */
 #define CELLULAR_CTRL_SUPPORTED_RATS_BITMAP 0x19UL
+
+# ifdef CELLULAR_CFG_MODULE_SARA_R412M_03B
+/** Whether u-blox root of trust is supported.
+ */
+#  define CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST 1
+# else
+#  define CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST 0
+# endif
 
 #endif // CELLULAR_CFG_MODULE_SARA_R4
 
