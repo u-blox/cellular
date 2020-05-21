@@ -99,11 +99,33 @@
  * defined in cellular_ctrl.h, for this case
  * _CELLULAR_CTRL_RAT_BIT_CATM1 = 0x08.
  */
-#define CELLULAR_CTRL_SUPPORTED_RATS_BITMAP 0x08UL
+# define CELLULAR_CTRL_SUPPORTED_RATS_BITMAP 0x08UL
 
 /** Whether u-blox root of trust is supported.
  */
 # define CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST 1
+
+/** Whether MQTT is supported by the module or not.
+ */
+# define CELLULAR_MQTT_IS_SUPPORTED 1
+
+/** The time to wait for an MQTT operation to be completed.
+ */
+# define CELLULAR_MQTT_RESPONSE_WAIT_SECONDS 40
+
+/** The maximum length of an MQTT publish message.
+ */
+# define CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES 512
+
+/** The maximum length of an MQTT read message.
+ * Yes, I know this is twice the publish length,
+ * that's because the only common way to publish
+ * potentially binary messages between SARA-R4
+ * and SARA-R5 is through hex mode.  TODO:
+ * fix this later using the file system as
+ * an intermediate.
+ */
+# define CELLULAR_MQTT_READ_MAX_LENGTH_BYTES 1024
 
 #endif // CELLULAR_CFG_MODULE_SARA_R5
 
@@ -113,7 +135,7 @@
 
 #if defined(CELLULAR_CFG_MODULE_SARA_R412M_02B) || defined(CELLULAR_CFG_MODULE_SARA_R412M_03B)
 
-#define CELLULAR_CFG_MODULE_SARA_R4
+# define CELLULAR_CFG_MODULE_SARA_R4
 
 /** The time within which an AT command should complete.
  */
@@ -154,15 +176,47 @@
  * _CELLULAR_CTRL_RAT_BIT_GPRS | _CELLULAR_CTRL_RAT_BIT_CATM1 |
  * _CELLULAR_CTRL_RAT_BIT_NB1 = 0x19.
  */
-#define CELLULAR_CTRL_SUPPORTED_RATS_BITMAP 0x19UL
+# define CELLULAR_CTRL_SUPPORTED_RATS_BITMAP 0x19UL
 
 # ifdef CELLULAR_CFG_MODULE_SARA_R412M_03B
+
 /** Whether u-blox root of trust is supported.
  */
 #  define CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST 1
 # else
 #  define CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST 0
 # endif
+
+/** Whether MQTT is supported by the module or not.
+ */
+# define CELLULAR_MQTT_IS_SUPPORTED 1
+
+# ifdef CELLULAR_CFG_MODULE_SARA_R412M_02B
+/** The time to wait for an MQTT operation to be completed.
+ */
+#  define CELLULAR_MQTT_RESPONSE_WAIT_SECONDS 120
+
+# else
+
+/** The time to wait for an MQTT operation to be completed.
+ */
+#  define CELLULAR_MQTT_RESPONSE_WAIT_SECONDS 40
+
+# endif
+
+/** The maximum length of an MQTT publish message.
+ */
+# define CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES 512
+
+/** The maximum length of an MQTT read message.
+ * Yes, I know this is twice the publish length,
+ * that's because the only common way to publish
+ * potentially binary messages between SARA-R4
+ * and SARA-R5 is through hex mode.  TODO:
+ * fix this later using the file system as
+ * an intermediate.
+ */
+# define CELLULAR_MQTT_READ_MAX_LENGTH_BYTES 1024
 
 #endif // CELLULAR_CFG_MODULE_SARA_R4
 

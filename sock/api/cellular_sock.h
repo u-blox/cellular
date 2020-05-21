@@ -580,16 +580,17 @@ int32_t cellularSockShutdown(CellularSockDescriptor_t descriptor,
 
 /** Register a callback which will be called when incoming
  * data has arrived on a socket.
+ * The callback will be run in a task with stack size
+ * CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES and priority
+ * CELLULAR_CTRL_TASK_CALLBACK_PRIORITY.
+ *
  * IMPORTANT: don't spend long in your callback, i.e. don't
  * call back into this API, don't call things that will cause any
- * sort of processing load or might get stuck.  It must return
- * quickly as data reception and communication with the cellular
- * module in general is blocked while the callback is executing.
- * A short printf() or sending an OS signal is fine.
+ * sort of processing load or might get stuck.
  * ALSO IMPORTANT: if you use the callback to send an OS
  * signal to a task that then calls one of this module's data
  * reception functions, make sure that task is running at a
- * priority lower than CELLULAR_CTRL_CALLBACK_PRIORITY otherwise
+ * priority lower than CELLULAR_CTRL_TASK_CALLBACK_PRIORITY otherwise
  * it will lock-out this module.
  *
  * @param descriptor     the descriptor of the socket.
@@ -607,12 +608,13 @@ int32_t cellularSockRegisterCallbackData(CellularSockDescriptor_t descriptor,
 
 /** Register a callback which will be called when a socket is 
  * closed by the remote host.
+ * The callback will be run in a task with stack size
+ * CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES and priority
+ * CELLULAR_CTRL_TASK_CALLBACK_PRIORITY.
+ *
  * IMPORTANT: don't spend long in your callback, i.e. don't
  * call back into this API, don't call things that will cause any
- * sort of processing load or might get stuck.  It must return
- * quickly as data reception and communication with the cellular
- * module in general is blocked while the callback is executing.
- * A short printf() or sending an OS signal is fine.
+ * sort of processing load or might get stuck.
  *
  * @param descriptor     the descriptor of the socket.
  * @param pCallback      the function to call, use NULL
@@ -794,6 +796,25 @@ int32_t cellularSockIpAddressToString(const CellularSockIpAddress_t *pIpAddress,
 int32_t cellularSockAddressToString(const CellularSockAddress_t *pAddress,
                                     char *pBuffer,
                                     size_t sizeBytes);
+
+/** Get the port number from a domain name.
+ *
+ * @param pDomainString the NULL terminated domain name.
+ * @return              the port number or -1 if there
+ *                      is no port number.
+ */
+int32_t cellularSockDomainGetPort(const char *pDomainString);
+
+/** Turn a domain name string into just the name part,
+ * by removing the port off the end if it is present.
+ * This is done by modifying pDomainString in place.
+ *
+ * @param pDomainString the NULL terminated domain name.
+ * @return              pDomainString.
+ */
+// Turn a domain name which may have a port number
+// on the end into just the name part.
+char *pCellularSockDomainRemovePort(char *pDomainString);
 
 #endif // _CELLULAR_SOCK_H_
 

@@ -176,7 +176,7 @@ static void UUSORD_UUSORF_urc(void *pUnused)
             CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
             if (pContainer->socket.pPendingDataCallback != NULL) {
                 cellular_ctrl_at_callback(pContainer->socket.pPendingDataCallback,
-                                              pContainer->socket.pPendingDataCallbackParam);
+                                          pContainer->socket.pPendingDataCallbackParam);
             }
             CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
         }
@@ -205,7 +205,7 @@ static void UUSOCL_urc(void *pUnused)
             CELLULAR_PORT_MUTEX_LOCK(gMutexCallbacks);
             if (pContainer->socket.pConnectionClosedCallback != NULL) {
                 cellular_ctrl_at_callback(pContainer->socket.pConnectionClosedCallback,
-                                              pContainer->socket.pConnectionClosedCallbackParam);
+                                          pContainer->socket.pConnectionClosedCallbackParam);
             }
             CELLULAR_PORT_MUTEX_UNLOCK(gMutexCallbacks);
         }
@@ -2849,6 +2849,42 @@ int32_t cellularSockAddressToString(const CellularSockAddress_t *pAddress,
     }
 
     return (int32_t) stringLengthOrErrorCode;
+}
+
+// Get the port number from a domain name.
+int32_t cellularSockDomainGetPort(const char *pDomainString)
+{
+    int32_t port = -1;
+    int32_t x;
+    const char *pColon;
+
+    // Check for a port number on the end
+    pColon = pCellularPort_strchr(pDomainString, ':');
+    if (pColon != NULL) {
+        // Fill in the port number
+        x = cellularPort_strtol(pColon + 1, NULL, 10);
+        if (x <= USHRT_MAX) {
+            port = x;
+        }
+    }
+
+    return port;
+}
+
+// Turn a domain name which may have a port number
+// on the end into just the name part.
+char *pCellularSockDomainRemovePort(char *pDomainString)
+{
+    char *pColon;
+
+    // Check for a port number on the end
+    pColon = pCellularPort_strchr(pDomainString, ':');
+    if (pColon != NULL) {
+        // Overwrite the colon with a NULL to remove it
+        *pColon = '\0';
+    }
+
+    return pDomainString;
 }
 
 // End of file

@@ -545,9 +545,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
 }
 
 /** Test security sealing.
- * Note: this test will only attempt a security if
+ * Note: this test will only attempt a seal if
  * CELLULAR_CTRL_SECURITY_DEVICE_INFORMATION is defined
- * to contain a valid Deivce Information string (without quotes).
+ * to contain a valid Device Information string (without quotes).
  * You must pass this definition into the build.
  * The device IMEI will be used as the device serial number
  * when performing the security seal.

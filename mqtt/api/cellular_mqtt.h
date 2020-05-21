@@ -38,10 +38,28 @@ extern "C" {
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
+/** The maximum length of an MQTT server address string.
+ */
+#ifndef CELLULAR_MQTT_SERVER_ADDRESS_STRING_MAX_LENGTH_BYTES
+# define CELLULAR_MQTT_SERVER_ADDRESS_STRING_MAX_LENGTH_BYTES 256
+#endif
+
 /** The time to wait for an MQTT operation to be completed.
  */
 #ifndef CELLULAR_MQTT_RESPONSE_WAIT_SECONDS
-# define CELLULAR_MQTT_RESPONSE_WAIT_SECONDS 30
+# error CELLULAR_MQTT_RESPONSE_WAIT_SECONDS must be defined in cellular_cfg_module.h.
+#endif
+
+/** The maximum length of an MQTT publish message in bytes.
+ */
+#ifndef CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES
+# error CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES must be defined in cellular_cfg_module.h.
+#endif
+
+/** The maximum length of an MQTT read message in bytes.
+ */
+#ifndef CELLULAR_MQTT_READ_MAX_LENGTH_BYTES
+# error CELLULAR_MQTT_READ_MAX_LENGTH_BYTES must be defined in cellular_cfg_module.h.
 #endif
 
 /* ----------------------------------------------------------------
@@ -60,6 +78,9 @@ typedef enum {
     CELLULAR_MQTT_NO_MEMORY = -6,
     CELLULAR_MQTT_PLATFORM_ERROR = -7,
     CELLULAR_MQTT_AT_ERROR = -8,
+    CELLULAR_MQTT_NOT_SUPPORTED = -9,
+    CELLULAR_MQTT_TIMEOUT = -10,
+    CELLULAR_MQTT_BAD_ADDRESS = -11,
     CELLULAR_MQTT_FORCE_32_BIT = 0x7FFFFFFF // Force this enum to be 32 bit
                                             // as it can be used as a size
                                             // also
@@ -81,44 +102,49 @@ typedef enum {
 /** Initialise the MQTT client.  If the client is already
  * initialised then this function returns immediately.
  *
- * @param pClientNameStr   the NULL terminated string that
- *                         will be the client name for this
- *                         MQTT session.  May be NULL in
- *                         which case the driver will provide
- *                         a name.
- * @param pServerNameStr   the NULL terminated string that gives
- *                         the name of the server for this MQTT
- *                         session.  This may be a domain name,
- *                         or an IP address and may include a port
- *                         number.
- * @param pUserNameStr     the NULL terminated string that is the
- *                         user name required by the MQTT server.
- * @param pPasswordStr     the NULL terminated string that is the
- *                         password required by the MQTT server.
- * @return                 zero on success or negative error code on
- *                         failure.
+ * @param pServerNameStr     the NULL terminated string that gives
+ *                           the name of the server for this MQTT
+ *                           session.  This may be a domain name,
+ *                           or an IP address and may include a port
+ *                           number.
+ * @param pUserNameStr       the NULL terminated string that is the
+ *                           user name required by the MQTT server.
+ * @param pPasswordStr       the NULL terminated string that is the
+ *                           password required by the MQTT server.
+ * @param pClientNameStr     the NULL terminated string that
+ *                           will be the client name for this
+ *                           MQTT session.  May be NULL in
+ *                           which case the driver will provide
+ *                           a name.
+ * @param pKeepGoingCallback certain of the MQTT API functions
+ *                           need to wait for the server to respond
+ *                           and this may take some time.  Specify
+ *                           a callback function here which will be
+ *                           called while the API is waiting.  While
+ *                           the callback function returns true the
+ *                           API will continue to wait until success
+ *                           or CELLULAR_MQTT_RESPONSE_WAIT_SECONDS
+ *                           is reached.  If the callback function
+ *                           returns false then the API will return.
+ *                           Note that the thing it was waiting for
+ *                           may still succeed, this does not cancel
+ *                           the operation, it simply stops waiting
+ *                           for the response.  The callback function
+ *                           may also be used to feed an application's
+ *                           watchdog timer that may be running.
+ *                           May be NULL.
+ * @return                   zero on success or negative error code on
+ *                           failure.
  */
-int32_t cellularMqttInit(const char *pClientNameStr,
-                         const char *pServerNameStr,
+int32_t cellularMqttInit(const char *pServerNameStr,
                          const char *pUserNameStr,
-                         const char *pPasswordStr);
+                         const char *pPasswordStr,
+                         const char *pClientNameStr,
+                         bool (*pKeepGoingCallback)(void));
 
 /** Shut-down the MQTT client.
  */
 void cellularMqttDeinit();
-
-/** Get the MQTT server name that was configured in cellularMqttInit().
- *
- * @param pServerNameStr   pointer to a place to put the server name,
- *                         which will be NULL terminated.
- * @param sizeBytes        size of the storage at pServerNameStr,
- *                         including the terminator.
- * @return                 the number of bytes written to pServerNameStr,
- *                         not including the NULL terminator (i.e. what
- *                         strlen() would return), or negative error code.
- */
-int32_t cellularMqttGetServerName(char *pServerNameStr,
-                                  int32_t sizeBytes);
 
 /** Get the current MQTT client name.
  *
@@ -133,19 +159,6 @@ int32_t cellularMqttGetServerName(char *pServerNameStr,
 int32_t cellularMqttGetClientName(char *pClientNameStr,
                                   int32_t sizeBytes);
 
-/** Get the username that was configured in cellularMqttInit().
- *
- * @param pUserNameStr     pointer to a place to put the user name,
- *                         which will be NULL terminated.
- * @param sizeBytes        size of the storage at pUserNameStr,
- *                         including the terminator.
- * @return                 the number of bytes written to pUserNameStr,
- *                         not including the NULL terminator (i.e. what
- *                         strlen() would return), or negative error code.
- */
-int32_t cellularMqttGetUserName(char *pUserNameStr,
-                                int32_t sizeBytes);
-
 /** Set the local port to use for the MQTT client.  If this is not
  * called the IANA assigned ports of 1883 for non-secure MQTT or 8883 
  * for TLS secured MQTT will be used.
@@ -153,7 +166,7 @@ int32_t cellularMqttGetUserName(char *pUserNameStr,
  * @param port  the port number.
  * @return      zero on success or negative error code.
  */
-int32_t cellularMqttSetLocalPort(int32_t port);
+int32_t cellularMqttSetLocalPort(uint16_t port);
 
 /** Get the local port used by the MQTT client.
  *
@@ -174,7 +187,7 @@ int32_t cellularMqttSetInactivityTimeout(int32_t seconds);
  * @return  the inactivity timeout in seconds on success or
  *          negative error code.
  */
-int32_t cellularMqttGetInactivityTimeout(int32_t seconds);
+int32_t cellularMqttGetInactivityTimeout();
 
 /** Switch MQTT ping or "keep alive" on.  This will send an
  * MQTT ping message to the server near the end of the 
@@ -371,8 +384,8 @@ int32_t cellularMqttPublish(CellularMqttQos_t qos,
  *                         wildcard '#' may be used at the end
  *                         of the string to indicate "everything
  *                         from here on".  Cannot be NULL.
- * @return                 zero on success else negative error
- *                         code.
+ * @return                 success of the QoS of the subscription,
+ *                         else negative error code.
  */
 int32_t cellularMqttSubscribe(CellularMqttQos_t maxQos,
                              const char *pTopicFilterStr);
@@ -399,7 +412,10 @@ int32_t cellularMqttUnsubscribe(const char *pTopicFilterStr);
  *                        the number of messages available to
  *                        be read. The second parameter will be
  *                        pCallbackParam. Use NULL to deregister
- *                        a previous callback.
+ *                        a previous callback.  The callback
+ *                        will be run in a task with stack
+ *                        size CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES
+ *                        and priority CELLULAR_CTRL_TASK_CALLBACK_PRIORITY.
  * @param pCallbackParam  this value will be passed to pCallback
  *                        as the second parameter.
  * @return                zero on success else negative error
@@ -411,26 +427,27 @@ int32_t cellularMqttSetMessageIndicationCallback(void (*pCallback)(int32_t, void
 /** Read an MQTT message.
  *
  * @param pTopicNameStr       a place to put the NULL terminated
- *                            topic string of the message; may
+ *                            topic string of the message; cannot
  *                            be NULL.
  * @param topicNameSizeBytes  the number of bytes of storage
- *                            at pTopicNameStr.  Ignored if
- *                            pTopicNameStr is NULL.
- * @param pMessage            a place to put the message; may be
- *                            NULL.
+ *                            at pTopicNameStr.
+ * @param pMessage            a place to put the message; cannot
+ *                            be NULL.
  * @param pMessageSizeBytes   on entry this should point to the
  *                            number of bytes of storage at
- *                            pMessage. On return, if pMessage
- *                            is not NULL, this will be updated
- *                            to the number of bytes written
- *                            to pMessage.
+ *                            pMessage. On return, this will be
+ *                            updated to the number of bytes written
+ *                            to pMessage.  Cannot be NULL.
+ * @param pQos                a place to put the QoS of the message;
+ *                            may be NULL.
  * @return                    zero on success else negative error
  *                            code.
  */
 int32_t cellularMqttMessageRead(char *pTopicNameStr,
                                 int32_t topicNameSizeBytes,
                                 char *pMessage,
-                                int32_t *pMessageSizeBytes);
+                                int32_t *pMessageSizeBytes,
+                                CellularMqttQos_t *pQos);
 
 #ifdef __cplusplus
 }

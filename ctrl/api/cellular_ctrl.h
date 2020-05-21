@@ -136,7 +136,7 @@ extern "C" {
 # error CELLULAR_CTRL_MAX_NUM_SIMULTANEOUS_RATS must be defined in cellular_cfg_module.h.
 #endif
 
-/**A bitmap of the RATs supported by the cellular module.
+/** A bitmap of the RATs supported by the cellular module.
  */
 #ifndef CELLULAR_CTRL_SUPPORTED_RATS_BITMAP
 # error CELLULAR_CTRL_SUPPORTED_RATS_BITMAP must be defined in cellular_cfg_module.h.
