@@ -45,10 +45,12 @@
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Core}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/ctrl/api}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/sock/api}"/>
+									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/mqtt/api}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/port/api}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/platform/cfg}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/ctrl/src}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/sock/src}"/>
+									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/mqtt/src}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/platform/src}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/platform/test}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/platform/common/unity}"/>
@@ -163,10 +165,12 @@
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Core}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/ctrl/api}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/sock/api}"/>
+									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/mqtt/api}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/port/api}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/platform/cfg}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/ctrl/src}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/sock/src}"/>
+									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/mqtt/src}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/platform/src}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/platform/test}"/>
 									<listOptionValue builtIn="false" value="${workspace_loc:/${ProjName}/Cellular/Inc/U-Blox/platform/common/unity}"/>

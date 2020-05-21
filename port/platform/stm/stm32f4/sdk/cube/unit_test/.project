@@ -57,6 +57,16 @@
 			<locationURI>$%7BUBX_PATH%7D/ctrl/test/cellular_ctrl_test.c</locationURI>
 		</link>
 		<link>
+			<name>Cellular/U-Blox/cellular_mqtt.c</name>
+			<type>1</type>
+			<locationURI>$%7BUBX_PATH%7D/mqtt/src/cellular_mqtt.c</locationURI>
+		</link>
+		<link>
+			<name>Cellular/U-Blox/cellular_mqtt_test.c</name>
+			<type>1</type>
+			<locationURI>$%7BUBX_PATH%7D/mqtt/test/cellular_mqtt_test.c</locationURI>
+		</link>
+		<link>
 			<name>Cellular/U-Blox/cellular_port.c</name>
 			<type>1</type>
 			<locationURI>$%7BPLATFORM_PATH%7D/src/cellular_port.c</locationURI>
@@ -300,6 +310,16 @@
 			<name>Cellular/Inc/U-Blox/sock/src</name>
 			<type>2</type>
 			<locationURI>$%7BUBX_PATH%7D/sock/src</locationURI>
+		</link>
+		<link>
+			<name>Cellular/Inc/U-Blox/mqtt/api</name>
+			<type>2</type>
+			<locationURI>$%7BUBX_PATH%7D/mqtt/api</locationURI>
+		</link>
+		<link>
+			<name>Cellular/Inc/U-Blox/mqtt/src</name>
+			<type>2</type>
+			<locationURI>$%7BUBX_PATH%7D/mqtt/src</locationURI>
 		</link>
 		<link>
 			<name>Drivers/Inc/STM32F4xx_HAL_Driver/Inc/Legacy</name>
