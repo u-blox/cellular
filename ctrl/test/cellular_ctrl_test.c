@@ -539,10 +539,51 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
                                                false,
                                                CELLULAR_CFG_UART,
                                                gUartQueueHandle) == 0);
+
     cellularCtrlDeinit();
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
 }
+
+#ifdef CELLULAR_CFG_MODULE_SARA_R412M_02B
+/** SARA-R412M-02B modules with SW version M0.10.0 fresh out of
+ * the box are set to MNO profile 0 which stops any configuration
+ * being performed (AT+URAT doesn't work, for instance) so set
+ * them here to MNO profile 100 (generic European).
+ * This in test group "aaaa" so that it runs first.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestInitialisation(),
+                            "aaaaSaraR412mInit",
+                            "aaaa")
+{
+    CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
+                                                   CELLULAR_CFG_BAUD_RATE,
+                                                   CELLULAR_CFG_RTS_THRESHOLD,
+                                                   CELLULAR_CFG_UART,
+                                                   &gUartQueueHandle) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_PWR_ON,
+                                               CELLULAR_CFG_PIN_VINT,
+                                               false,
+                                               CELLULAR_CFG_UART,
+                                               gUartQueueHandle) == 0);
+
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
+    if (cellularCtrlGetMnoProfile() == 0) {
+        cellularCtrlSetMnoProfile(100);
+        cellularCtrlReboot();
+    }
+    cellularCtrlPowerOff(NULL);
+
+    cellularCtrlDeinit();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
+    cellularPortDeinit();
+}
+#endif
 
 /** Test security sealing.
  * Note: this test will only attempt a seal if
