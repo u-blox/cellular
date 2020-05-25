@@ -125,6 +125,12 @@ char *pCellularPort_strchr(const char *pStr, int32_t c)
     return strchr(pStr, c);
 }
 
+// strstr().
+char *pCellularPort_strstr(const char *pStr1, const char *pStr2)
+{
+    return strstr(pStr1, pStr2);
+}
+
 // strtok_r().
 char *pCellularPort_strtok_r(char *pStr, const char *pDelimiters,
                              char **ppSave)
@@ -172,6 +178,12 @@ int32_t cellularPort_isprint(int32_t c)
 int32_t cellularPort_iscntrl(int32_t c)
 {
     return iscntrl(c);
+}
+
+// isdigit().
+int32_t cellularPort_isdigit(int32_t c)
+{
+    return isdigit(c);
 }
 
 /* ----------------------------------------------------------------

@@ -173,6 +173,15 @@ int32_t cellularPort_strcmp(const char *pStr1, const char *pStr2);
  */
 char *pCellularPort_strchr(const char *pStr, int32_t c);
 
+/** strstr().
+ *
+ * @param pStr1 the string in which to search.
+ * @param pStr2 the string to search for in pStr1.
+ * @return      a pointer to the first occurrence of pStr2 in
+ *              pStr1, else NULL if pStr2 is not found in pStr1.
+ */
+char *pCellularPort_strstr(const char *pStr1, const char *pStr2);
+
 /** strtok().
  *
  * @param pStr        the string to search.
@@ -225,6 +234,14 @@ size_t cellularPort_strcspn(const char *pStr1, const char *pStr2);
  * @return  non-zero if c is printable, else 0.
  */
 int32_t cellularPort_isprint(int32_t c);
+
+/** isdigit().
+ *
+ * @param c the character to check, treated as a char.
+ * @return  non-zero if c is a character in the range
+ *          '0' to '9', else 0.
+ */
+int32_t cellularPort_isdigit(int32_t c);
 
 /** iscntrl().
  *
