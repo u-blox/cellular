@@ -48,6 +48,23 @@ static CellularPortUnityTestDescription_t *gpTestList = NULL;
  * STATIC FUNCTIONS
  * -------------------------------------------------------------- */
 
+// Run a test.
+void runTest(const CellularPortUnityTestDescription_t *pTest,
+             const char *pPrefix)
+{
+    UNITY_PRINT_EOL();
+    UnityPrint(pPrefix);
+    UnityPrint("Running ");
+    UnityPrint(pTest->pName);
+    UnityPrint("...");
+    UNITY_PRINT_EOL();
+    UNITY_OUTPUT_FLUSH();
+
+    Unity.TestFile = pTest->pFile;
+    Unity.CurrentDetail1 = pTest->pGroup;
+    UnityDefaultTestRun(pTest->pFunction, pTest->pName, pTest->line);
+}
+
 /* ----------------------------------------------------------------
  * PUBLIC FUNCTIONS
  * -------------------------------------------------------------- */
@@ -85,24 +102,59 @@ void cellularPortUnityPrintAll(const char *pPrefix)
     UNITY_PRINT_EOL();
 }
 
+// Run a named test.
+void cellularPortUnityRunNamed(const char *pName,
+                               const char *pPrefix)
+{
+    const CellularPortUnityTestDescription_t *pTest = gpTestList;
+
+    while (pTest != NULL) {
+        if ((pName == NULL) ||
+            (cellularPort_strcmp(pTest->pName, pName) == 0)) {
+            runTest(pTest, pPrefix);
+        }
+        pTest = pTest->pNext;
+    }
+}
+
+// Run all of the tests whose names
+// begin with the given filter string.
+void cellularPortUnityRunFiltered(const char *pFilter,
+                                  const char *pPrefix)
+{
+    const CellularPortUnityTestDescription_t *pTest = gpTestList;
+
+    while (pTest != NULL) {
+        if ((pFilter == NULL) ||
+            (pCellularPort_strstr(pTest->pName, pFilter) == pTest->pName)) {
+            runTest(pTest, pPrefix);
+        }
+        pTest = pTest->pNext;
+    }
+}
+
+// Run all of the tests in a group.
+void cellularPortUnityRunGroup(const char *pGroup,
+                               const char *pPrefix)
+{
+    const CellularPortUnityTestDescription_t *pTest = gpTestList;
+
+    while (pTest != NULL) {
+        if ((pGroup == NULL) ||
+            (cellularPort_strcmp(pTest->pGroup, pGroup) == 0)) {
+            runTest(pTest, pPrefix);
+        }
+        pTest = pTest->pNext;
+    }
+}
+
 // Run all of the tests.
 void cellularPortUnityRunAll(const char *pPrefix)
 {
     const CellularPortUnityTestDescription_t *pTest = gpTestList;
 
     while (pTest != NULL) {
-        UNITY_PRINT_EOL();
-        UnityPrint(pPrefix);
-        UnityPrint("Running ");
-        UnityPrint(pTest->pName);
-        UnityPrint("...");
-        UNITY_PRINT_EOL();
-        UNITY_OUTPUT_FLUSH();
-
-        Unity.TestFile = pTest->pFile;
-        Unity.CurrentDetail1 = pTest->pGroup;
-        UnityDefaultTestRun(pTest->pFunction, pTest->pName, pTest->line);
-
+        runTest(pTest, pPrefix);
         pTest = pTest->pNext;
     }
 }

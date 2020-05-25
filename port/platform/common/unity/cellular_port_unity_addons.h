@@ -108,6 +108,34 @@ void cellularPortUnityTestRegister(CellularPortUnityTestDescription_t *pDescript
  */
 void cellularPortUnityPrintAll(const char *pPrefix);
 
+/** Run a named test case.
+ *
+ * @param pName   the name of the test to run; if
+ *                NULL then all tests are run.
+ * @param pPrefix prefix string to print at start of line.
+ */
+void cellularPortUnityRunNamed(const char *pName,
+                               const char *pPrefix);
+
+/** Run all of the tests whose names begin
+ * with the given filter string.
+ *
+ * @param pFilter  the filter string; if NULL then all
+ *                 tests are run.
+ * @param pPrefix  prefix string to print at start of line.
+ */
+void cellularPortUnityRunFiltered(const char *pFilter,
+                                  const char *pPrefix);
+
+/** Run all of the tests in a group.
+ *
+ * @param pGroup   the name of the group to run; if
+ *                 NULL then all groups are run.
+ * @param pPrefix  prefix string to print at start of line.
+ */
+void cellularPortUnityRunGroup(const char *pGroup,
+                               const char *pPrefix);
+
 /** Run all the registered test cases.
  *
  * @param pPrefix prefix string to print at start of line.
