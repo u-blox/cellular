@@ -24,7 +24,20 @@
  */
 
 /* ----------------------------------------------------------------
- * COMPILE-TIME MACROS
+ * COMPILE-TIME MACROS: MISC
+ * -------------------------------------------------------------- */
+
+#ifndef CELLULAR_CFG_TEST_FILTER
+/** A filter on the basis of which the tests to run
+ * will be selected.  If you set a value for this do NOT
+ * put quotes around it.  Use, for instance:
+ * #define CELLULAR_CFG_TEST_FILTER sock
+ */
+# define CELLULAR_CFG_TEST_FILTER NULL
+#endif
+
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS: CELLULAR NETWORK RELATED
  * -------------------------------------------------------------- */
 
 #ifndef CELLULAR_CFG_TEST_RAT
@@ -71,6 +84,10 @@
 // The time in seconds allowed for a connection to complete.
 #define CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS 240
 #endif
+
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS: IP RELATED
+ * -------------------------------------------------------------- */
 
 #ifndef CELLULAR_CFG_TEST_ECHO_UDP_SERVER_DOMAIN_NAME
 /** Echo server to use for UDP sockets testing as a domain name.
@@ -124,6 +141,54 @@
  */
 # define CELLULAR_CFG_TEST_UDP_RETRIES 10
 #endif
+
+/* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS: MQTT RELATED
+ * -------------------------------------------------------------- */
+
+#ifndef CELLULAR_CFG_TEST_MQTT_TIMEOUT_SECONDS
+/** The time to wait for an MQTT operation involving
+ * the MQTT server to complete during testing.
+ */
+# define CELLULAR_CFG_TEST_MQTT_TIMEOUT_SECONDS 35
+#endif
+
+#ifndef CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME
+/** Server to use for MTT testing as a domain name.
+ */
+# define CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME  "test.mosquitto.org"
+#endif
+
+#ifndef CELLULAR_CFG_TEST_MQTT_SERVER_IP_ADDRESS
+/** Server to use for MQTT testing as an IP address.
+ */
+# define CELLULAR_CFG_TEST_MQTT_SERVER_IP_ADDRESS  "5.196.95.208"
+#endif
+
+#ifndef CELLULAR_CFG_TEST_MQTT_SERVER_PORT_UNSECURE
+/** Port number on the MQTT test server for unsecured operation.
+ */
+# define CELLULAR_CFG_TEST_MQTT_SERVER_PORT_UNSECURE  1883
+#endif
+
+#ifndef CELLULAR_CFG_TEST_MQTT_SERVER_PORT_SECURE
+/** Port number on the MQTT test server for secured TLS operation.
+ */
+# define CELLULAR_CFG_TEST_MQTT_SERVER_PORT_SECURE  8883
+#endif
+
+#ifndef CELLULAR_CFG_TEST_MQTT_SERVER_USERNAME
+/** User name to use for the MQTT test server.
+ */
+# define CELLULAR_CFG_TEST_MQTT_SERVER_USERNAME  NULL
+#endif
+
+#ifndef CELLULAR_CFG_TEST_MQTT_SERVER_PASSWORD
+/** Password to use for the MQTT test server.
+ */
+# define CELLULAR_CFG_TEST_MQTT_SERVER_PASSWORD  NULL
+#endif
+
 
 #endif // _CELLULAR_CFG_TEST_H_
 

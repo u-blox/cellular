@@ -306,7 +306,8 @@ void cellular_ctrl_at_set_stop_tag(const char *stop_tag_seq);
  */
 void cellular_ctrl_at_set_delimiter(char delimiter);
 
-/** Sets the delimiter to default value defined by AT_DEFAULT_DELIMITER.
+/** Sets the delimiter to default value defined by
+ * CELLULAR_CTRL_AT_DEFAULT_DELIMITER.
  */
 void cellular_ctrl_at_set_default_delimiter();
 

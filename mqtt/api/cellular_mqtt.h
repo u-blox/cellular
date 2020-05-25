@@ -38,6 +38,20 @@ extern "C" {
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
+/** The default MQTT server port for unsecured operation.
+ */
+#define CELLULAR_MQTT_SERVER_PORT_UNSECURE 1883
+
+/** The default MQTT server port for TLS secured operation.
+ */
+#define CELLULAR_MQTT_SERVER_PORT_SECURE 8883
+
+/** The maximum length of the local client name in bytes.
+ */
+#ifndef CELLULAR_MQTT_CLIENT_NAME_STRING_MAX_LENGTH_BYTES
+# define CELLULAR_MQTT_CLIENT_NAME_STRING_MAX_LENGTH_BYTES 64
+#endif
+
 /** The maximum length of an MQTT server address string.
  */
 #ifndef CELLULAR_MQTT_SERVER_ADDRESS_STRING_MAX_LENGTH_BYTES
@@ -100,7 +114,8 @@ typedef enum {
  * -------------------------------------------------------------- */
 
 /** Initialise the MQTT client.  If the client is already
- * initialised then this function returns immediately.
+ * initialised then this function returns immediately. The cellular
+ * module must be powered up for this function to work.
  *
  * @param pServerNameStr     the NULL terminated string that gives
  *                           the name of the server for this MQTT
@@ -113,7 +128,7 @@ typedef enum {
  *                           password required by the MQTT server.
  * @param pClientNameStr     the NULL terminated string that
  *                           will be the client name for this
- *                           MQTT session.  May be NULL in
+ *                           MQTT session.  May be NULL, in
  *                           which case the driver will provide
  *                           a name.
  * @param pKeepGoingCallback certain of the MQTT API functions
@@ -126,13 +141,15 @@ typedef enum {
  *                           or CELLULAR_MQTT_RESPONSE_WAIT_SECONDS
  *                           is reached.  If the callback function
  *                           returns false then the API will return.
- *                           Note that the thing it was waiting for
+ *                           Note that the thing the API was waiting for
  *                           may still succeed, this does not cancel
  *                           the operation, it simply stops waiting
  *                           for the response.  The callback function
- *                           may also be used to feed an application's
+ *                           may also be used to feed any application
  *                           watchdog timer that may be running.
- *                           May be NULL.
+ *                           May be NULL, in which case the
+ *                           APIs will continue to wait until success
+ *                           or CELLULAR_MQTT_RESPONSE_WAIT_SECONDS.
  * @return                   zero on success or negative error code on
  *                           failure.
  */
@@ -423,6 +440,12 @@ int32_t cellularMqttUnsubscribe(const char *pTopicFilterStr);
  */
 int32_t cellularMqttSetMessageIndicationCallback(void (*pCallback)(int32_t, void *),
                                                  void *pCallbackParam);
+
+/** Get the current number of unread messages.
+ *
+ * @return: the number of unread messages or negative error code.
+ */
+int32_t cellularMqttGetUnread();
 
 /** Read an MQTT message.
  *
