@@ -808,12 +808,18 @@ int32_t cellularSockDomainGetPort(const char *pDomainString);
 /** Turn a domain name string into just the name part,
  * by removing the port off the end if it is present.
  * This is done by modifying pDomainString in place.
+ * IMPORTANT: if the string that is passed in is an
+ * IPV6 address with a port number then it will be of
+ * the form "[0:1:2:3:4:a:b:c]:x".  In order to return
+ * a valid IPV6 address, not only will the new
+ * terminator be placed where the ']' is but the
+ * pointer that is returned by this function will
+ * be a pointer to the '0' instead of pDomainString.
  *
  * @param pDomainString the NULL terminated domain name.
- * @return              pDomainString.
+ * @return              the start of the modified domain
+ *                      name.
  */
-// Turn a domain name which may have a port number
-// on the end into just the name part.
 char *pCellularSockDomainRemovePort(char *pDomainString);
 
 #endif // _CELLULAR_SOCK_H_

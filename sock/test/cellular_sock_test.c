@@ -76,6 +76,13 @@ typedef struct {
     bool shouldError;
 } CellularSockTestAddress_t;
 
+// Type for testing removing the port number from an address string.
+typedef struct {
+    char *pAddressStringOriginal;
+    int32_t port;
+    char *pAddressStringNoPort;
+} CellularSockTestPortRemoval_t;
+
 // Type for getting parameters through to echoDataTaskTcp().
 typedef struct {
     CellularSockDescriptor_t sockDescriptor;
@@ -106,7 +113,7 @@ typedef struct {
  * -------------------------------------------------------------- */
 
 // Used for keepGoingCallback() timeout.
-static int64_t gStopTimeMS;
+static int64_t gStopTimeMs;
 
 // The UART queue handle: kept as a global variable
 // because if a test fails init will have run but
@@ -161,6 +168,19 @@ static const CellularSockTestAddress_t gTestAddressList[] = {
      {"[ffff:ffff:ffff:ffff:ffff:ffff:ffff:1ffff]:65535", {{CELLULAR_SOCK_ADDRESS_TYPE_V6, .address.ipv6={0x00000000, 0x00000000, 0x00000000, 0x00000000}}, 0}, true, true},
      {"[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff]:65536", {{CELLULAR_SOCK_ADDRESS_TYPE_V6, .address.ipv6={0x00000000, 0x00000000, 0x00000000, 0x00000000}}, 0}, true, true}
                                                     };
+
+// A further set of inputs for address port removal.
+static const CellularSockTestPortRemoval_t gTestAddressPortRemoval[] = {
+                                     {"0.0.0.0", -1, "0.0.0.0"},
+                                     {"0.0.0.0:0", 0, "0.0.0.0"},
+                                     {"0.0.0.0:65535", 65535, "0.0.0.0"},
+                                     {"0:0:0:0:0:0:0:0", -1, "0:0:0:0:0:0:0:0"},
+                                     {"[0:0:0:0:0:0:0:0]:0", 0, "0:0:0:0:0:0:0:0"},
+                                     {"[0:0:0:0:0:0:0:0]:65535", 65535, "0:0:0:0:0:0:0:0"},
+                                     {"fred.com", -1, "fred.com"},
+                                     {"fred.com:0", 0, "fred.com"},
+                                     {"fred.com:65535", 65535, "fred.com"}
+                                                                 };
 
 // Data to exchange
 static const char gSendData[] =  "_____0000:0123456789012345678901234567890123456789"
@@ -436,7 +456,7 @@ static bool keepGoingCallback()
 {
     bool keepGoing = true;
 
-    if (cellularPortGetTickTimeMs() > gStopTimeMS) {
+    if (cellularPortGetTickTimeMs() > gStopTimeMs) {
         keepGoing = false;
     }
 
@@ -493,7 +513,7 @@ static void networkConnect(const char *pApn,
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlReboot() == 0);
 
     cellularPortLog("CELLULAR_SOCK_TEST: connecting...\n");
-    gStopTimeMS = cellularPortGetTickTimeMs() + (CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS * 1000);
+    gStopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_CFG_TEST_CONNECT_TIMEOUT_SECONDS * 1000);
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlConnect(keepGoingCallback,
                                                   pApn, pUsername, pPassword) == 0);
     cellularPortLog("CELLULAR_SOCK_TEST: RAT %d, cellularCtrlGetNetworkStatus() %d.\n",
@@ -1169,9 +1189,11 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
 {
     char buffer[64];
     int32_t errorCode;
+    int32_t port;
     CellularSockAddress_t address;
+    char *pAddress;
 
-    // No need initialise anything for this test
+    // No need to initialise anything for this test
     for (size_t x = 0; x < sizeof(gTestAddressList) / sizeof(gTestAddressList[0]); x++) {
         cellularPortLog("CELLULAR_SOCK_TEST: %d: original address string \"%s\" (%d byte(s)).\n",
                         x,
@@ -1199,6 +1221,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
                           gTestAddressList[x].hasPort);
 
             if (gTestAddressList[x].hasPort) {
+                CELLULAR_PORT_TEST_ASSERT(cellularSockDomainGetPort(gTestAddressList[x].pAddressString) == address.port);
                 // Now convert back to a string again
                 pCellularPort_memset(buffer, 0xFF, sizeof(buffer));
                 errorCode = cellularSockAddressToString(&address, buffer, sizeof(buffer));
@@ -1212,6 +1235,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
                 CELLULAR_PORT_TEST_ASSERT(errorCode == cellularPort_strlen(buffer));
                 CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(gTestAddressList[x].pAddressString, buffer) == 0);
             } else {
+                CELLULAR_PORT_TEST_ASSERT(cellularSockDomainGetPort(gTestAddressList[x].pAddressString) == -1);
                 // For ones without a port number we can converting the non-port
                 // part of the address back into a string also
                 pCellularPort_memset(buffer, 0xFF, sizeof(buffer));
@@ -1228,6 +1252,27 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularSockTestAddressStrings(),
                 CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(gTestAddressList[x].pAddressString, buffer) == 0);
             }
         }
+    }
+
+    // Test removing port numbers from an address string
+    for (size_t x = 0; x < sizeof(gTestAddressPortRemoval) / sizeof(gTestAddressPortRemoval[0]); x++) {
+        pCellularPort_strncpy(buffer, gTestAddressPortRemoval[x].pAddressStringOriginal, sizeof(buffer));
+        cellularPortLog("CELLULAR_SOCK_TEST: %d: original address string \"%s\""
+                        " expected port number %d,"
+                        " expected address string after port removal \"%s\".\n",
+                        x, buffer, gTestAddressPortRemoval[x].port,
+                        gTestAddressPortRemoval[x].pAddressStringNoPort);
+        port = cellularSockDomainGetPort(buffer);
+        cellularPortLog("CELLULAR_SOCK_TEST: port number is %d.\n", port);
+        CELLULAR_PORT_TEST_ASSERT(port == gTestAddressPortRemoval[x].port);
+        pAddress = pCellularSockDomainRemovePort(buffer);
+        cellularPortLog("CELLULAR_SOCK_TEST: result of port removal \"%s\".\n",
+                pAddress);
+        CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pAddress,
+                                                      gTestAddressPortRemoval[x].pAddressStringNoPort) == 0);
+        port = cellularSockDomainGetPort(pAddress);
+        cellularPortLog("CELLULAR_SOCK_TEST: port number is now %d.\n", port);
+        CELLULAR_PORT_TEST_ASSERT(port == -1);
     }
 }
 

@@ -456,6 +456,39 @@ static bool containerFree(CellularSockDescriptor_t descriptor)
  * STATIC FUNCTIONS: ADDRESS CONVERSION
  * -------------------------------------------------------------- */
 
+// Given a string, which may be an IP address or a
+// domain name, return a pointer to the separator
+// character for the port number part of it,
+// or NULL if there is no port number
+static const char *pAddressPortSeparator(const char *pAddress)
+{
+    const char *pColon = NULL;
+
+    if (pAddress != NULL) {
+        // If there's a square bracket at the start of
+        // the domain string then we've been given an
+        // IPV6 address with port number so move
+        // the pointer to the closing square bracket
+        if (*pAddress == '[') {
+            pAddress = pCellularPort_strchr(pAddress, ']');
+        }
+        if (pAddress != NULL) {
+            // Check for a port number on the end
+            pColon = pCellularPort_strchr(pAddress, ':');
+            if (pColon != NULL) {
+                // Check if there are more colons in the
+                // string: if so this is an IPV6 address
+                // without a port number on the end
+                if (pCellularPort_strchr(pColon + 1, ':') != NULL) {
+                    pColon = NULL;
+                }
+            }
+        }
+    }
+
+    return pColon;
+}
+
 // Determine whether the given IP address string is IPV4.
 static bool addressStringIsIpv4(const char *pAddressString)
 {
@@ -2858,10 +2891,8 @@ int32_t cellularSockDomainGetPort(const char *pDomainString)
     int32_t x;
     const char *pColon;
 
-    // Check for a port number on the end
-    pColon = pCellularPort_strchr(pDomainString, ':');
+    pColon = pAddressPortSeparator(pDomainString);
     if (pColon != NULL) {
-        // Fill in the port number
         x = cellularPort_strtol(pColon + 1, NULL, 10);
         if (x <= USHRT_MAX) {
             port = x;
@@ -2877,11 +2908,21 @@ char *pCellularSockDomainRemovePort(char *pDomainString)
 {
     char *pColon;
 
-    // Check for a port number on the end
-    pColon = pCellularPort_strchr(pDomainString, ':');
+    pColon = (char *) pAddressPortSeparator(pDomainString);
     if (pColon != NULL) {
         // Overwrite the colon with a NULL to remove it
         *pColon = '\0';
+        if (*pDomainString == '[') {
+            // If there was a '[' at the start of the
+            // domain string then it is an IPV6 address
+            // with a port number. In this case
+            // we need to overwrite the closing ']' with
+            // a NULL and set the return pointer to be
+            // one beyond the '['.
+            pColon--;
+            *pColon = '\0';
+            pDomainString++;
+        }
     }
 
     return pDomainString;
