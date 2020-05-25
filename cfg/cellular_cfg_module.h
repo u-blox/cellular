@@ -139,7 +139,7 @@
 
 /** The time within which an AT command should complete.
  */
-# define CELLULAR_CTRL_COMMAND_TIMEOUT_MS 80000
+# define CELLULAR_CTRL_COMMAND_TIMEOUT_MS 8000
 
 /** The delay between AT commands, allowing internal cellular module
  * comms to complete before another is sent.
