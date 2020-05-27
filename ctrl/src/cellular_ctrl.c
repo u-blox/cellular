@@ -218,47 +218,47 @@ static void setNetworkStatus(int32_t status, CellularCtrlRan_t ran)
         case 0:
         case 2:
             // Not (yet) registered
-            cellularPortLog("NReg\n");
+            cellularPortLog("%d: NReg\n", ran);
         break;
         case 1:
             // Registered on the home network
-            cellularPortLog("RegH\n");
+            cellularPortLog("%d: RegH\n", ran);
         break;
         case 3:
             // Registeration denied
-            cellularPortLog("Deny\n");
+            cellularPortLog("%d: Deny\n", ran);
         break;
         case 4:
             // Out of coverage
-            cellularPortLog("OoC\n");
+            cellularPortLog("%d: OoC\n", ran);
         break;
         case 5:
             // Registered on a roaming network
-            cellularPortLog("RegR\n");
+            cellularPortLog("%d: RegR\n", ran);
         break;
         case 6:
             // Registered for SMS only on the home network
-            cellularPortLog("RegS\n");
+            cellularPortLog("%d: RegS\n", ran);
         break;
         case 7:
             // Registered for SMS only on a roaming network
-            cellularPortLog("RegS\n");
+            cellularPortLog("%d: RegS\n", ran);
         break;
         case 8:
             // Registered for emergency service only
-            cellularPortLog("RegE\n");
+            cellularPortLog("%d: RegE\n", ran);
         break;
         case 9:
             // Registered for circuit switched fall-back on the home network
-            cellularPortLog("RegC\n");
+            cellularPortLog("%d: RegC\n", ran);
         break;
         case 10:
             // Registered for circuit switched fall-back on a roaming network
-            cellularPortLog("RegC\n");
+            cellularPortLog("%d: RegC\n", ran);
         break;
         default:
             // Unknown registration status
-            cellularPortLog("Unk %d\n", status);
+            cellularPortLog("%d: Unk %d\n", ran, status);
         break;
     }
 
@@ -272,14 +272,22 @@ static void setNetworkStatus(int32_t status, CellularCtrlRan_t ran)
 static inline void CXREG_urc(CellularCtrlRan_t ran)
 {
     int32_t status;
+    int32_t secondInt;
 
     // Read status
     status = cellular_ctrl_at_read_int();
-    // Check that status was there AND there is no
-    // subsequent character: if there is this wasn't a URC
-    // it was the +CxREG:x,y response to an AT+CxREG?,
-    // which got into here by mistake
-    if ((status >= 0) && (cellular_ctrl_at_read_int() < 0)) {
+    // Check that status was there AND check for a
+    // subsequent integer: if there is one this
+    // wasn't a URC it was the +CxREG:x,y response
+    // to an AT+CxREG?, which was received in the
+    // middle of an AT+CxREG query and in that
+    // case the status is in the second integer
+    // not the first
+    secondInt = cellular_ctrl_at_read_int();
+    if (status >= 0) {
+        if (secondInt >= 0) {
+            status = secondInt;
+        }
         setNetworkStatus(status, ran);
     }
 }
@@ -597,11 +605,11 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
         if (status >= 0) {
             setNetworkStatus(status, gRegTypes[regType].ran);
         } else {
-            // Dodge for SARA-R4: it's not supposed to
-            // but SARA-R4 can spit-out a "+CxREG: y" URC
-            // while we're waiting for the "+CxREG: x,y"
-            // response from the AT+CxREG command.
-            // If that happens status will be -1 'cos
+            cellularPortLog("CELLULAR_CTRL: URC dodgeroo.\n");
+            // It is possible for the module to spit-out 
+            // a "+CxREG: y" URC while we're waiting for
+            // the "+CxREG: x,y" response from the AT+CxREG
+            // command. If that happens status will be -1 'cos
             // there's only a single integer in the URC.
             // So now wait for the actual response
             cellular_ctrl_at_resp_start(gRegTypes[regType].pResponseStr, false);
@@ -609,6 +617,15 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
             status = cellular_ctrl_at_read_int();
             if (status >= 0) {
                 setNetworkStatus(status, gRegTypes[regType].ran);
+            } else {
+                // And, yes, I've seen it happen twice.  Don't dare
+                // put a loop in here so just one more time...
+                cellular_ctrl_at_resp_start(gRegTypes[regType].pResponseStr, false);
+                cellular_ctrl_at_read_int();
+                status = cellular_ctrl_at_read_int();
+                if (status >= 0) {
+                    setNetworkStatus(status, gRegTypes[regType].ran);
+                }
             }
         }
         cellular_ctrl_at_resp_stop();
