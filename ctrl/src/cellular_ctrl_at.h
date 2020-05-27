@@ -337,7 +337,11 @@ void cellular_ctrl_at_skip_param(uint32_t count);
  * cellular_ctrl_at_set_delimiter(0) and
  * cellular_ctrl_at_set_stop_tag(NULL), before calling this.
  *
- * @param buf output buffer for the read.
+ * @param buf output buffer for the read. If this is set to
+ *            NULL the received bytes are thrown away,
+ *            useful to read out stuff that must be present
+ *            in the stream but which the application does
+ *            not want to store.
  * @param len maximum number of bytes to read.
  * @return    number of successfully read bytes or -1 in
  *            case of error.
@@ -347,7 +351,12 @@ int32_t cellular_ctrl_at_read_bytes(uint8_t *buf, size_t len);
 /** Reads chars from reading buffer. Terminates with NULL. Skips
  * the quotation marks. Stops on delimiter or stop tag.
  *
- * @param str                output buffer for the read.
+ * @param str                output buffer for the read. If this
+ *                           is set to NULL the received bytes
+ *                           are thrown away, useful to read
+ *                           out stuff that must be present in
+ *                           the stream but which the application
+ *                           doesn't want to store.
  * @param size               maximum number of chars to output
  *                           including NULL.
  * @param read_even_stop_tag if true then try to read even if

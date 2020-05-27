@@ -971,39 +971,51 @@ static void task_urc(void *parameters)
                                                              CELLULAR_CTRL_AT_URC_EVENT_UART_WAIT_MS);
         if (data_size_or_error > 0) {
 
+            // Potential URC data is available, lock the AT
+            // AT interface and process it for URCs
             cellular_ctrl_at_lock();
 
-            if (((data_size_or_error > 0) || (_buf.recv_pos < _buf.recv_len))) {
+            if (_buf.recv_pos < _buf.recv_len) {
                 if (_debug_on) {
-                    cellularPortLog("CELLULAR_AT: OoB readable %d, already buffered %u.\n", data_size_or_error,
+                    cellularPortLog("CELLULAR_AT: possible URC data readable %d,"
+                                    " already buffered %u.\n", data_size_or_error,
                                     _buf.recv_len - _buf.recv_pos);
                 }
                 _current_scope = CELLULAR_CTRL_AT_SCOPE_TYPE_NOT_SET;
                 for (int32_t data_loop_count = 0;
                      data_loop_count < CELLULAR_CTRL_AT_URC_DATA_LOOP_GUARD;
                      data_loop_count++) {
+                    // Search through the URCs
                     if (match_urc()) {
+                        // If there's a match, see if more data is availble
                         data_size_or_error = cellularPortUartGetReceiveSize(_uart);
-                        if (!(data_size_or_error > 0) ||
-                            (_buf.recv_pos < _buf.recv_len)) {
-                            break; // we have nothing to read anymore
-                        }
-                    // If no match found, look for CELLULAR_CTRL_AT_CRLF and consume everything up to CELLULAR_CTRL_AT_CRLF
-                    } else if (mem_str(_buf.recv_buff,
-                                       _buf.recv_len, CELLULAR_CTRL_AT_CRLF, CELLULAR_CTRL_AT_CRLF_LENGTH)) {
-                        consume_to_tag(CELLULAR_CTRL_AT_CRLF, true);
-                    } else {
-                        if (!fill_buffer(true)) {
-                            reset_buffer(); // consume anything that could not be handled
+                        if ((data_size_or_error <= 0) &&
+                            (_buf.recv_pos >= _buf.recv_len)) {
+                            // We have no more data to process, leave this loop
                             break;
                         }
-                        // No need to worry about overflow here, we're never awake
-                        // for long enough
-                        _start_time_ms = cellularPortGetTickTimeMs();
+                    // If no match was found, look for CELLULAR_CTRL_AT_CRLF
+                    } else if (mem_str(_buf.recv_buff, _buf.recv_len,
+                                       CELLULAR_CTRL_AT_CRLF, CELLULAR_CTRL_AT_CRLF_LENGTH)) {
+                        // Consume everything up to the CELLULAR_CTRL_AT_CRLF
+                        consume_to_tag(CELLULAR_CTRL_AT_CRLF, true);
+                    } else {
+                        // If no match was found and there's no CR/LF to consume up to,
+                        // bring in more data and we'll check it again
+                        if (fill_buffer(true)) {
+                            // Start the cycle again as if we'd just done
+                            // cellular_ctrl_at_lock()
+                            _start_time_ms = cellularPortGetTickTimeMs();
+                        } else {
+                            // There is no more data: consume anything that could not be handled
+                            // and leave this loop
+                            reset_buffer();
+                            break;
+                        }
                     }
                 }
                 if (_debug_on) {
-                    cellularPortLog("CELLULAR_AT: OoB done.\n");
+                    cellularPortLog("CELLULAR_AT: URC checking done.\n");
                 }
             }
 
@@ -1486,7 +1498,9 @@ int32_t cellular_ctrl_at_read_bytes(uint8_t *buf, size_t len)
         } else if (match_pos) {
             match_pos = 0;
         }
-        buf[read_len] = c;
+        if (buf != NULL) {
+            buf[read_len] = c;
+        }
 #ifndef DEBUG_PRINT_FULL_AT_STRING
         if (_debug_on && (read_len >= CELLULAR_CTRL_AT_DEBUG_MAXLEN)) {
             debug_print("...", sizeof("..."));
@@ -1519,7 +1533,9 @@ int32_t cellular_ctrl_at_read_string(char *buf, size_t size,
             set_error(CELLULAR_CTRL_AT_DEVICE_ERROR);
             return -1;
         } else if (!in_quotes && (c == _delimiter)) {
-            buf[len] = '\0';
+            if (buf != NULL) {
+                buf[len] = '\0';
+            }
             delimiter_found = true;
             break;
         } else if (c == '\"') {
@@ -1535,18 +1551,24 @@ int32_t cellular_ctrl_at_read_string(char *buf, size_t size,
                 _stop_tag->found = true;
                 // remove tag from string if it was matched
                 len -= _stop_tag->len - 1;
-                buf[len] = '\0';
+                if (buf != NULL) {
+                    buf[len] = '\0';
+                }
                 break;
             }
         } else if (match_pos) {
             match_pos = 0;
         }
 
-        buf[len] = c;
+        if (buf != NULL) {
+            buf[len] = c;
+        }
     }
 
     if (len && (len == size - 1 + match_pos)) {
-        buf[len] = '\0';
+        if (buf != NULL) {
+            buf[len] = '\0';
+        }
     }
 
     // Consume to delimiter or stop_tag
