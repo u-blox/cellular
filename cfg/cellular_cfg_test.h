@@ -146,35 +146,23 @@
  * COMPILE-TIME MACROS: MQTT RELATED
  * -------------------------------------------------------------- */
 
-#ifndef CELLULAR_CFG_TEST_MQTT_TIMEOUT_SECONDS
+#ifndef CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS
 /** The time to wait for an MQTT operation involving
  * the MQTT server to complete during testing.
  */
-# define CELLULAR_CFG_TEST_MQTT_TIMEOUT_SECONDS 35
+# define CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS 180
 #endif
 
 #ifndef CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME
 /** Server to use for MTT testing as a domain name.
  */
-# define CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME  "test.mosquitto.org"
+# define CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME  "test.mosquitto.org:1883"
 #endif
 
 #ifndef CELLULAR_CFG_TEST_MQTT_SERVER_IP_ADDRESS
 /** Server to use for MQTT testing as an IP address.
  */
 # define CELLULAR_CFG_TEST_MQTT_SERVER_IP_ADDRESS  "5.196.95.208"
-#endif
-
-#ifndef CELLULAR_CFG_TEST_MQTT_SERVER_PORT_UNSECURE
-/** Port number on the MQTT test server for unsecured operation.
- */
-# define CELLULAR_CFG_TEST_MQTT_SERVER_PORT_UNSECURE  1883
-#endif
-
-#ifndef CELLULAR_CFG_TEST_MQTT_SERVER_PORT_SECURE
-/** Port number on the MQTT test server for secured TLS operation.
- */
-# define CELLULAR_CFG_TEST_MQTT_SERVER_PORT_SECURE  8883
 #endif
 
 #ifndef CELLULAR_CFG_TEST_MQTT_SERVER_USERNAME

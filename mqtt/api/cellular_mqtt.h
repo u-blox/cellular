@@ -58,10 +58,11 @@ extern "C" {
 # define CELLULAR_MQTT_SERVER_ADDRESS_STRING_MAX_LENGTH_BYTES 256
 #endif
 
-/** The time to wait for an MQTT operation to be completed.
+/** The time to wait for an MQTT server-related operation
+ * to be completed.
  */
-#ifndef CELLULAR_MQTT_RESPONSE_WAIT_SECONDS
-# error CELLULAR_MQTT_RESPONSE_WAIT_SECONDS must be defined in cellular_cfg_module.h.
+#ifndef CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS
+# error CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS must be defined in cellular_cfg_module.h.
 #endif
 
 /** The maximum length of an MQTT publish message in bytes.
@@ -346,7 +347,9 @@ int32_t cellularMqttGetWill(CellularMqttQos_t *pQos,
                             char *pMessage,
                             int32_t *pMessageSizeBytes);
 
-/** Start an MQTT session.
+/** Start an MQTT session. The pKeepGoingCallback()
+ * function set during initialisation will called while
+ * this function is waiting for a connection to be made.
  *
  * @return zero on success or negative error code.
  */
@@ -364,7 +367,9 @@ int32_t cellularMqttDisconnect();
  */
 bool cellularMqttIsConnected();
 
-/** Publish an MQTT message.
+/** Publish an MQTT message. The pKeepGoingCallback()
+ * function set during initialisation will called while
+ * this function is waiting for publish to complete.
  *
  * @param qos              the MQTT QoS to use for this message.
  * @param retention        if true the message will be retained
@@ -390,7 +395,9 @@ int32_t cellularMqttPublish(CellularMqttQos_t qos,
                             const char *pMessage,
                             int32_t messageSizeBytes);
 
-/** Subscribe to an MQTT topic.
+/** Subscribe to an MQTT topic. The pKeepGoingCallback()
+ * function set during initialisation will called while
+ * this function is waiting for a subscription to complete.
  *
  * @param maxQos           the maximum MQTT message QoS to
  *                         for this subscription.
@@ -471,6 +478,13 @@ int32_t cellularMqttMessageRead(char *pTopicNameStr,
                                 char *pMessage,
                                 int32_t *pMessageSizeBytes,
                                 CellularMqttQos_t *pQos);
+
+/** Get the last MQTT error code.
+ *
+ * @return an error code, the meaning of which is utterly module
+ *         specific.
+ */
+int32_t cellularMqttGetLastErrorCode();
 
 #ifdef __cplusplus
 }

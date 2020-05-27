@@ -62,6 +62,7 @@ SRC_FILES += \
   ../../../../../../../ctrl/src/cellular_ctrl.c \
   ../../../../../../../ctrl/src/cellular_ctrl_at.c \
   ../../../../../../../sock/src/cellular_sock.c \
+  ../../../../../../../mqtt/src/cellular_mqtt.c \
   ../../../../../../clib/cellular_port_clib.c \
   ../../../../../../clib/cellular_port_clib_strtok_r.c \
   ../../../src/cellular_port.c \
@@ -72,6 +73,7 @@ SRC_FILES += \
   ../../../src/cellular_port_private.c \
   ../../../../../../../ctrl/test/cellular_ctrl_test.c \
   ../../../../../../../sock/test/cellular_sock_test.c \
+  ../../../../../../../mqtt/test/cellular_mqtt_test.c \
   ../../../../../../test/cellular_port_test.c \
   ../../../test/main_test.c \
   ../../../../../common/unity/cellular_port_unity_addons.c \
@@ -114,9 +116,11 @@ INC_FOLDERS += \
   ../../../../../../api \
   ../../../../../../../ctrl/api \
   ../../../../../../../sock/api \
+  ../../../../../../../mqtt/api \
   ../../../../../../../cfg \
   ../../../../../../../ctrl/src \
   ../../../../../../../sock/src \
+  ../../../../../../../mqtt/src \
   ../../../../../../clib \
   ../../../src \
   ../../../../../../test \

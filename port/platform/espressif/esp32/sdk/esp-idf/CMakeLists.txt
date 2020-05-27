@@ -6,6 +6,8 @@ set(COMPONENT_ADD_INCLUDEDIRS
                    "../../../../../../ctrl/api"
 # The API for the data (sockets) interface
                    "../../../../../../sock/api"
+# The API for the MQTT interface
+                   "../../../../../../mqtt/api"
 # The generic configuration files
                    "../../../../../../cfg"
 # The platform specific configuration files
@@ -18,6 +20,8 @@ set(COMPONENT_SRCS
                    "../../../../../../ctrl/src/cellular_ctrl_at.c"
 # The data (sockets) interface
                    "../../../../../../sock/src/cellular_sock.c"
+# The MQTT interface
+                   "../../../../../../mqtt/src/cellular_mqtt.c"
 # The C library portion of the porting layer,
 # which can be used unchanged on this platform
                    "../../../../../clib/cellular_port_clib.c"
@@ -31,6 +35,7 @@ set(COMPONENT_SRCS
 # The private include directories for the above
 set(COMPONENT_PRIV_INCLUDEDIRS "../../../../../../ctrl/src"
                                "../../../../../../sock/src"
+                               "../../../../../../mqtt/src"
                                "../../../../../clib"
                                "../../src")
 register_component()

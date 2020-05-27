@@ -16,7 +16,7 @@
       arm_target_device_name="nRF52840_xxAA"
       arm_target_interface_type="SWD"
       c_preprocessor_definitions="BOARD_PCA10056;BSP_DEFINES_ONLY;CONFIG_GPIO_AS_PINRESET;FLOAT_ABI_HARD;INITIALIZE_USER_SECTIONS;NO_VTOR_CONFIG;NRF52840_XXAA;FREERTOS;UNITY_INCLUDE_CONFIG_H;$(MODULE_TYPE:__dummy);$(EXTRA0:__dummy0);$(EXTRA1:__dummy1);$(EXTRA2:__dummy2);$(EXTRA3:__dummy3);$(EXTRA4:__dummy4);$(EXTRA5:__dummy5);$(EXTRA6:__dummy6);$(EXTRA7:__dummy7);$(EXTRA8:__dummy8);$(EXTRA9:__dummy9)"
-      c_user_include_directories=".;../../../cfg;$(NRF5_PATH)/components;$(NRF5_PATH)/modules/nrfx/mdk;$(NRF5_PATH)/components/libraries/fifo;$(NRF5_PATH)/components/libraries/strerror;$(NRF5_PATH)/components/toolchain/cmsis/include;$(NRF5_PATH)/external/freertos/source/include;$(NRF5_PATH)/external/freertos/config;$(NRF5_PATH)/components/libraries/util;$(NRF5_PATH)/components/libraries/balloc;$(NRF5_PATH)/components/libraries/ringbuf;$(NRF5_PATH)/modules/nrfx/hal;$(NRF5_PATH)/components/libraries/bsp;$(NRF5_PATH)/components/libraries/uart;$(NRF5_PATH)/components/libraries/log;$(NRF5_PATH)/modules/nrfx;$(NRF5_PATH)/components/libraries/experimental_section_vars;$(NRF5_PATH)/integration/nrfx/legacy;$(NRF5_PATH)/external/freertos/portable/CMSIS/nrf52;$(NRF5_PATH)/components/libraries/delay;$(NRF5_PATH)/integration/nrfx;$(NRF5_PATH)/components/drivers_nrf/nrf_soc_nosd;$(NRF5_PATH)/components/libraries/atomic;$(NRF5_PATH)/components/boards;$(NRF5_PATH)/components/libraries/memobj;$(NRF5_PATH)/external/freertos/portable/GCC/nrf52;$(NRF5_PATH)/modules/nrfx/drivers/include;$(NRF5_PATH)/external/fprintf;$(NRF5_PATH)/components/libraries/log/src;$(NRF5_PATH)/external/segger_rtt;$(NRF5_PATH)/components/libraries/hardfault;../../../../../../api;../../../../../../../ctrl/api;../../../../../../../sock/api;../../../../../../../cfg;../../../../../../../ctrl/src;../../../../../../../sock/src;../../../../../../clib;../../../src;../../../../../../test;../../../test/;../../../../../common/unity;$(UNITY_PATH)/src;"
+      c_user_include_directories=".;../../../cfg;$(NRF5_PATH)/components;$(NRF5_PATH)/modules/nrfx/mdk;$(NRF5_PATH)/components/libraries/fifo;$(NRF5_PATH)/components/libraries/strerror;$(NRF5_PATH)/components/toolchain/cmsis/include;$(NRF5_PATH)/external/freertos/source/include;$(NRF5_PATH)/external/freertos/config;$(NRF5_PATH)/components/libraries/util;$(NRF5_PATH)/components/libraries/balloc;$(NRF5_PATH)/components/libraries/ringbuf;$(NRF5_PATH)/modules/nrfx/hal;$(NRF5_PATH)/components/libraries/bsp;$(NRF5_PATH)/components/libraries/uart;$(NRF5_PATH)/components/libraries/log;$(NRF5_PATH)/modules/nrfx;$(NRF5_PATH)/components/libraries/experimental_section_vars;$(NRF5_PATH)/integration/nrfx/legacy;$(NRF5_PATH)/external/freertos/portable/CMSIS/nrf52;$(NRF5_PATH)/components/libraries/delay;$(NRF5_PATH)/integration/nrfx;$(NRF5_PATH)/components/drivers_nrf/nrf_soc_nosd;$(NRF5_PATH)/components/libraries/atomic;$(NRF5_PATH)/components/boards;$(NRF5_PATH)/components/libraries/memobj;$(NRF5_PATH)/external/freertos/portable/GCC/nrf52;$(NRF5_PATH)/modules/nrfx/drivers/include;$(NRF5_PATH)/external/fprintf;$(NRF5_PATH)/components/libraries/log/src;$(NRF5_PATH)/external/segger_rtt;$(NRF5_PATH)/components/libraries/hardfault;../../../../../../api;../../../../../../../ctrl/api;../../../../../../../sock/api;../../../../../../../mqtt/api;../../../../../../../cfg;../../../../../../../ctrl/src;../../../../../../../mqtt/src;../../../../../../../sock/src;../../../../../../clib;../../../src;../../../../../../test;../../../test/;../../../../../common/unity;$(UNITY_PATH)/src;"
       debug_register_definition_file="$(NRF5_PATH)/modules/nrfx/mdk/nrf52840.svd"
       debug_start_from_entry_point_symbol="No"
       debug_target_connection="J-Link"
@@ -41,6 +41,7 @@
       <file file_name="../../../../../../../ctrl/src/cellular_ctrl.c" />
       <file file_name="../../../../../../../ctrl/src/cellular_ctrl_at.c" />
       <file file_name="../../../../../../../sock/src/cellular_sock.c" />
+      <file file_name="../../../../../../../mqtt/src/cellular_mqtt.c" />
       <file file_name="../../../../../../clib/cellular_port_clib.c" />
       <file file_name="../../../../../../clib/cellular_port_clib_strtok_r.c" />
       <file file_name="../../../src/cellular_port.c" />
@@ -51,6 +52,7 @@
       <file file_name="../../../src/cellular_port_private.c" />
       <file file_name="../../../../../../../ctrl/test/cellular_ctrl_test.c" />
       <file file_name="../../../../../../../sock/test/cellular_sock_test.c" />
+      <file file_name="../../../../../../../mqtt/test/cellular_mqtt_test.c" />
       <file file_name="../../../../../../test/cellular_port_test.c" />
       <file file_name="../../../../../common/unity/cellular_port_unity_addons.c" />
       <file file_name="$(UNITY_PATH)/src/unity.c" />

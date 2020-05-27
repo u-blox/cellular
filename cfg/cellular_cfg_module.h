@@ -109,21 +109,16 @@
  */
 # define CELLULAR_MQTT_IS_SUPPORTED 1
 
-/** The time to wait for an MQTT operation to be completed.
+/** The time to wait for an MQTT server related 
+ * operation to be completed.
  */
-# define CELLULAR_MQTT_RESPONSE_WAIT_SECONDS 40
+# define CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS 240
 
 /** The maximum length of an MQTT publish message.
  */
 # define CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES 512
 
 /** The maximum length of an MQTT read message.
- * Yes, I know this is twice the publish length,
- * that's because the only common way to publish
- * potentially binary messages between SARA-R4
- * and SARA-R5 is through hex mode.  TODO:
- * fix this later using the file system as
- * an intermediate.
  */
 # define CELLULAR_MQTT_READ_MAX_LENGTH_BYTES 1024
 
@@ -154,7 +149,7 @@
 
 /** The time to wait before the cellular module is ready at boot.
  */
-# define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 5000
+# define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 6000
 
 /** The time to wait for an organised power off.
  * This should be used if the VInt pin is not connected:
@@ -164,7 +159,7 @@
 
 /** The time to wait for an OK when the module is asked to re-boot.
  */
-# define CELLULAR_CTRL_REBOOT_COMMAND_WAIT_TIME_MS CELLULAR_CTRL_COMMAND_TIMEOUT_MS
+# define CELLULAR_CTRL_REBOOT_COMMAND_WAIT_TIME_MS 10000
 
 /** The maximum number of simultaneous radio access technologies
  *  supported by the cellular module.
@@ -192,29 +187,26 @@
 # define CELLULAR_MQTT_IS_SUPPORTED 1
 
 # ifdef CELLULAR_CFG_MODULE_SARA_R412M_02B
-/** The time to wait for an MQTT operation to be completed.
+/** The time to wait for an MQTT server related operation
+ * to be completed.
  */
-#  define CELLULAR_MQTT_RESPONSE_WAIT_SECONDS 120
+#  define CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS 240
 
 # else
 
-/** The time to wait for an MQTT operation to be completed.
+/** The time to wait for an MQTT server related operation
+ * to be completed.
  */
-#  define CELLULAR_MQTT_RESPONSE_WAIT_SECONDS 40
+#  define CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS 240
 
 # endif
 
 /** The maximum length of an MQTT publish message.
+ * TODO: check this
  */
-# define CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES 512
+# define CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES 64
 
 /** The maximum length of an MQTT read message.
- * Yes, I know this is twice the publish length,
- * that's because the only common way to publish
- * potentially binary messages between SARA-R4
- * and SARA-R5 is through hex mode.  TODO:
- * fix this later using the file system as
- * an intermediate.
  */
 # define CELLULAR_MQTT_READ_MAX_LENGTH_BYTES 1024
 

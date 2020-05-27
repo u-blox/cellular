@@ -170,12 +170,14 @@ target_include_directories(
         "${cellular_dir}/port/api"
         "${cellular_dir}/ctrl/api"
         "${cellular_dir}/sock/api"
+        "${cellular_dir}/mqtt/api"
         "${cellular_dir}/port/platform/espressif/esp32/cfg"
 
         # Private files for cellular replacing Wifi,
         # TODO: figure out to add private include files in the AWS world
         "${cellular_dir}/ctrl/src"
         "${cellular_dir}/sock/src"
+        "${cellular_dir}/mqtt/src"
         "${cellular_dir}/port/clib"
         "${cellular_dir}/port/platform/espressif/esp32/src"
         "${cellular_dir}/port/platform/common/amazon-freertos"
@@ -276,6 +278,7 @@ target_sources(
         "${cellular_dir}/sock/src/cellular_sock_lwip_itf.c"
         "${cellular_dir}/ctrl/src/cellular_ctrl.c"
         "${cellular_dir}/ctrl/src/cellular_ctrl_at.c"
+        "${cellular_dir}/mqtt/src/cellular_mqtt.c"
         "${cellular_dir}/port/clib/cellular_port_clib.c"
         "${cellular_dir}/port/platform/espressif/esp32/src/cellular_port.c"
         "${cellular_dir}/port/platform/espressif/esp32/src/cellular_port_debug.c"
@@ -304,12 +307,14 @@ target_include_directories(
         "${cellular_dir}/port/api"
         "${cellular_dir}/ctrl/api"
         "${cellular_dir}/sock/api"
+        "${cellular_dir}/mqtt/api"
         "${cellular_dir}/port/platform/espressif/esp32/cfg"
 
         # Private include files for cellular replacement for LWIP,
         # TODO: figure out to add private include files in the AWS world
         "${cellular_dir}/ctrl/src"
         "${cellular_dir}/sock/src"
+        "${cellular_dir}/mqtt/src"
         "${cellular_dir}/port/clib"
         "${cellular_dir}/port/platform/espressif/esp32/src"
         "${cellular_dir}/port/platform/espressif/esp32/src/amazon-freertos"

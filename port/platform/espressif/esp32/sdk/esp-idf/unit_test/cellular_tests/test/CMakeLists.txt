@@ -3,10 +3,12 @@
 # Espressif through the macros in cellular_port_test.h
 set(COMPONENT_SRCS "../../../../../../../../../ctrl/test/cellular_ctrl_test.c"
                    "../../../../../../../../../sock/test/cellular_sock_test.c"
+                   "../../../../../../../../../mqtt/test/cellular_mqtt_test.c"
                    "../../../../../../../../test/cellular_port_test.c")
 set(COMPONENT_ADD_INCLUDEDIRS "."
                               "../../../../../../../../../ctrl/api"
                               "../../../../../../../../../sock/api"
+                              "../../../../../../../../../mqtt/api"
                               "../../../../../../../../../port/api"
                               "../../../../../../../../../cfg"
                               "../../../../../../../../api"

@@ -50,7 +50,7 @@
  * that information is collected locally, rather than waiting
  * on the MQTT servere
  */
-#define CELLULAR_CTRL_MQTT_LOCAL_URC_TIMEOUT_MS 2000
+#define CELLULAR_MQTT_LOCAL_URC_TIMEOUT_MS 5000
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -163,7 +163,9 @@ static void messageIndicationCallback(void *pParam)
     CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
 }
 
-// +UUMQTTx: URC handler.
+// "+UUMQTTx:" URC handler.
+// The swtich statement here needs to match those in
+// resetUrcStatusField() an checkUrcStatusField()
 static void UUMQTTx_urc(int32_t x)
 {
     // All these parameters are delimited by
@@ -171,9 +173,10 @@ static void UUMQTTx_urc(int32_t x)
     cellular_ctrl_at_set_delimiter('\r');
     switch (x) {
         case 0: // Local client name
-            if (cellular_ctrl_at_read_string(gUrcStatus.clientName.pContents,
-                                             gUrcStatus.clientName.sizeBytes,
-                                             false) > 0) {
+            if (!gUrcStatus.clientName.filledIn &&
+                (cellular_ctrl_at_read_string(gUrcStatus.clientName.pContents,
+                                              gUrcStatus.clientName.sizeBytes,
+                                              false) > 0)) {
                 gUrcStatus.clientName.filledIn = true;
             }
         break;
@@ -201,7 +204,8 @@ static void UUMQTTx_urc(int32_t x)
                 gUrcStatus.securityProfileId = cellular_ctrl_at_read_int();
             }
         break;
-        case 12: // Session retention (actually "clean")
+        case 12: // Session retention (actually the value here is
+                 // for "clean", hence the inversion)
             gUrcStatus.sessionRetained = (cellular_ctrl_at_read_int() == 0);
         break;
         default:
@@ -211,7 +215,7 @@ static void UUMQTTx_urc(int32_t x)
     cellular_ctrl_at_set_default_delimiter();
 }
 
-// +UUMQTTC: URC handler.
+// "+UUMQTTC:" URC handler.
 static void UUMQTTC_urc()
 {
     int32_t urcType;
@@ -230,7 +234,8 @@ static void UUMQTTC_urc()
                 gUrcStatus.connected = false;
             }
         break;
-        case 1: // Login, 0 means success
+        case 1: // Login, 0 means success, non-zero
+                // values are errors
             if (urcParam1 == 0) {
                 // Connected
                 gUrcStatus.connected = true;
@@ -283,7 +288,7 @@ static void UUMQTTC_urc()
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
 
-// +UUMQTTCM: URC handler, for SARA-R4 only.
+// "+UUMQTTCM:" URC handler, for SARA-R4 only.
 static void UUMQTTCM_urc()
 {
     int32_t param;
@@ -341,7 +346,9 @@ static void UUMQTTCM_urc()
 
 // MQTT URC handler, which hands
 // off to the three MQTT URC types,
-// +UUMQTTx:, +UUMQTTC: and +UUMQTTCM:.
+// "+UUMQTTx:" (where x can be a two
+// digit number), "+UUMQTTC:" and
+// "+UUMQTTCM:".
 static void UUMQTT_urc(void *pUnused)
 {
     uint8_t bytes[3];
@@ -382,6 +389,51 @@ static void UUMQTT_urc(void *pUnused)
  * STATIC FUNCTIONS: MISC
  * -------------------------------------------------------------- */
 
+// Print the error state of MQTT
+static void printErrorCodes()
+{
+    int32_t err1;
+    int32_t err2;
+
+    cellular_ctrl_at_lock();
+    cellular_ctrl_at_cmd_start("AT+UMQTTER");
+    cellular_ctrl_at_cmd_stop();
+    cellular_ctrl_at_resp_start("+UMQTTER:", false);
+    err1 = cellular_ctrl_at_read_int();
+    err2 = cellular_ctrl_at_read_int();
+    cellular_ctrl_at_resp_stop();
+    cellular_ctrl_at_unlock();
+    cellularPortLog("CELLULAR_MQTT: error codes %d, %d.\n", err1, err2);
+}
+
+// Process the response to an AT+MQTT command
+// returning 0 for success or negative error code
+static CellularMqttErrorCode_t atMqttStopCmdGetRespAndUnlock()
+{
+    CellularMqttErrorCode_t errorCode = CELLULAR_MQTT_AT_ERROR;
+    int32_t status = 1;
+
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+    cellular_ctrl_at_cmd_stop();
+    cellular_ctrl_at_resp_start("+UMQTT:", false);
+    // Skip the first parameter, which is just
+    // our UMQTT command number again
+    cellular_ctrl_at_skip_param(1);
+    status = cellular_ctrl_at_read_int();
+    cellular_ctrl_at_resp_stop();
+#else
+    cellular_ctrl_at_cmd_stop_read_resp();
+#endif
+    if ((cellular_ctrl_at_unlock_return_error() == 0) &&
+        (status == 1)) {
+        errorCode = CELLULAR_MQTT_SUCCESS;
+    } else {
+        printErrorCodes();
+    }
+
+    return errorCode;
+}
+
 // Convert a message buffer into a hex version of that buffer,
 // returning the number of bytes (not hex values) in the hex buffer.
 static size_t toHex(char *pHex, const char *pBinary,
@@ -389,7 +441,7 @@ static size_t toHex(char *pHex, const char *pBinary,
 {
     size_t hexLength = 0;
 
-    for (size_t x = 0; x < (binaryLength << 2); x++) {
+    for (size_t x = 0; x < (binaryLength * 2); x++) {
         if ((x & 1) == 0) {
             // Even
             *pHex = gHex[(*pBinary & 0xF0) >> 4];
@@ -404,6 +456,137 @@ static size_t toHex(char *pHex, const char *pBinary,
 
     return hexLength;
 }
+
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+// Set the given gUrcStatus item to "not filled in".
+// The switch statement here should match that in UUMQTTx_urc()
+static void resetUrcStatusField(int32_t number)
+{
+    switch (number) {
+        case 0: // Local client name
+            gUrcStatus.clientName.filledIn = false;
+        break;
+        case 1: // Local port number
+            gUrcStatus.localPortNumber = -1;
+        break;
+        case 2: // Server name
+        case 3: // Server IP address
+        case 4: // User name and password
+        // Nothing to do, we never read these back
+        break;
+        // There is no number 5
+        case 6: // Will QoS value
+        case 7: // Will retention value
+        case 8: // Will topic value
+        case 9: // The will message
+            // TODO
+        break;
+        case 10: // Inactivity timeout
+            gUrcStatus.inactivityTimeoutSeconds = -1;
+        break;
+        case 11: // TLS secured
+            gUrcStatus.secured = -1;
+            gUrcStatus.securityProfileId = -1;
+        break;
+        case 12: // Session retention
+            gUrcStatus.sessionRetained = -1;
+        break;
+        default:
+            // Do nothing
+        break;
+    }
+}
+
+// Check if the given gUrcStatus item has been filled in.
+// The switch statement here should match that in UUMQTTx_urc()
+static bool checkUrcStatusField(int32_t number)
+{
+    bool filledIn = false;
+
+    switch (number) {
+        case 0: // Local client name
+            filledIn = gUrcStatus.clientName.filledIn;
+        break;
+        case 1: // Local port number
+            filledIn = (gUrcStatus.localPortNumber >= 0);
+        break;
+        case 2: // Server name
+        case 3: // Server IP address
+        case 4: // User name and password
+        // Nothing to do, we never read these back
+        break;
+        // There is no number 5
+        case 6: // Will QoS value
+        case 7: // Will retention value
+        case 8: // Will topic value
+        case 9: // The will message
+            // TODO
+        break;
+        case 10: // Inactivity timeout
+            filledIn = (gUrcStatus.inactivityTimeoutSeconds >= 0);
+        break;
+        case 11: // TLS secured
+            filledIn = (gUrcStatus.secured >= 0);
+        break;
+        case 12: // Session retention
+            filledIn = (gUrcStatus.sessionRetained >= 0);
+        break;
+        default:
+            // Do nothing
+        break;
+    }
+
+    return filledIn;
+}
+
+// Make AT+UMQTT? happen.
+// Note: caller MUST lock the mutex before calling this
+// function and unlock it afterwards.
+static CellularCtrlErrorCode_t doUmqttQuery(int32_t number)
+{
+    CellularCtrlErrorCode_t errorCode = CELLULAR_MQTT_INVALID_PARAMETER;
+    char buffer[13];  // Enough room for "AT+UMQTT=x?"
+    int32_t status;
+    int64_t stopTimeMs;
+
+    // The SARA-R4 AT interface gets very peculiar here.
+    // Have to send in AT+UMQTT=x? and then wait for a URC
+    if (number < 100) {
+
+        // Set the relevant gUrcStatus item to "not filled in"
+        resetUrcStatusField(number);
+
+        // Now send the AT command
+        errorCode = CELLULAR_MQTT_AT_ERROR;
+        cellularPort_snprintf(buffer, sizeof(buffer), "AT+UMQTT=%d?", number);
+        cellular_ctrl_at_lock();
+        cellular_ctrl_at_cmd_start(buffer);
+        cellular_ctrl_at_cmd_stop();
+        cellular_ctrl_at_resp_start("+UMQTT:", false);
+        // Skip the first parameter, which is just
+        // our UMQTT command number again
+        cellular_ctrl_at_skip_param(1);
+        status = cellular_ctrl_at_read_int();
+        cellular_ctrl_at_resp_stop();
+        if ((cellular_ctrl_at_unlock_return_error() == 0) &&
+            (status == 1)) {
+            // Wait for the URC to capture the answer
+            // This is just a local thing so set a short timeout
+            // and don't bother with keepGoingCallback
+            stopTimeMs = cellularPortGetTickTimeMs() + CELLULAR_MQTT_LOCAL_URC_TIMEOUT_MS;
+            while ((!checkUrcStatusField(number)) &&
+                   (cellularPortGetTickTimeMs() < stopTimeMs)) {
+                cellularPortTaskBlock(250);
+            }
+            if (checkUrcStatusField(number)) {
+                errorCode = CELLULAR_MQTT_SUCCESS;
+            }
+        }
+    }
+
+    return errorCode;
+}
+#endif
 
 // Set MQTT ping or "keep alive" on or off.
 static CellularMqttErrorCode_t setKeepAlive(bool onNotOff)
@@ -437,12 +620,15 @@ static CellularMqttErrorCode_t setKeepAlive(bool onNotOff)
             // This has no URCness to it, that's it
             errorCode = CELLULAR_MQTT_SUCCESS;
             gKeptAlive = onNotOff;
+        } else {
+            printErrorCodes();
         }
     }
 
     return errorCode;
 }
 
+#ifndef CELLULAR_CFG_MODULE_SARA_R5
 // Set MQTT session retention on or off.
 static CellularMqttErrorCode_t setSessionRetention(bool onNotOff)
 {
@@ -459,14 +645,12 @@ static CellularMqttErrorCode_t setSessionRetention(bool onNotOff)
         cellular_ctrl_at_write_int(12);
         // The value of clean, the opposite of retained
         cellular_ctrl_at_write_int(!onNotOff);
-        cellular_ctrl_at_cmd_stop_read_resp();
-        if (cellular_ctrl_at_unlock_return_error() == 0) {
-            errorCode = CELLULAR_MQTT_SUCCESS;
-        }
+        errorCode = atMqttStopCmdGetRespAndUnlock();
     }
 
     return errorCode;
 }
+#endif
 
 // Set security on or off.
 static CellularMqttErrorCode_t setSecurity(bool onNotOff,
@@ -487,10 +671,7 @@ static CellularMqttErrorCode_t setSecurity(bool onNotOff,
         if (onNotOff && (securityProfileId >= 0)) {
             cellular_ctrl_at_write_int(securityProfileId);
         }
-        cellular_ctrl_at_cmd_stop_read_resp();
-        if (cellular_ctrl_at_unlock_return_error() == 0) {
-            errorCode = CELLULAR_MQTT_SUCCESS;
-        }
+        errorCode = atMqttStopCmdGetRespAndUnlock();
     }
 
     return errorCode;
@@ -513,8 +694,8 @@ static CellularMqttErrorCode_t connect(bool onNotOff)
 
         errorCode = CELLULAR_MQTT_AT_ERROR;
         cellular_ctrl_at_lock();
-        cellular_ctrl_at_set_at_timeout(CELLULAR_MQTT_RESPONSE_WAIT_SECONDS * 1000,
-                                        false);
+        // Have seen this take a little while
+        cellular_ctrl_at_set_at_timeout(15000, false);
         cellular_ctrl_at_cmd_start("AT+UMQTTC=");
         // Conveniently log-in is command 0 and
         // log out is command 1
@@ -533,64 +714,33 @@ static CellularMqttErrorCode_t connect(bool onNotOff)
         cellular_ctrl_at_restore_at_timeout();
         if ((cellular_ctrl_at_unlock_return_error() == 0) &&
             (status == 1)) {
-            errorCode = CELLULAR_MQTT_TIMEOUT;
-            // On all platforms we have to wait for the URC for success
-            stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_RESPONSE_WAIT_SECONDS * 1000);
-            while ((onNotOff != gUrcStatus.connected) &&
-                   (cellularPortGetTickTimeMs() < stopTimeMs) &&
-                   ((gpKeepGoingCallback == NULL) ||
-                    gpKeepGoingCallback())) {
-                cellularPortTaskBlock(1000);
-            }
-            if (onNotOff == gUrcStatus.connected) {
+            if (onNotOff) {
+                // On all platforms, when logging in,
+                // we have to wait for the URC for success
+                errorCode = CELLULAR_MQTT_TIMEOUT;
+                stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS * 1000);
+                while ((onNotOff != gUrcStatus.connected) &&
+                       (cellularPortGetTickTimeMs() < stopTimeMs) &&
+                       ((gpKeepGoingCallback == NULL) ||
+                        gpKeepGoingCallback())) {
+                    cellularPortTaskBlock(1000);
+                }
+                if (onNotOff == gUrcStatus.connected) {
+                    errorCode = CELLULAR_MQTT_SUCCESS;
+                } else {
+                    printErrorCodes();
+                }
+            } else {
+                // When logging off no need to wait, that's it
+                gUrcStatus.connected = false;
                 errorCode = CELLULAR_MQTT_SUCCESS;
             }
+        } else {
+            printErrorCodes();
         }
 
         CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
 
-    }
-
-    return errorCode;
-}
-
-// Make AT+UMQTT? happen.  This should
-// cause a load of URCs of the form
-// "+UMQTTx: blah" to be spewed out which
-// someone should be monitoring.
-static CellularCtrlErrorCode_t doUmqttQuery()
-{
-    CellularCtrlErrorCode_t errorCode = CELLULAR_MQTT_AT_ERROR;
-    uint8_t buffer[7];  // Enough room for " (more)"
-    int32_t bytesRead;
-    int32_t atError;
-    bool more = true;
-
-    // The SARA-R4 AT interface gets very peculiar here.
-    // Have to send in AT+UMQTT? and, if it comes back
-    // with the response "+UMQTT: (more)", send it in again
-    // keep doing that and capture "+UMQTTx:" URCs
-    // until there is no "(more)".  Ugh.
-    // Oh, and the +UMQTT has a '\r' at the start of it
-    // for some reason.
-    while (more) {
-        pCellularPort_memset(buffer, 0, sizeof(buffer));
-        cellular_ctrl_at_lock();
-        cellular_ctrl_at_cmd_start("AT+UMQTT?");
-        cellular_ctrl_at_cmd_stop();
-        cellular_ctrl_at_resp_start("\r+UMQTT:", false);
-        bytesRead = cellular_ctrl_at_read_bytes(buffer, sizeof(buffer));
-        cellular_ctrl_at_resp_stop();
-        atError = cellular_ctrl_at_unlock_return_error();
-        if ((atError == 0) && (bytesRead >= 0)) {
-            // Getting at least one constitutes success
-            errorCode = CELLULAR_MQTT_SUCCESS;
-            if (pCellularPort_strstr((char *) buffer, "(more)") == NULL) {
-                more = false;
-            }
-        } else {
-            more = false;
-        }
     }
 
     return errorCode;
@@ -601,28 +751,47 @@ static CellularCtrlErrorCode_t doUmqttQuery()
 static bool isSecured(int32_t *pSecurityProfileId)
 {
     bool secured = false;
-    int64_t stopTimeMs;
 
-    gUrcStatus.secured = -1;
-    gUrcStatus.securityProfileId = -1;
-    doUmqttQuery();
-    // Wait for the URC to capture the answer
-    // This is just a local thing so set a short timeout
-    // and don't bother with keepGoingCallback
-    stopTimeMs = cellularPortGetTickTimeMs() + CELLULAR_CTRL_MQTT_LOCAL_URC_TIMEOUT_MS;
-    while ((gUrcStatus.secured < 0) &&
-           (cellularPortGetTickTimeMs() < stopTimeMs)) {
-        cellularPortTaskBlock(100);
-    }
-    // SARA-R4 doesn't report the security status
-    // if it is the default of unsecured,
-    // so if we got nothing back we are unsecured.
-    if (gUrcStatus.secured >= 0) {
-        secured = gUrcStatus.secured;
-        if (secured && (pSecurityProfileId != NULL)) {
-            *pSecurityProfileId = gUrcStatus.securityProfileId;
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+    // Lock the mutex as we'll be
+    // setting gUrcStatus items
+    // and we don't want to trample
+    // on anyone else
+    CELLULAR_PORT_MUTEX_LOCK(gMutex);
+
+    // Run the query, answers come back in gUrcStatus
+    if (doUmqttQuery(11) == 0) {
+        // SARA-R4 doesn't report the security status
+        // if it is the default of unsecured,
+        // so if we got nothing back we are unsecured.
+        if (gUrcStatus.secured >= 0) {
+            secured = gUrcStatus.secured;
+            if (secured && (pSecurityProfileId != NULL)) {
+                *pSecurityProfileId = gUrcStatus.securityProfileId;
+            }
         }
     }
+
+    CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
+#else 
+    // No need to lock the mutex, the
+    // mutex protection of the AT interface
+    // lock is sufficient
+    cellular_ctrl_at_lock();
+    cellular_ctrl_at_cmd_start("AT+UMQTT=");
+    cellular_ctrl_at_write_int(11);
+    cellular_ctrl_at_cmd_stop();
+    cellular_ctrl_at_resp_start("+UMQTT:", false);
+    // Skip the first parameter, which is just
+    // our UMQTT command number again
+    cellular_ctrl_at_skip_param(1);
+    secured = (cellular_ctrl_at_read_int() == 1);
+    if (secured && (pSecurityProfileId != NULL)) {
+        *pSecurityProfileId = cellular_ctrl_at_read_int();
+    }
+    cellular_ctrl_at_resp_stop();
+    cellular_ctrl_at_unlock();
+#endif
 
     return secured;
 }
@@ -645,7 +814,9 @@ int32_t cellularMqttInit(const char *pServerNameStr,
     char *pAddress;
     char *pTmp;
     int32_t port;
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
     int32_t status = 1;
+#endif
     bool keepGoing = true;
 
     errorCode = CELLULAR_MQTT_SUCCESS;
@@ -684,15 +855,7 @@ int32_t cellularMqttInit(const char *pServerNameStr,
                         if (address.port > 0) {
                             cellular_ctrl_at_write_int(address.port);
                         }
-                        cellular_ctrl_at_cmd_stop();
-                        cellular_ctrl_at_resp_start("+UMQTT:", false);
-                        // Skip the first parameter, which is just
-                        // our UMQTT command number again
-                        cellular_ctrl_at_skip_param(1);
-                        status = cellular_ctrl_at_read_int();
-                        cellular_ctrl_at_resp_stop();
-                        keepGoing = ((cellular_ctrl_at_unlock_return_error() == 0) &&
-                                     (status == 1));
+                        keepGoing = (atMqttStopCmdGetRespAndUnlock() == 0);
                     }
                 } else {
                     // We must have a domain name,
@@ -714,8 +877,7 @@ int32_t cellularMqttInit(const char *pServerNameStr,
                     if (port >= 0) {
                         cellular_ctrl_at_write_int(port);
                     }
-                    cellular_ctrl_at_cmd_stop_read_resp();
-                    keepGoing = (cellular_ctrl_at_unlock_return_error() == 0);
+                    keepGoing = (atMqttStopCmdGetRespAndUnlock() == 0);
                 }
 
                 // Free memory
@@ -733,15 +895,7 @@ int32_t cellularMqttInit(const char *pServerNameStr,
                     if (pPasswordStr != NULL) {
                         cellular_ctrl_at_write_string(pPasswordStr, true);
                     }
-                    cellular_ctrl_at_cmd_stop();
-                    cellular_ctrl_at_resp_start("+UMQTT:", false);
-                    // Skip the first parameter, which is just
-                    // our UMQTT command number again
-                    cellular_ctrl_at_skip_param(1);
-                    status = cellular_ctrl_at_read_int();
-                    cellular_ctrl_at_resp_stop();
-                    keepGoing = ((cellular_ctrl_at_unlock_return_error() == 0) &&
-                                 (status == 1));
+                    keepGoing = (atMqttStopCmdGetRespAndUnlock() == 0);
                 }
 
                 // Finally deal with the local client name
@@ -752,20 +906,13 @@ int32_t cellularMqttInit(const char *pServerNameStr,
                     cellular_ctrl_at_write_int(0);
                     // The ID
                     cellular_ctrl_at_write_string(pClientNameStr, true);
-                    cellular_ctrl_at_cmd_stop();
-                    cellular_ctrl_at_resp_start("+UMQTT:", false);
-                    // Skip the first parameter, which is just
-                    // our UMQTT command number again
-                    cellular_ctrl_at_skip_param(1);
-                    status = cellular_ctrl_at_read_int();
-                    cellular_ctrl_at_resp_stop();
-                    keepGoing = ((cellular_ctrl_at_unlock_return_error() == 0) &&
-                                 (status == 1));
+                    keepGoing = (atMqttStopCmdGetRespAndUnlock() == 0);
                 }
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
                 if (keepGoing) {
                     // If this is SARA-R4, select verbose message reads
+                    cellular_ctrl_at_lock();
                     cellular_ctrl_at_cmd_start("AT+UMQTTC=");
                     // Message read format
                     cellular_ctrl_at_write_int(7);
@@ -794,6 +941,8 @@ int32_t cellularMqttInit(const char *pServerNameStr,
                         gKeptAlive = false;
                         errorCode = CELLULAR_MQTT_SUCCESS;
                     }
+                } else {
+                    printErrorCodes();
                 }
             }
         }
@@ -816,36 +965,50 @@ int32_t cellularMqttGetClientName(char *pClientNameStr,
                                   int32_t sizeBytes)
 {
     CellularMqttErrorCode_t errorCode = CELLULAR_MQTT_DEFAULT_ERROR_CODE;
-    int64_t stopTimeMs;
+#ifndef CELLULAR_CFG_MODULE_SARA_R4
+    int32_t bytesRead;
+#endif
 
     if (gMutex != NULL) {
         errorCode = CELLULAR_MQTT_INVALID_PARAMETER;
         if (pClientNameStr != NULL) {
-
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
             // Lock the mutex as we'll be
-            // setting gUrcStatus.clientName
+            // setting gUrcStatus items
             // and we don't want to trample
             // on anyone else
             CELLULAR_PORT_MUTEX_LOCK(gMutex);
 
             gUrcStatus.clientName.pContents = pClientNameStr;
             gUrcStatus.clientName.sizeBytes = sizeBytes;
-            gUrcStatus.clientName.filledIn = false;
-            errorCode = doUmqttQuery();
-            // Wait for the URC to capture the answer
-            // This is just a local thing so set a short timeout
-            // and don't bother with keepGoingCallback
-            stopTimeMs = cellularPortGetTickTimeMs() + CELLULAR_CTRL_MQTT_LOCAL_URC_TIMEOUT_MS;
-            while ((!gUrcStatus.clientName.filledIn) &&
-                   (cellularPortGetTickTimeMs() < stopTimeMs)) {
-                cellularPortTaskBlock(100);
-            }
-            if (gUrcStatus.clientName.filledIn) {
-                errorCode = CELLULAR_MQTT_SUCCESS;
-            }
+            // This will fill in the string
+            errorCode = doUmqttQuery(0);
+            // For safety, not to leave pointers unattended
+            gUrcStatus.clientName.pContents = NULL;
+            gUrcStatus.clientName.sizeBytes = 0;
 
             CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
-
+#else
+            // No need to lock the mutex, the
+            // mutex protection of the AT interface
+            // lock is sufficient
+            errorCode = CELLULAR_MQTT_AT_ERROR;
+            cellular_ctrl_at_lock();
+            cellular_ctrl_at_cmd_start("AT+UMQTT=0");
+            cellular_ctrl_at_cmd_stop();
+            cellular_ctrl_at_resp_start("+UMQTT:", false);
+            // Skip the first parameter, which is just
+            // our UMQTT command number again
+            cellular_ctrl_at_skip_param(1);
+            bytesRead = cellular_ctrl_at_read_string(pClientNameStr,
+                                                     sizeBytes,
+                                                     false);
+            cellular_ctrl_at_resp_stop();
+            if ((cellular_ctrl_at_unlock_return_error() == 0) &&
+                (bytesRead >= 0)) {
+                errorCode = CELLULAR_MQTT_SUCCESS;
+            }
+#endif
         }
     }
 
@@ -858,19 +1021,19 @@ int32_t cellularMqttSetLocalPort(uint16_t port)
     CellularMqttErrorCode_t errorCode = CELLULAR_MQTT_DEFAULT_ERROR_CODE;
 
     if (gMutex != NULL) {
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+        errorCode = CELLULAR_MQTT_NOT_SUPPORTED;
+#else
         // No need to lock the mutex, the
         // mutex protection of the AT interface
         // lock is sufficient
-        errorCode = CELLULAR_MQTT_AT_ERROR;
         cellular_ctrl_at_lock();
         cellular_ctrl_at_cmd_start("AT+UMQTT=");
         // Set the local port
         cellular_ctrl_at_write_int(1);
         cellular_ctrl_at_write_int(port);
-        cellular_ctrl_at_cmd_stop_read_resp();
-        if (cellular_ctrl_at_unlock_return_error() == 0) {
-            errorCode = CELLULAR_MQTT_SUCCESS;
-        }
+        errorCode = atMqttStopCmdGetRespAndUnlock();
+#endif
     }
 
     return (int32_t) errorCode;
@@ -880,28 +1043,26 @@ int32_t cellularMqttSetLocalPort(uint16_t port)
 int32_t cellularMqttGetLocalPort()
 {
     CellularMqttErrorCode_t errorCodeOrPort = CELLULAR_MQTT_DEFAULT_ERROR_CODE;
-    int64_t stopTimeMs;
+#if !defined(CELLULAR_CFG_MODULE_SARA_R4) && !defined(CELLULAR_CFG_MODULE_SARA_R5)
+    int32_t x;
+#endif
 
     if (gMutex != NULL) {
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
         // Lock the mutex as we'll be
-        // setting gUrcStatus.localPortNumber
+        // setting gUrcStatus items
         // and we don't want to trample
         // on anyone else
         CELLULAR_PORT_MUTEX_LOCK(gMutex);
-
-        gUrcStatus.localPortNumber = -1;
-        errorCodeOrPort = doUmqttQuery();
-        // Wait for the URC to capture the answer
-        // This is just a local thing so set a short timeout
-        // and don't bother with keepGoingCallback
-        stopTimeMs = cellularPortGetTickTimeMs() + CELLULAR_CTRL_MQTT_LOCAL_URC_TIMEOUT_MS;
-        while ((gUrcStatus.localPortNumber < 0) &&
-               (cellularPortGetTickTimeMs() < stopTimeMs)) {
-            cellularPortTaskBlock(100);
-        }
-        if (gUrcStatus.localPortNumber >= 0) {
+        errorCodeOrPort = doUmqttQuery(1);
+        if ((errorCodeOrPort == 0) &&
+            (gUrcStatus.localPortNumber >= 0)) {
             errorCodeOrPort = gUrcStatus.localPortNumber;
-        } else {
+        }
+
+        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
+
+        if (errorCodeOrPort < 0) {
             // The module doesn't respond with a port number if the
             // port number is just the default one.  Determine if
             // we are secured so that we can send back the correct
@@ -911,9 +1072,37 @@ int32_t cellularMqttGetLocalPort()
                 errorCodeOrPort = CELLULAR_MQTT_SERVER_PORT_SECURE;
             }
         }
-
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
-
+#else
+# ifdef CELLULAR_CFG_MODULE_SARA_R5
+        // SARA-R5 doesn't support reading
+        // the local port number, just return
+        // the correct one depending on
+        // whether security is on or not
+        errorCodeOrPort = CELLULAR_MQTT_SERVER_PORT_UNSECURE;
+        if (isSecured(NULL)) {
+            errorCodeOrPort = CELLULAR_MQTT_SERVER_PORT_SECURE;
+        }
+# else
+        // No need to lock the mutex, the
+        // mutex protection of the AT interface
+        // lock is sufficient
+        errorCodeOrPort = CELLULAR_MQTT_AT_ERROR;
+        cellular_ctrl_at_lock();
+        cellular_ctrl_at_cmd_start("AT+UMQTT=");
+        cellular_ctrl_at_write_int(1);
+        cellular_ctrl_at_cmd_stop();
+        cellular_ctrl_at_resp_start("+UMQTT:", false);
+        // Skip the first parameter, which is just
+        // our UMQTT command number again
+        cellular_ctrl_at_skip_param(1);
+        x = cellular_ctrl_at_read_int();
+        cellular_ctrl_at_resp_stop();
+        if ((cellular_ctrl_at_unlock_return_error() == 0) &&
+            (x >= 0)) {
+            errorCodeOrPort = x;
+        }
+# endif
+#endif
     }
 
     return (int32_t) errorCodeOrPort;
@@ -928,16 +1117,12 @@ int32_t cellularMqttSetInactivityTimeout(int32_t seconds)
         // No need to lock the mutex, the
         // mutex protection of the AT interface
         // lock is sufficient
-        errorCode = CELLULAR_MQTT_AT_ERROR;
         cellular_ctrl_at_lock();
         cellular_ctrl_at_cmd_start("AT+UMQTT=");
         // Set the inactivity timeout
         cellular_ctrl_at_write_int(10);
         cellular_ctrl_at_write_int(seconds);
-        cellular_ctrl_at_cmd_stop_read_resp();
-        if (cellular_ctrl_at_unlock_return_error() == 0) {
-            errorCode = CELLULAR_MQTT_SUCCESS;
-        }
+        errorCode = atMqttStopCmdGetRespAndUnlock();
     }
 
     return (int32_t) errorCode;
@@ -947,31 +1132,44 @@ int32_t cellularMqttSetInactivityTimeout(int32_t seconds)
 int32_t cellularMqttGetInactivityTimeout()
 {
     CellularMqttErrorCode_t errorCodeOrTimeout = CELLULAR_MQTT_DEFAULT_ERROR_CODE;
-    int64_t stopTimeMs;
+#ifndef CELLULAR_CFG_MODULE_SARA_R4
+    int32_t x;
+#endif
 
     if (gMutex != NULL) {
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
         // Lock the mutex as we'll be
-        // setting gUrcStatus.inactivityTimeoutSeconds
+        // setting gUrcStatus items
         // and we don't want to trample
         // on anyone else
         CELLULAR_PORT_MUTEX_LOCK(gMutex);
-
-        gUrcStatus.inactivityTimeoutSeconds = -1;
-        errorCodeOrTimeout = doUmqttQuery();
-        // Wait for the URC to capture the answer
-        // This is just a local thing so set a short timeout
-        // and don't bother with keepGoingCallback
-        stopTimeMs = cellularPortGetTickTimeMs() + CELLULAR_CTRL_MQTT_LOCAL_URC_TIMEOUT_MS;
-        while ((gUrcStatus.inactivityTimeoutSeconds < 0) &&
-               (cellularPortGetTickTimeMs() < stopTimeMs)) {
-            cellularPortTaskBlock(100);
-        }
-        if (gUrcStatus.inactivityTimeoutSeconds >= 0) {
+        errorCodeOrTimeout = doUmqttQuery(10);
+        if ((errorCodeOrTimeout == 0) &&
+            (gUrcStatus.inactivityTimeoutSeconds >= 0)) {
             errorCodeOrTimeout = gUrcStatus.inactivityTimeoutSeconds;
         }
 
         CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
-
+#else
+        // No need to lock the mutex, the
+        // mutex protection of the AT interface
+        // lock is sufficient
+        errorCodeOrTimeout = CELLULAR_MQTT_AT_ERROR;
+        cellular_ctrl_at_lock();
+        cellular_ctrl_at_cmd_start("AT+UMQTT=");
+        cellular_ctrl_at_write_int(10);
+        cellular_ctrl_at_cmd_stop();
+        cellular_ctrl_at_resp_start("+UMQTT:", false);
+        // Skip the first parameter, which is just
+        // our UMQTT command number again
+        cellular_ctrl_at_skip_param(1);
+        x = cellular_ctrl_at_read_int();
+        cellular_ctrl_at_resp_stop();
+        if ((cellular_ctrl_at_unlock_return_error() == 0) &&
+            (x >= 0)) {
+            errorCodeOrTimeout = x;
+        }
+#endif
     }
 
     return (int32_t) errorCodeOrTimeout;
@@ -998,44 +1196,64 @@ bool cellularMqttIsKeptAlive()
 // Switch session retention on.
 int32_t cellularMqttSetSessionRetentionOn()
 {
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+    return CELLULAR_MQTT_NOT_SUPPORTED;
+#else
     return (int32_t) setSessionRetention(true);
+#endif
 }
 
 // Switch MQTT session retention off.
 int32_t cellularMqttSetSessionRetentionOff()
 {
+#ifdef CELLULAR_CFG_MODULE_SARA_R5
+    return CELLULAR_MQTT_NOT_SUPPORTED;
+#else
     return (int32_t) setSessionRetention(false);
+#endif
 }
 
 // Determine whether MQTT session retention is on.
 bool cellularMqttIsSessionRetained()
 {
     bool sessionRetained = false;
-    int64_t stopTimeMs;
 
     if (gMutex != NULL) {
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
         // Lock the mutex as we'll be
-        // setting gUrcStatus.sessionRetained
+        // setting gUrcStatus items
         // and we don't want to trample
         // on anyone else
         CELLULAR_PORT_MUTEX_LOCK(gMutex);
 
-        gUrcStatus.sessionRetained = -1;
-        doUmqttQuery();
-        // Wait for the URC to capture the answer
-        // This is just a local thing so set a short timeout
-        // and don't bother with keepGoingCallback
-        stopTimeMs = cellularPortGetTickTimeMs() + CELLULAR_CTRL_MQTT_LOCAL_URC_TIMEOUT_MS;
-        while ((gUrcStatus.sessionRetained < 0) &&
-               (cellularPortGetTickTimeMs() < stopTimeMs)) {
-            cellularPortTaskBlock(100);
-        }
-        if (gUrcStatus.sessionRetained >= 0) {
+        // Run the query, answers come back in gUrcStatus
+        if ((doUmqttQuery(12) == 0) &&
+             gUrcStatus.sessionRetained >= 0) {
             sessionRetained = gUrcStatus.sessionRetained;
         }
 
         CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
-
+#else
+    // SARA-R5 doesn't support session retention
+# ifndef CELLULAR_CFG_MODULE_SARA_R5
+        // No need to lock the mutex, the
+        // mutex protection of the AT interface
+        // lock is sufficient
+        cellular_ctrl_at_lock();
+        cellular_ctrl_at_cmd_start("AT+UMQTT=");
+        cellular_ctrl_at_write_int(12);
+        cellular_ctrl_at_cmd_stop();
+        cellular_ctrl_at_resp_start("+UMQTT:", false);
+        // Skip the first parameter, which is just
+        // our UMQTT command number again
+        cellular_ctrl_at_skip_param(1);
+        // Note that what is reported is "cleaned",
+        // hence the inversion here
+        sessionRetained = (cellular_ctrl_at_read_int() == 0);
+        cellular_ctrl_at_resp_stop();
+        cellular_ctrl_at_unlock();
+# endif
+#endif
     }
 
     return sessionRetained;
@@ -1059,17 +1277,7 @@ bool cellularMqttIsSecured(int32_t *pSecurityProfileId)
     bool secured = false;
 
     if (gMutex != NULL) {
-
-        // Lock the mutex as isSecured()
-        // will modify gUrcStatus.secured
-        // and we don't want to trample
-        // on anyone else
-        CELLULAR_PORT_MUTEX_LOCK(gMutex);
-
         secured = isSecured(pSecurityProfileId);
-
-        CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
-
     }
 
     return secured;
@@ -1152,10 +1360,12 @@ int32_t cellularMqttPublish(CellularMqttQos_t qos,
             // Allocate memory to store the hex
             // version of the message
             errorCode = CELLULAR_MQTT_NO_MEMORY;
-            pHexMessage = (char *) pCellularPort_malloc(messageSizeBytes * 2);
+            pHexMessage = (char *) pCellularPort_malloc((messageSizeBytes * 2) + 1);
             if (pHexMessage != NULL) {
                 // Convert to hex
                 toHex(pHexMessage, pMessage, messageSizeBytes);
+                // Add a terminator to make it a string
+                *(pHexMessage + (messageSizeBytes * 2)) = '\0';
 
                 // Lock the mutex as we'll be
                 // setting gUrcStatus.publishSuccess
@@ -1199,7 +1409,7 @@ int32_t cellularMqttPublish(CellularMqttQos_t qos,
                     // Wait for a URC to say that the publish
                     // has succeeded
                     errorCode = CELLULAR_MQTT_TIMEOUT;
-                    stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_RESPONSE_WAIT_SECONDS * 1000);
+                    stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS * 1000);
                     while ((!gUrcStatus.publishSuccess) &&
                            (cellularPortGetTickTimeMs() < stopTimeMs) &&
                            ((gpKeepGoingCallback == NULL) ||
@@ -1208,8 +1418,12 @@ int32_t cellularMqttPublish(CellularMqttQos_t qos,
                     }
                     if (gUrcStatus.publishSuccess) {
                         errorCode = CELLULAR_MQTT_SUCCESS;
+                    } else {
+                        printErrorCodes();
                     }
 #endif
+                } else {
+                    printErrorCodes();
                 }
 
                 CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
@@ -1268,7 +1482,7 @@ int32_t cellularMqttSubscribe(CellularMqttQos_t maxQos,
                 // On all platforms need to wait for a URC to
                 // say that the subscribe has succeeded
                 errorCodeOrQos = CELLULAR_MQTT_TIMEOUT;
-                stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_RESPONSE_WAIT_SECONDS * 1000);
+                stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS * 1000);
                 while ((!gUrcStatus.subscribeSuccess) &&
                        (cellularPortGetTickTimeMs() < stopTimeMs) &&
                        ((gpKeepGoingCallback == NULL) ||
@@ -1277,7 +1491,11 @@ int32_t cellularMqttSubscribe(CellularMqttQos_t maxQos,
                 }
                 if (gUrcStatus.subscribeSuccess) {
                     errorCodeOrQos = gUrcStatus.subscribeQoS;
+                } else {
+                    printErrorCodes();
                 }
+            } else {
+                printErrorCodes();
             }
 
             CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
@@ -1333,7 +1551,7 @@ int32_t cellularMqttUnsubscribe(const char *pTopicFilterStr)
                 // Wait for a URC to say that the unsubscribe
                 // has succeeded
                 errorCode = CELLULAR_MQTT_TIMEOUT;
-                stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_RESPONSE_WAIT_SECONDS * 1000);
+                stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS * 1000);
                 while ((!gUrcStatus.unsubscribeSuccess) &&
                        (cellularPortGetTickTimeMs() < stopTimeMs) &&
                        ((gpKeepGoingCallback == NULL) ||
@@ -1342,8 +1560,12 @@ int32_t cellularMqttUnsubscribe(const char *pTopicFilterStr)
                 }
                 if (gUrcStatus.unsubscribeSuccess) {
                     errorCode = CELLULAR_MQTT_SUCCESS;
+                } else {
+                    printErrorCodes();
                 }
 #endif
+            } else {
+                printErrorCodes();
             }
 
             CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
@@ -1446,7 +1668,7 @@ int32_t cellularMqttMessageRead(char *pTopicNameStr,
                     (status == 1)) {
                     // Wait for a URC containing the message
                     errorCode = CELLULAR_MQTT_TIMEOUT;
-                    stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_RESPONSE_WAIT_SECONDS * 1000);
+                    stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS * 1000);
                     while ((!gUrcMessage.messageRead) &&
                            (cellularPortGetTickTimeMs() < stopTimeMs) &&
                            ((gpKeepGoingCallback == NULL) ||
@@ -1469,6 +1691,8 @@ int32_t cellularMqttMessageRead(char *pTopicNameStr,
                         }
                         errorCode = CELLULAR_MQTT_SUCCESS;
                     }
+                } else {
+                    printErrorCodes();
                 }
 #else
                 // We want just the one message
@@ -1531,6 +1755,8 @@ int32_t cellularMqttMessageRead(char *pTopicNameStr,
                         }
                         errorCode = CELLULAR_MQTT_SUCCESS;
                     }
+                } else {
+                    printErrorCodes();
                 }
 #endif
 
@@ -1543,6 +1769,29 @@ int32_t cellularMqttMessageRead(char *pTopicNameStr,
     }
 
     return (int32_t) errorCode;
+}
+
+// Get the last module-specific MQTT error code.
+int32_t cellularMqttGetLastErrorCode()
+{
+    int32_t errorCode = 0;
+    int32_t x;
+
+    if (gMutex != NULL) {
+        cellular_ctrl_at_lock();
+        cellular_ctrl_at_cmd_start("AT+UMQTTER");
+        cellular_ctrl_at_cmd_stop();
+        cellular_ctrl_at_resp_start("+UMQTTER:", false);
+        // Skip the first error code, which is a generic thing
+        cellular_ctrl_at_skip_param(1);
+        x = cellular_ctrl_at_read_int();
+        cellular_ctrl_at_resp_stop();
+        if (cellular_ctrl_at_unlock_return_error() == 0) {
+            errorCode = x;
+        }
+    }
+
+    return errorCode;
 }
 
 // End of file
