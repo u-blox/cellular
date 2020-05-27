@@ -1122,8 +1122,7 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
     int32_t errno = CELLULAR_SOCK_ENONE;
     int32_t startTimeMs = cellularPortGetTickTimeMs();
     char buffer[CELLULAR_SOCK_ADDRESS_STRING_MAX_LENGTH_BYTES];
-    int32_t port = -1;
-    int32_t wantedReceiveSize;
+    int32_t x = -1;
     int32_t actualReceiveSize;
     int32_t receivedSize = -1;
     uint8_t quoteMark;
@@ -1139,19 +1138,42 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
     // the_data is binary data. I make that 29 + 48 + len(the_data),
     // so the overhead is 77 bytes.
 
+    cellular_ctrl_at_lock();
+    if (pContainer->socket.pendingBytes == 0) {
+        // If the URC has not filled in pendingBytes, 
+        // ask the module directly if there is anything
+        // to read
+        cellular_ctrl_at_cmd_start("AT+USORF=");
+        // Handle
+        cellular_ctrl_at_write_int(pContainer->socket.modemHandle);
+        // Zero bytes to read, just want to know the number
+        // of bytes waiting
+        cellular_ctrl_at_write_int(0);
+        cellular_ctrl_at_cmd_stop();
+        cellular_ctrl_at_resp_start("+USORF:", false);
+        // Skip the socket ID
+        cellular_ctrl_at_skip_param(1);
+        // Read the amount of data
+        x = cellular_ctrl_at_read_int();
+        cellular_ctrl_at_resp_stop();
+        if (x >= 0) {
+            pContainer->socket.pendingBytes = x;
+        }
+    }
+    cellular_ctrl_at_unlock();
     // Run around the loop until a packet of data turns up or we time out
     while (success && (dataSizeBytes > 0) && (receivedSize < 0)) {
-        wantedReceiveSize = CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES;
-        if (wantedReceiveSize > dataSizeBytes) {
-            wantedReceiveSize = dataSizeBytes;
-        }
         if (pContainer->socket.pendingBytes > 0) {
+            // In the UDP case we HAVE to read the number
+            // of bytes pending as this will be the size
+            // of the next UDP packet in the module and the
+            // module can only deliver whole UDP packets.
             cellular_ctrl_at_lock();
             cellular_ctrl_at_cmd_start("AT+USORF=");
             // Handle
             cellular_ctrl_at_write_int(pContainer->socket.modemHandle);
             // Number of bytes to read
-            cellular_ctrl_at_write_int(wantedReceiveSize);
+            cellular_ctrl_at_write_int(CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES);
             cellular_ctrl_at_cmd_stop();
             cellular_ctrl_at_resp_start("+USORF:", false);
             // Skip the socket ID
@@ -1159,22 +1181,33 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
             // Read the IP address
             cellular_ctrl_at_read_string(buffer, sizeof(buffer), false);
             // Read the port
-            port = cellular_ctrl_at_read_int();
+            x = cellular_ctrl_at_read_int();
             // Read the amount of data
             actualReceiveSize = cellular_ctrl_at_read_int();
-            if (actualReceiveSize > dataSizeBytes) {
-                actualReceiveSize = dataSizeBytes;
+            if (actualReceiveSize > CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES) {
+                actualReceiveSize = CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES;
             }
-            // Don't stop for anything!
-            cellular_ctrl_at_set_delimiter(0);
-            cellular_ctrl_at_set_stop_tag(NULL);
-            // Get the leading quote mark out of the way
-            cellular_ctrl_at_read_bytes(&quoteMark, 1);
-            // Now read the actual data
-            cellular_ctrl_at_read_bytes((uint8_t *) pData,
-                                        actualReceiveSize);
-            cellular_ctrl_at_resp_stop();
-            cellular_ctrl_at_set_default_delimiter();
+            if (dataSizeBytes > actualReceiveSize) {
+                dataSizeBytes = actualReceiveSize;
+            }
+            if (actualReceiveSize > 0) {
+                // Don't stop for anything!
+                cellular_ctrl_at_set_delimiter(0);
+                cellular_ctrl_at_set_stop_tag(NULL);
+                // Get the leading quote mark out of the way
+                cellular_ctrl_at_read_bytes(&quoteMark, 1);
+                // Now read out all the actual data,
+                // first the bit we want
+                cellular_ctrl_at_read_bytes((uint8_t *) pData,
+                                            dataSizeBytes);
+                if (actualReceiveSize > dataSizeBytes) {
+                    //...and then the rest poured away to NULL
+                    cellular_ctrl_at_read_bytes(NULL,
+                                                actualReceiveSize - dataSizeBytes);
+                }
+                cellular_ctrl_at_resp_stop();
+                cellular_ctrl_at_set_default_delimiter();
+            }
             // BEFORE unlocking, work out what's happened
             // this is to prevent a URC being processed that
             // may indicate data left, over-write pendingBytes
@@ -1217,9 +1250,9 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
         }
     }
 
-    if (success && (receivedSize >= 0) && (pRemoteAddress != NULL) && (port >= 0)) {
+    if (success && (receivedSize >= 0) && (pRemoteAddress != NULL) && (x >= 0)) {
         success = (cellularSockStringToAddress(buffer, pRemoteAddress) == 0);
-        pRemoteAddress->port = port;
+        pRemoteAddress->port = x;
     }
 
     // Set the return code
@@ -1246,9 +1279,33 @@ int32_t receive(CellularSockContainer_t *pContainer,
     int32_t wantedReceiveSize;
     int32_t actualReceiveSize;
     int32_t receivedSize = 0;
+    int32_t x = 0;
     bool success = true;
     uint8_t quoteMark;
 
+    cellular_ctrl_at_lock();
+    if (pContainer->socket.pendingBytes == 0) {
+        // If the URC has not filled in pendingBytes, 
+        // ask the module directly if there is anything
+        // to read
+        cellular_ctrl_at_cmd_start("AT+USORD=");
+        // Handle
+        cellular_ctrl_at_write_int(pContainer->socket.modemHandle);
+        // Zero bytes to read, just want to know the number
+        // of bytes waiting
+        cellular_ctrl_at_write_int(0);
+        cellular_ctrl_at_cmd_stop();
+        cellular_ctrl_at_resp_start("+USORD:", false);
+        // Skip the socket ID
+        cellular_ctrl_at_skip_param(1);
+        // Read the amount of data
+        x = cellular_ctrl_at_read_int();
+        cellular_ctrl_at_resp_stop();
+        if (x >= 0) {
+            pContainer->socket.pendingBytes = x;
+        }
+    }
+    cellular_ctrl_at_unlock();
     // Run around the loop until we run out of room in the buffer
     // or we time out
     while (success && (dataSizeBytes > 0)) {
@@ -1272,16 +1329,18 @@ int32_t receive(CellularSockContainer_t *pContainer,
             if (actualReceiveSize > dataSizeBytes) {
                 actualReceiveSize = dataSizeBytes;
             }
-            // Don't stop for anything!
-            cellular_ctrl_at_set_delimiter(0);
-            cellular_ctrl_at_set_stop_tag(NULL);
-            // Get the leading quote mark out of the way
-            cellular_ctrl_at_read_bytes(&quoteMark, 1);
-            // Now read the actual data
-            cellular_ctrl_at_read_bytes((uint8_t *) (pData + receivedSize),
-                                        actualReceiveSize);
-            cellular_ctrl_at_resp_stop();
-            cellular_ctrl_at_set_default_delimiter();
+            if (actualReceiveSize > 0) {
+                // Don't stop for anything!
+                cellular_ctrl_at_set_delimiter(0);
+                cellular_ctrl_at_set_stop_tag(NULL);
+                // Get the leading quote mark out of the way
+                cellular_ctrl_at_read_bytes(&quoteMark, 1);
+                // Now read the actual data
+                cellular_ctrl_at_read_bytes((uint8_t *) (pData + receivedSize),
+                                            actualReceiveSize);
+                cellular_ctrl_at_resp_stop();
+                cellular_ctrl_at_set_default_delimiter();
+            }
             // BEFORE unlocking, work out what's happened
             // this is to prevent a URC being processed that
             // may indicate data left, over-write pendingBytes

@@ -517,7 +517,7 @@ int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
                            const CellularSockAddress_t *pRemoteAddress,
                            const void *pData, size_t dataSizeBytes);
 
-/** Receive a datagram from the given host.
+/** Receive a single datagram from the given host.
  *
  * @param descriptor     the descriptor of the socket.
  * @param pRemoteAddress a place to put the address of the remote
@@ -526,7 +526,14 @@ int32_t cellularSockSendTo(CellularSockDescriptor_t descriptor,
  * @param pData          a buffer in which to store the arriving
  *                       datagram.
  * @param dataSizeBytes  the number of bytes of storage available
- *                       at pData.
+ *                       at pData.  Each call receives a single
+ *                       datagram of maximum length
+ *                       CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES;
+ *                       if dataSizeBytes is less than the
+ *                       received size the remainder will be thrown
+ *                       away so, to ensure no loss, always
+ *                       allocate a buffer at least
+ *                       CELLULAR_SOCK_MAX_SEGMENT_LENGTH_BYTES big.
  * @return               on success the number of bytes received
  *                       else negative error code.
  */
