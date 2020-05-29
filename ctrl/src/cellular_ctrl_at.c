@@ -975,7 +975,7 @@ static void task_urc(void *parameters)
             // AT interface and process it for URCs
             cellular_ctrl_at_lock();
 
-            if (_buf.recv_pos < _buf.recv_len) {
+            if ((data_size_or_error > 0) || (_buf.recv_pos < _buf.recv_len)) {
                 if (_debug_on) {
                     cellularPortLog("CELLULAR_AT: possible URC data readable %d,"
                                     " already buffered %u.\n", data_size_or_error,
@@ -1419,7 +1419,7 @@ void cellular_ctrl_at_skip_len(int32_t len, uint32_t count)
 {
     if (_uart >= 0) {
         if ((_last_error != CELLULAR_CTRL_AT_SUCCESS) ||
-            !_stop_tag || _stop_tag->found) {
+            (_stop_tag && _stop_tag->found)) {
             return;
         }
 
@@ -1441,11 +1441,11 @@ void cellular_ctrl_at_skip_param(uint32_t count)
 {
     if (_uart >= 0) {
         if ((_last_error != CELLULAR_CTRL_AT_SUCCESS) ||
-            !_stop_tag || _stop_tag->found) {
+            (_stop_tag && _stop_tag->found)) {
             return;
         }
 
-        for (uint32_t i = 0; (i < count) && !_stop_tag->found; i++) {
+        for (uint32_t i = 0; (i < count) && (_stop_tag && !_stop_tag->found); i++) {
             size_t match_pos = 0;
             while (true) {
                 int c = get_char();
@@ -1454,7 +1454,7 @@ void cellular_ctrl_at_skip_param(uint32_t count)
                     return;
                 } else if (c == _delimiter) {
                     break;
-                } else if (_stop_tag->len && c == _stop_tag->tag[match_pos]) {
+                } else if (_stop_tag && _stop_tag->len && (c == _stop_tag->tag[match_pos])) {
                     match_pos++;
                     if (match_pos == _stop_tag->len) {
                         _stop_tag->found = true;
@@ -1517,8 +1517,8 @@ int32_t cellular_ctrl_at_read_string(char *buf, size_t size,
                                      bool read_even_stop_tag)
 {
     if ((_uart < 0) || (_last_error != CELLULAR_CTRL_AT_SUCCESS) ||
-        !_stop_tag || (_stop_tag->found &&
-                       (read_even_stop_tag == false))) {
+        (_stop_tag && _stop_tag->found &&
+         read_even_stop_tag == false)) {
         return -1;
     }
 
@@ -1543,7 +1543,7 @@ int32_t cellular_ctrl_at_read_string(char *buf, size_t size,
             len--;
             in_quotes = !in_quotes;
             continue;
-        } else if (!in_quotes &&
+        } else if (!in_quotes && _stop_tag &&
                    _stop_tag->len &&
                    (c == _stop_tag->tag[match_pos])) {
             match_pos++;
@@ -1572,7 +1572,7 @@ int32_t cellular_ctrl_at_read_string(char *buf, size_t size,
     }
 
     // Consume to delimiter or stop_tag
-    if (!delimiter_found && !_stop_tag->found) {
+    if (!delimiter_found && _stop_tag && !_stop_tag->found) {
         // Note:  match_pos was being reset to zero here but
         // that means that if half of the tag was matched in the
         // for() loop above it will be missed here
@@ -1674,8 +1674,8 @@ int32_t cellular_ctrl_at_read_int()
     char *first_no_digit;
 
     if (cellular_ctrl_at_read_string(buff,
-                              (size_t) sizeof(buff),
-                              false) == 0) {
+                                     (size_t) sizeof(buff),
+                                     false) == 0) {
         return -1;
     }
 
