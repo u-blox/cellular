@@ -41,6 +41,11 @@ extern "C" {
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
+/** Stringify a macro, i.e. blah -> "blah".
+ */
+#define CELLULAR_PORT_STRINGIFY_LITERAL(x) #x
+#define CELLULAR_PORT_STRINGIFY_QUOTED(x) CELLULAR_PORT_STRINGIFY_LITERAL(x)
+
 /** assert() as a macro so that we get file and line numbers.
 */
 #define cellularPort_assert(condition) _cellularPort_assert(__FILE__, \
