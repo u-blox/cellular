@@ -20,8 +20,6 @@
  * cellular_port* to maintain portability.
  */
 
-#if CELLULAR_MQTT_IS_SUPPORTED
-
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
@@ -38,9 +36,17 @@
 #include "cellular_mqtt.h"
 #include "cellular_cfg_test.h"
 
+#if CELLULAR_MQTT_IS_SUPPORTED
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
+
+// The Thingstream server without security.
+#define CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE "mqtt.thingstream.io:1883"
+
+// A message to send encrypted.
+#define CELLULAR_MQTT_TEST_MESSAGE "Hello World!"
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -225,8 +231,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestInitialisation(),
                                                keepGoingCallback) == 0);
 
     // For information only
-    cellularPortLog("CELLULAR_MQTT_TEST: getting local MQTT client name...\n");
-    CELLULAR_PORT_TEST_ASSERT(cellularMqttGetClientName(buffer, sizeof(buffer)) == 0);
+    cellularPortLog("CELLULAR_MQTT_TEST: getting local MQTT client ID...\n");
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttGetClientId(buffer, sizeof(buffer)) == 0);
 
     cellularCtrlPowerOff(NULL);
     cellularMqttDeinit();
@@ -279,9 +285,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestConnectDisconnect(),
                                                "bong",
                                                keepGoingCallback) == 0);
 
-    cellularPortLog("CELLULAR_MQTT_TEST: getting local MQTT client name...\n");
-    CELLULAR_PORT_TEST_ASSERT(cellularMqttGetClientName(buffer, sizeof(buffer)) == 0);
-    cellularPortLog("CELLULAR_MQTT_TEST: local MQTT client name is \"%s\".\n", buffer);
+    cellularPortLog("CELLULAR_MQTT_TEST: getting local MQTT client ID...\n");
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttGetClientId(buffer, sizeof(buffer)) == 0);
+    cellularPortLog("CELLULAR_MQTT_TEST: local MQTT client ID is \"%s\".\n", buffer);
     CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(buffer, "bong") == 0);
 
     cellularPortLog("CELLULAR_MQTT_TEST: getting local MQTT port...\n");
@@ -299,10 +305,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestConnectDisconnect(),
     cellularPortLog("CELLULAR_MQTT_TEST: keep-alive value is %d.\n", y);
     CELLULAR_PORT_TEST_ASSERT(y == 0);
 
-    cellularPortLog("CELLULAR_MQTT_TEST: getting session retention value...\n");
-    y = cellularMqttIsSessionRetained();
-    cellularPortLog("CELLULAR_MQTT_TEST: session retention value is %d.\n", y);
-    CELLULAR_PORT_TEST_ASSERT(y == 0);
+    cellularPortLog("CELLULAR_MQTT_TEST: getting session clean value...\n");
+    y = cellularMqttIsSessionClean();
+    cellularPortLog("CELLULAR_MQTT_TEST: session clean value is %d.\n", y);
+    CELLULAR_PORT_TEST_ASSERT(y == 1);
 
     cellularPortLog("CELLULAR_MQTT_TEST: getting security value...\n");
     y = cellularMqttIsSecured(NULL);
@@ -313,7 +319,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestConnectDisconnect(),
     cellularPortLog("CELLULAR_MQTT_TEST: connecting to \"%s\"...\n",
                     CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME);
     gStopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
-    y = cellularMqttConnect(CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME);
+    y = cellularMqttConnect();
     if (y == 0) {
         cellularPortLog("CELLULAR_MQTT_TEST: connected after %d seconds.\n",
                         ((int32_t) (cellularPortGetTickTimeMs() - startTimeMs)) / 1000);
@@ -407,9 +413,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestSubscribePublish(),
                                                gImei,
                                                keepGoingCallback) == 0);
 
-    cellularPortLog("CELLULAR_MQTT_TEST: getting local MQTT client name...\n");
-    CELLULAR_PORT_TEST_ASSERT(cellularMqttGetClientName(buffer, sizeof(buffer)) == 0);
-    cellularPortLog("CELLULAR_MQTT_TEST: local MQTT client name is \"%s\".\n", buffer);
+    cellularPortLog("CELLULAR_MQTT_TEST: getting local MQTT client ID...\n");
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttGetClientId(buffer, sizeof(buffer)) == 0);
+    cellularPortLog("CELLULAR_MQTT_TEST: local MQTT client ID is \"%s\".\n", buffer);
     CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(buffer, gImei) == 0);
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
@@ -449,22 +455,21 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestSubscribePublish(),
     CELLULAR_PORT_TEST_ASSERT(y == 0);
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
-    CELLULAR_PORT_TEST_ASSERT(cellularMqttSetSessionRetentionOn() == CELLULAR_MQTT_NOT_SUPPORTED);
-    CELLULAR_PORT_TEST_ASSERT(cellularMqttSetSessionRetentionOff() == CELLULAR_MQTT_NOT_SUPPORTED);
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttSetSessionCleanOn() == CELLULAR_MQTT_NOT_SUPPORTED);
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttSetSessionCleanOff() == CELLULAR_MQTT_NOT_SUPPORTED);
 #else
-    cellularPortLog("CELLULAR_MQTT_TEST: switching session retention on...\n");
-    CELLULAR_PORT_TEST_ASSERT(cellularMqttSetSessionRetentionOn() == 0);
-    cellularPortLog("CELLULAR_MQTT_TEST: getting session retention value...\n");
-    y = cellularMqttIsSessionRetained();
-    cellularPortLog("CELLULAR_MQTT_TEST: session retention value is %d.\n", y);
-    CELLULAR_PORT_TEST_ASSERT(y == 1);
-    cellularPortLog("CELLULAR_MQTT_TEST: switching session retention off again...\n");
-    CELLULAR_PORT_TEST_ASSERT(cellularMqttSetSessionRetentionOff() == 0);
-    cellularPortLog("CELLULAR_MQTT_TEST: getting session retention value...\n");
-#endif
-    y = cellularMqttIsSessionRetained();
-    cellularPortLog("CELLULAR_MQTT_TEST: session retention value is %d.\n", y);
+    cellularPortLog("CELLULAR_MQTT_TEST: switching session clean off...\n");
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttSetSessionCleanOff() == 0);
+    cellularPortLog("CELLULAR_MQTT_TEST: getting session clean value...\n");
+    y = cellularMqttIsSessionClean();
+    cellularPortLog("CELLULAR_MQTT_TEST: session clean value is %d.\n", y);
     CELLULAR_PORT_TEST_ASSERT(y == 0);
+    cellularPortLog("CELLULAR_MQTT_TEST: switching session clean on again...\n");
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttSetSessionCleanOn() == 0);
+#endif
+    y = cellularMqttIsSessionClean();
+    cellularPortLog("CELLULAR_MQTT_TEST: session clean value is %d.\n", y);
+    CELLULAR_PORT_TEST_ASSERT(y == 1);
 
     cellularPortLog("CELLULAR_MQTT_TEST: getting security value...\n");
     y = cellularMqttIsSecured(NULL);
@@ -476,7 +481,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestSubscribePublish(),
                     CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME);
     gStopTimeMs = cellularPortGetTickTimeMs() +
                   (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
-    y = cellularMqttConnect(CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME);
+    y = cellularMqttConnect();
     if (y == 0) {
         cellularPortLog("CELLULAR_MQTT_TEST: connected after %d seconds.\n",
                         ((int32_t) (cellularPortGetTickTimeMs() - startTimeMs)) / 1000);
@@ -622,6 +627,465 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestSubscribePublish(),
     CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
     cellularPortDeinit();
 }
+
+# ifdef CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID
+
+# ifndef CELLULAR_CFG_TEST_THINGSTREAM_SERVER_USERNAME
+#  error Must specify a username for your Thingstream account.
+# endif
+
+# ifndef CELLULAR_CFG_TEST_THINGSTREAM_SERVER_PASSWORD
+#  error Must specify a password for your Thingstream account.
+# endif
+
+/** Subscribe/publish messages with a Thingstream MQTT server.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestThingstreamBasic(),
+                            "mqttThingstreamBasic",
+                            "mqtt")
+{
+    int32_t y;
+    int32_t z;
+    int32_t numPublished = 0;
+    int32_t numUnread = 0;
+    int64_t startTimeMs;
+    char *pTopicOut;
+    char *pTopicIn;
+    char *pMessageOut;
+    char *pMessageIn;
+    CellularMqttQos_t qos;
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
+                                                   CELLULAR_CFG_BAUD_RATE,
+                                                   CELLULAR_CFG_RTS_THRESHOLD,
+                                                   CELLULAR_CFG_UART,
+                                                   &gUartQueueHandle) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_PWR_ON,
+                                               CELLULAR_CFG_PIN_VINT,
+                                               false,
+                                               CELLULAR_CFG_UART,
+                                               gUartQueueHandle) == 0);
+
+    // Malloc space to read messages and topics into
+    pTopicOut = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES);
+    CELLULAR_PORT_TEST_ASSERT(pTopicOut != NULL);
+    pTopicIn = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES);
+    CELLULAR_PORT_TEST_ASSERT(pTopicIn != NULL);
+    pMessageOut = (char *) pCellularPort_malloc(CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES);
+    CELLULAR_PORT_TEST_ASSERT(pMessageOut != NULL);
+    pMessageIn = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES);
+    CELLULAR_PORT_TEST_ASSERT(pMessageIn != NULL);
+
+    // Make a unique topic name to stop different boards colliding
+    cellularPort_snprintf(pTopicOut, CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,
+                          "ubx_test/%s", gImei);
+
+    // Call this first in case a previous failed test left things initialised
+    cellularMqttDeinit();
+
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
+
+    networkConnect(CELLULAR_CFG_TEST_APN,
+                   CELLULAR_CFG_TEST_USERNAME,
+                   CELLULAR_CFG_TEST_PASSWORD);
+
+    cellularPortLog("CELLULAR_MQTT_TEST: initialising MQTT with server \"%s\"...\n",
+                    CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE);
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttInit(CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE,
+                                               CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_SERVER_USERNAME),
+                                               CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_SERVER_PASSWORD),
+                                               CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID),
+                                               keepGoingCallback) == 0);
+
+    startTimeMs = cellularPortGetTickTimeMs();
+    cellularPortLog("CELLULAR_MQTT_TEST: connecting to %s...\n",
+                    CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE);
+    gStopTimeMs = cellularPortGetTickTimeMs() +
+                  (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
+    y = cellularMqttConnect();
+    if (y == 0) {
+        cellularPortLog("CELLULAR_MQTT_TEST: connected after %d seconds.\n",
+                        ((int32_t) (cellularPortGetTickTimeMs() - startTimeMs)) / 1000);
+        CELLULAR_PORT_TEST_ASSERT(cellularMqttIsConnected());
+    } else {
+        cellularPortLog("CELLULAR_MQTT_TEST: not connected after %d seconds, module error %d.\n",
+                        ((int32_t) (cellularPortGetTickTimeMs() - startTimeMs)) / 1000,
+                        cellularMqttGetLastErrorCode());
+        CELLULAR_PORT_TEST_ASSERT(!cellularMqttIsConnected());
+        CELLULAR_PORT_TEST_ASSERT(false);
+    }
+
+    // Set the callback
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttSetMessageIndicationCallback(messageIndicationCallback,
+                                                                       &numUnread) == 0);
+
+    cellularPortLog("CELLULAR_MQTT_TEST: subscribing to topic \"%s\"...\n", pTopicOut);
+    startTimeMs = cellularPortGetTickTimeMs();
+    gStopTimeMs = cellularPortGetTickTimeMs() +
+                  (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
+    y = cellularMqttSubscribe(CELLULAR_MQTT_EXACTLY_ONCE, pTopicOut);
+    if (y >= 0) {
+        cellularPortLog("CELLULAR_MQTT_TEST: subscribe successful after %d ms, QoS %d.\n",
+                        (int32_t) (cellularPortGetTickTimeMs() - startTimeMs), y);
+    } else {
+        cellularPortLog("CELLULAR_MQTT_TEST: subscribe returned error %d after %d ms,"
+                        " module error %d.\n",
+                        y, (int32_t) (cellularPortGetTickTimeMs() - startTimeMs),
+                        cellularMqttGetLastErrorCode());
+        CELLULAR_PORT_TEST_ASSERT(false);
+    }
+
+    // There may be unread messages sitting on the server from a previous test run,
+    // read them off here.
+    y = cellularMqttGetUnread();
+    for (size_t x = 0; x < y; x++) {
+        while (cellularMqttGetUnread() > 0) {
+            cellularPortLog("CELLULAR_MQTT_TEST: reading existing unread message %d of %d.\n",
+                            x + 1, y);
+            CELLULAR_PORT_TEST_ASSERT(cellularMqttMessageRead(pTopicIn,
+                                                              CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,
+                                                              pMessageIn, &z,
+                                                              NULL) == 0);
+            CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pTopicIn, pTopicOut) == 0);
+            // Let everyone sort themselves out
+            cellularPortTaskBlock(5000);
+        }
+    }
+
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttGetUnread() == 0);
+
+    cellularPortLog("CELLULAR_MQTT_TEST: publishing %d byte(s) to topic \"%s\"...\n",
+                    CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES, pTopicOut);
+    startTimeMs = cellularPortGetTickTimeMs();
+    gStopTimeMs = cellularPortGetTickTimeMs() +
+                  (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
+    // Fill in the outgoing message buffer with all possible things
+    y = CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES;
+    while (y > 0) {
+        z = sizeof(gAllChars);
+        if (z > y) {
+            z = y;
+        }
+        pCellularPort_memcpy(pMessageOut, gAllChars, z);
+        y -= z;
+    }
+    y = cellularMqttPublish(CELLULAR_MQTT_EXACTLY_ONCE, false, pTopicOut,
+                            pMessageOut, CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES);
+    if (y == 0) {
+        cellularPortLog("CELLULAR_MQTT_TEST: publish successful after %d ms.\n",
+                        (int32_t) (cellularPortGetTickTimeMs() - startTimeMs));
+        numPublished++;
+    } else {
+        cellularPortLog("CELLULAR_MQTT_TEST: publish returned error %d after %d ms, module"
+                        " error %d.\n",
+                        y, (int32_t) (cellularPortGetTickTimeMs() - startTimeMs),
+                        cellularMqttGetLastErrorCode());
+        CELLULAR_PORT_TEST_ASSERT(false);
+    }
+
+    cellularPortLog("CELLULAR_MQTT_TEST: waiting for an unread message indication...\n");
+    startTimeMs = cellularPortGetTickTimeMs();
+    while ((numUnread == 0) &&
+           (cellularPortGetTickTimeMs() < startTimeMs +
+                                         (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000))) {
+        cellularPortTaskBlock(1000);
+    }
+
+    if (numUnread > 0) {
+        cellularPortLog("CELLULAR_MQTT_TEST: %d message(s) unread.\n", numUnread);
+    } else {
+        cellularPortLog("CELLULAR_MQTT_TEST: no messages unread after %d ms.\n",
+                        (int32_t) (cellularPortGetTickTimeMs() - startTimeMs));
+        CELLULAR_PORT_TEST_ASSERT(false);
+    }
+
+    CELLULAR_PORT_TEST_ASSERT(numUnread == 1);
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttGetUnread() == numUnread);
+
+    cellularPortLog("CELLULAR_MQTT_TEST: reading the message...\n");
+    qos = -1;
+    y = CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES;
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttMessageRead(pTopicIn,
+                                                      CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,
+                                                      pMessageIn, &y,
+                                                      &qos) == 0);
+    cellularPortLog("CELLULAR_MQTT_TEST: read %d byte(s)...\n", y);
+    CELLULAR_PORT_TEST_ASSERT(qos == CELLULAR_MQTT_EXACTLY_ONCE);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pTopicIn, pTopicOut) == 0);
+    CELLULAR_PORT_TEST_ASSERT(y == CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES);
+    CELLULAR_PORT_TEST_ASSERT(cellularPort_memcmp(pMessageIn, pMessageOut, y) == 0);
+
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttGetUnread() == 0);
+
+    // Cancel the subscribe
+    cellularPortLog("CELLULAR_MQTT_TEST: unsubscribing from topic \"%s\"...\n",
+                    pTopicOut);
+    gStopTimeMs = cellularPortGetTickTimeMs() +
+                  (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttUnsubscribe(pTopicOut) == 0);
+
+    // Remove the callback
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttSetMessageIndicationCallback(NULL, NULL) == 0);
+
+    cellularPortLog("CELLULAR_MQTT_TEST: disconnecting again...\n");
+    gStopTimeMs = cellularPortGetTickTimeMs() +
+                  (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
+    CELLULAR_PORT_TEST_ASSERT(cellularMqttDisconnect() == 0);
+    CELLULAR_PORT_TEST_ASSERT(!cellularMqttIsConnected());
+
+    // Disconnect from the cellular network and tidy up
+    networkDisconnect();
+
+    cellularCtrlPowerOff(NULL);
+    cellularMqttDeinit();
+
+    cellularPort_free(pMessageIn);
+    cellularPort_free(pMessageOut);
+    cellularPort_free(pTopicIn);
+    cellularPort_free(pTopicOut);
+
+    cellularCtrlDeinit();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
+    cellularPortDeinit();
+}
+
+#  if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
+
+/** Subscribe/publish encypted messages with a Thingstream MQTT server.
+ */
+CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestThingstreamEncrypted(),
+                            "mqttThingstreamEncrypted",
+                            "mqtt")
+{
+    int32_t y;
+    int32_t z;
+    int32_t numPublished = 0;
+    int32_t numUnread = 0;
+    int64_t startTimeMs;
+    char *pTopicOut;
+    char *pTopicIn;
+    char *pMessageOut;
+    char *pMessageIn;
+    CellularMqttQos_t qos;
+
+    CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartInit(CELLULAR_CFG_PIN_TXD,
+                                                   CELLULAR_CFG_PIN_RXD,
+                                                   CELLULAR_CFG_PIN_CTS,
+                                                   CELLULAR_CFG_PIN_RTS,
+                                                   CELLULAR_CFG_BAUD_RATE,
+                                                   CELLULAR_CFG_RTS_THRESHOLD,
+                                                   CELLULAR_CFG_UART,
+                                                   &gUartQueueHandle) == 0);
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlInit(CELLULAR_CFG_PIN_ENABLE_POWER,
+                                               CELLULAR_CFG_PIN_PWR_ON,
+                                               CELLULAR_CFG_PIN_VINT,
+                                               false,
+                                               CELLULAR_CFG_UART,
+                                               gUartQueueHandle) == 0);
+
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
+
+    cellularPortLog("CELLULAR_MQTT_TEST: getting status of security seal...\n");
+    y = cellularCtrlGetSecuritySeal();
+    cellularPortLog("CELLULAR_MQTT_TEST: security seal status is %d.\n", y);
+    if (y == CELLULAR_CTRL_SUCCESS) {
+
+        CELLULAR_PORT_TEST_ASSERT(sizeof(CELLULAR_MQTT_TEST_MESSAGE) - 1 +
+                                  CELLULAR_CTRL_END_TO_END_ENCRYPT_HEADER_SIZE_BYTES <= CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES);
+        CELLULAR_PORT_TEST_ASSERT(sizeof(CELLULAR_MQTT_TEST_MESSAGE) - 1 + 
+                                  CELLULAR_CTRL_END_TO_END_ENCRYPT_HEADER_SIZE_BYTES <= CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES);
+
+        // Malloc space to read messages and topics into
+        pTopicOut = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES);
+        CELLULAR_PORT_TEST_ASSERT(pTopicOut != NULL);
+        pTopicIn = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES);
+        CELLULAR_PORT_TEST_ASSERT(pTopicIn != NULL);
+        pMessageOut = (char *) pCellularPort_malloc(CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES);
+        CELLULAR_PORT_TEST_ASSERT(pMessageOut != NULL);
+        pMessageIn = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES);
+        CELLULAR_PORT_TEST_ASSERT(pMessageIn != NULL);
+
+        // Make a unique topic name to stop different boards colliding
+        cellularPort_snprintf(pTopicOut, CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,
+                              "ubx_test/%s", gImei);
+
+        cellularPortLog("CELLULAR_CTRL_TEST: requesting end to end encryption...\n");
+        z = cellularSecurityEndToEndEncrypt(CELLULAR_MQTT_TEST_MESSAGE,
+                                            pMessageOut,
+                                            sizeof(CELLULAR_MQTT_TEST_MESSAGE) - 1);
+        CELLULAR_PORT_TEST_ASSERT(z <= sizeof(CELLULAR_MQTT_TEST_MESSAGE) - 1 + 
+                                       CELLULAR_CTRL_END_TO_END_ENCRYPT_HEADER_SIZE_BYTES);
+
+        // Call this first in case a previous failed test left things initialised
+        cellularMqttDeinit();
+
+        networkConnect(CELLULAR_CFG_TEST_APN,
+                       CELLULAR_CFG_TEST_USERNAME,
+                       CELLULAR_CFG_TEST_PASSWORD);
+
+        cellularPortLog("CELLULAR_MQTT_TEST: initialising MQTT with server \"%s\"...\n",
+                        CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE);
+        CELLULAR_PORT_TEST_ASSERT(cellularMqttInit(CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE,
+                                                   CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_SERVER_USERNAME),
+                                                   CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_SERVER_PASSWORD),
+                                                   CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID),
+                                                   keepGoingCallback) == 0);
+
+        startTimeMs = cellularPortGetTickTimeMs();
+        cellularPortLog("CELLULAR_MQTT_TEST: connecting to %s...\n",
+                        CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE);
+        gStopTimeMs = cellularPortGetTickTimeMs() +
+                      (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
+        y = cellularMqttConnect();
+        if (y == 0) {
+            cellularPortLog("CELLULAR_MQTT_TEST: connected after %d seconds.\n",
+                            ((int32_t) (cellularPortGetTickTimeMs() - startTimeMs)) / 1000);
+            CELLULAR_PORT_TEST_ASSERT(cellularMqttIsConnected());
+        } else {
+            cellularPortLog("CELLULAR_MQTT_TEST: not connected after %d seconds, module error %d.\n",
+                            ((int32_t) (cellularPortGetTickTimeMs() - startTimeMs)) / 1000,
+                            cellularMqttGetLastErrorCode());
+            CELLULAR_PORT_TEST_ASSERT(!cellularMqttIsConnected());
+            CELLULAR_PORT_TEST_ASSERT(false);
+        }
+
+        // Set the callback
+        CELLULAR_PORT_TEST_ASSERT(cellularMqttSetMessageIndicationCallback(messageIndicationCallback,
+                                                                           &numUnread) == 0);
+
+        cellularPortLog("CELLULAR_MQTT_TEST: subscribing to topic \"%s\"...\n", pTopicOut);
+        startTimeMs = cellularPortGetTickTimeMs();
+        gStopTimeMs = cellularPortGetTickTimeMs() +
+                      (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
+        y = cellularMqttSubscribe(CELLULAR_MQTT_EXACTLY_ONCE, pTopicOut);
+        if (y >= 0) {
+            cellularPortLog("CELLULAR_MQTT_TEST: subscribe successful after %d ms, QoS %d.\n",
+                            (int32_t) (cellularPortGetTickTimeMs() - startTimeMs), y);
+        } else {
+            cellularPortLog("CELLULAR_MQTT_TEST: subscribe returned error %d after %d ms,"
+                            " module error %d.\n",
+                            y, (int32_t) (cellularPortGetTickTimeMs() - startTimeMs),
+                            cellularMqttGetLastErrorCode());
+            CELLULAR_PORT_TEST_ASSERT(false);
+        }
+
+        // There may be unread messages sitting on the server from a previous test run,
+        // read them off here.
+        y = cellularMqttGetUnread();
+        for (size_t x = 0; x < y; x++) {
+            while (cellularMqttGetUnread() > 0) {
+                cellularPortLog("CELLULAR_MQTT_TEST: reading existing unread message %d of %d.\n",
+                                x + 1, y);
+                CELLULAR_PORT_TEST_ASSERT(cellularMqttMessageRead(pTopicIn,
+                                                                  CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,
+                                                                  pMessageIn, &z,
+                                                                  NULL) == 0);
+                CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pTopicIn, pTopicOut) == 0);
+                // Let everyone sort themselves out
+                cellularPortTaskBlock(5000);
+            }
+        }
+
+        CELLULAR_PORT_TEST_ASSERT(cellularMqttGetUnread() == 0);
+
+        cellularPortLog("CELLULAR_MQTT_TEST: publishing %d byte(s) to topic \"%s\"...\n",
+                        z, pTopicOut);
+        startTimeMs = cellularPortGetTickTimeMs();
+        gStopTimeMs = cellularPortGetTickTimeMs() +
+                      (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
+        y = cellularMqttPublish(CELLULAR_MQTT_EXACTLY_ONCE, false, pTopicOut,
+                                pMessageOut, z);
+        if (y == 0) {
+            cellularPortLog("CELLULAR_MQTT_TEST: publish successful after %d ms.\n",
+                            (int32_t) (cellularPortGetTickTimeMs() - startTimeMs));
+            numPublished++;
+        } else {
+            cellularPortLog("CELLULAR_MQTT_TEST: publish returned error %d after %d ms, module"
+                            " error %d.\n",
+                            y, (int32_t) (cellularPortGetTickTimeMs() - startTimeMs),
+                            cellularMqttGetLastErrorCode());
+            CELLULAR_PORT_TEST_ASSERT(false);
+        }
+
+        cellularPortLog("CELLULAR_MQTT_TEST: waiting for an unread message indication...\n");
+        startTimeMs = cellularPortGetTickTimeMs();
+        while ((numUnread == 0) &&
+               (cellularPortGetTickTimeMs() < startTimeMs +
+                                             (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000))) {
+            cellularPortTaskBlock(1000);
+        }
+
+        if (numUnread > 0) {
+            cellularPortLog("CELLULAR_MQTT_TEST: %d message(s) unread.\n", numUnread);
+        } else {
+            cellularPortLog("CELLULAR_MQTT_TEST: no messages unread after %d ms.\n",
+                            (int32_t) (cellularPortGetTickTimeMs() - startTimeMs));
+            CELLULAR_PORT_TEST_ASSERT(false);
+        }
+
+        CELLULAR_PORT_TEST_ASSERT(numUnread == 1);
+        CELLULAR_PORT_TEST_ASSERT(cellularMqttGetUnread() == numUnread);
+
+        cellularPortLog("CELLULAR_MQTT_TEST: reading the message...\n");
+        qos = -1;
+        y = CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES;
+        CELLULAR_PORT_TEST_ASSERT(cellularMqttMessageRead(pTopicIn,
+                                                          CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,
+                                                          pMessageIn, &y,
+                                                          &qos) == 0);
+        cellularPortLog("CELLULAR_MQTT_TEST: read %d byte(s)...\n", y);
+        CELLULAR_PORT_TEST_ASSERT(qos == CELLULAR_MQTT_EXACTLY_ONCE);
+        CELLULAR_PORT_TEST_ASSERT(cellularPort_strcmp(pTopicIn, pTopicOut) == 0);
+        CELLULAR_PORT_TEST_ASSERT(y == z);
+        CELLULAR_PORT_TEST_ASSERT(cellularPort_memcmp(pMessageIn, pMessageOut, z) == 0);
+
+        CELLULAR_PORT_TEST_ASSERT(cellularMqttGetUnread() == 0);
+
+        // Cancel the subscribe
+        cellularPortLog("CELLULAR_MQTT_TEST: unsubscribing from topic \"%s\"...\n",
+                        pTopicOut);
+        gStopTimeMs = cellularPortGetTickTimeMs() +
+                      (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
+        CELLULAR_PORT_TEST_ASSERT(cellularMqttUnsubscribe(pTopicOut) == 0);
+
+        // Remove the callback
+        CELLULAR_PORT_TEST_ASSERT(cellularMqttSetMessageIndicationCallback(NULL, NULL) == 0);
+
+        cellularPortLog("CELLULAR_MQTT_TEST: disconnecting again...\n");
+        gStopTimeMs = cellularPortGetTickTimeMs() +
+                      (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
+        CELLULAR_PORT_TEST_ASSERT(cellularMqttDisconnect() == 0);
+        CELLULAR_PORT_TEST_ASSERT(!cellularMqttIsConnected());
+
+        // Disconnect from the cellular network and tidy up
+        networkDisconnect();
+
+        cellularPort_free(pMessageIn);
+        cellularPort_free(pMessageOut);
+        cellularPort_free(pTopicIn);
+        cellularPort_free(pTopicOut);
+    } else {
+        cellularPortLog("CELLULAR_MQTT_TEST: NOT RUNNING test of encrypted "
+                        "MQTT as the cellular module is not security "
+                        "sealed.\n");
+    }
+
+    cellularCtrlPowerOff(NULL);
+    cellularMqttDeinit();
+
+    cellularCtrlDeinit();
+    CELLULAR_PORT_TEST_ASSERT(cellularPortUartDeinit(CELLULAR_CFG_UART) == 0);
+    cellularPortDeinit();
+}
+#  endif // CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
+
+# endif // CELLULAR_CFG_TEST_THINGSTREAM_SERVER_USERNAME
 
 /** Clean-up to be run at the end of this round of tests, just
  * in case there were test failures which would have resulted

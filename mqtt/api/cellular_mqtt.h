@@ -141,8 +141,8 @@ typedef enum {
  *                           user name required by the MQTT server.
  * @param pPasswordStr       the NULL terminated string that is the
  *                           password required by the MQTT server.
- * @param pClientNameStr     the NULL terminated string that
- *                           will be the client name for this
+ * @param pClientIdStr       the NULL terminated string that
+ *                           will be the client ID for this
  *                           MQTT session.  May be NULL, in
  *                           which case the driver will provide
  *                           a name.
@@ -171,25 +171,25 @@ typedef enum {
 int32_t cellularMqttInit(const char *pServerNameStr,
                          const char *pUserNameStr,
                          const char *pPasswordStr,
-                         const char *pClientNameStr,
+                         const char *pClientIdStr,
                          bool (*pKeepGoingCallback)(void));
 
 /** Shut-down the MQTT client.
  */
 void cellularMqttDeinit();
 
-/** Get the current MQTT client name.
+/** Get the current MQTT client ID.
  *
- * @param pClientNameStr   pointer to a place to put the client name,
+ * @param pClientIdStr     pointer to a place to put the client ID,
  *                         which will be NULL terminated.
- * @param sizeBytes        size of the storage at pClientNameStr,
+ * @param sizeBytes        size of the storage at pClientIdStr,
  *                         including the terminator.
- * @return                 the number of bytes written to pClientNameStr,
+ * @return                 the number of bytes written to pClientIdStr,
  *                         not including the NULL terminator (i.e. what
  *                         strlen() would return), or negative error code.
  */
-int32_t cellularMqttGetClientName(char *pClientNameStr,
-                                  int32_t sizeBytes);
+int32_t cellularMqttGetClientId(char *pClientIdStr,
+                                int32_t sizeBytes);
 
 /** Set the local port to use for the MQTT client.  If this is not
  * called the IANA assigned ports of 1883 for non-secure MQTT or 8883 
@@ -237,8 +237,6 @@ int32_t cellularMqttSetKeepAliveOn();
 
 /** Switch MQTT ping or "keep alive" off. See
  * cellularMqttSetKeepAliveOn() for more details.
- * IMPORTANT: a re-boot of the cellular module will lose your
- * setting.
  *
  * @return zero on success or negative error code.
  */
@@ -254,31 +252,29 @@ bool cellularMqttIsKeptAlive();
 
 /** If this function returns successfully then
  * the topic subscriptions and message queue status
- * will be remembered by both the client and the
+ * will be cleaned by both the client and the
  * server across MQTT disconnects/connects.
- * If this is not called no such data is retained.
+ * This is the default state.
+ *
+ * @return zero on success or negative error code.
+ */
+int32_t cellularMqttSetSessionCleanOn();
+
+/** Switch MQTT session cleaning off. See
+ * cellularMqttSetSessionCleanOn() for more details.
  * IMPORTANT: a re-boot of the cellular module will lose your
  * setting.
  *
  * @return zero on success or negative error code.
  */
-int32_t cellularMqttSetSessionRetentionOn();
+int32_t cellularMqttSetSessionCleanOff();
 
-/** Switch MQTT session retention off. See
- * cellularMqttSetSessionRetentionOn() for more details.
- * IMPORTANT: a re-boot of the cellular module will lose your
- * setting.
- *
- * @return zero on success or negative error code.
- */
-int32_t cellularMqttSetSessionRetentionOff();
-
-/** Determine whether MQTT session retention is on
+/** Determine whether MQTT session cleaning is on
  * or off.
  *
- * @return true if MQTT session retention is on else false.
+ * @return true if MQTT session cleaning is on else false.
  */
-bool cellularMqttIsSessionRetained();
+bool cellularMqttIsSessionClean();
 
 /** Switch MQTT TLS security on.  By default MQTT TLS
  * security is off.
@@ -296,8 +292,6 @@ bool cellularMqttIsSessionRetained();
 int32_t cellularMqttSetSecurityOn(int32_t securityProfileId);
 
 /** Switch MQTT TLS security off.
- * IMPORTANT: a re-boot of the cellular module will lose your
- * setting.
  *
  * @return zero on success or negative error code.
  */
@@ -322,9 +316,10 @@ bool cellularMqttIsSecured(int32_t *pSecurityProfileId);
  *
  * @param qos              the MQTT QoS to use for the
  *                         "will" message.
- * @param retention        if true the "will" message will
- *                         be retained by the server across
- *                         MQTT disconnects/connects. 
+ * @param clean            if false the "will" message will
+ *                         be cleaned by the server across
+ *                         MQTT disconnects/connects, else
+ *                         it will be retained. 
  * @param pTopicNameStr    the NULL terminated topic string
  *                         for the "will" message; may be NULL.
  * @param pMessage         a pointer to the "will" message;
@@ -340,7 +335,7 @@ bool cellularMqttIsSecured(int32_t *pSecurityProfileId);
  *                         code.
  */
 int32_t cellularMqttSetWill(CellularMqttQos_t qos,
-                            bool retention,
+                            bool clean,
                             const char *pTopicNameStr,
                             const char *pMessage,
                             int32_t messageSizeBytes);
@@ -352,8 +347,8 @@ int32_t cellularMqttSetWill(CellularMqttQos_t qos,
  * @param pQos                a place to put the MQTT QoS that is
  *                            used for the "will" message. May
  *                            be NULL.
- * @param pRetention          a place to put the status of "will"
- *                            message retention. May be NULL. 
+ * @param pClean              a place to put the status of "will"
+ *                            message clean. May be NULL. 
  * @param pTopicNameStr       a place to put the NULL terminated
  *                            topic string used with the "will"
  *                            message; may be NULL.
@@ -372,7 +367,7 @@ int32_t cellularMqttSetWill(CellularMqttQos_t qos,
  *                            code.
  */
 int32_t cellularMqttGetWill(CellularMqttQos_t *pQos,
-                            bool *pRetention,
+                            bool *pClean,
                             char *pTopicNameStr,
                             int32_t topicNameSizeBytes,
                             char *pMessage,
@@ -403,8 +398,8 @@ bool cellularMqttIsConnected();
  * this function is waiting for publish to complete.
  *
  * @param qos              the MQTT QoS to use for this message.
- * @param retention        if true the message will be retained
- *                         by the server across MQTT disconnects/
+ * @param clean            if true the message will be cleaned
+ *                         from the server across MQTT disconnects/
  *                         connects. 
  * @param pTopicNameStr    the NULL terminated topic string
  *                         for the message; cannot be NULL.
@@ -421,7 +416,7 @@ bool cellularMqttIsConnected();
  *                         code.
  */
 int32_t cellularMqttPublish(CellularMqttQos_t qos,
-                            bool retention,
+                            bool clean,
                             const char *pTopicNameStr,
                             const char *pMessage,
                             int32_t messageSizeBytes);

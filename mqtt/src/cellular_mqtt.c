@@ -78,12 +78,12 @@ typedef struct {
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
     // These only required for SARA-R4
     // which sends the status back in a URC
-    MqttBuffer_t clientName;
+    MqttBuffer_t clientId;
     int32_t localPortNumber;
     int32_t inactivityTimeoutSeconds;
     int32_t secured;
     int32_t securityProfileId;
-    int32_t sessionRetained;
+    int32_t sessionClean;
 #endif
 } MqttUrcStatus_t;
 
@@ -184,8 +184,8 @@ static void UUMQTTC_urc()
                 (urcParam1 == 101)) { // SARA-R5, connection lost
                 // Disconnected
                 gUrcStatus.connected = false;
-                gUrcStatus.updateFlag = true;
             }
+            gUrcStatus.updateFlag = true;
         break;
         case 1: // Login
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
@@ -197,15 +197,15 @@ static void UUMQTTC_urc()
 #endif
                 // Connected
                 gUrcStatus.connected = true;
-                gUrcStatus.updateFlag = true;
             }
+            gUrcStatus.updateFlag = true;
         break;
         case 2: // Publish, 1 means success
             if (urcParam1 == 1) {
                 // Published
                 gUrcStatus.publishSuccess = true;
-                gUrcStatus.updateFlag = true;
             }
+            gUrcStatus.updateFlag = true;
         break;
         // 3 (publish file) is not used by this driver
         case 4: // Subscribe
@@ -224,15 +224,15 @@ static void UUMQTTC_urc()
                 // Subscribed
                 gUrcStatus.subscribeSuccess = true;
                 gUrcStatus.subscribeQoS = urcParam2;
-                gUrcStatus.updateFlag = true;
             }
+            gUrcStatus.updateFlag = true;
         break;
         case 5: // Unsubscribe, 1 means success
             if (urcParam1 == 1) {
                 // Unsubscribed
                 gUrcStatus.unsubscribeSuccess = true;
-                gUrcStatus.updateFlag = true;
             }
+            gUrcStatus.updateFlag = true;
         break;
         case 6: // Num unread messages
             if (urcParam1 >= 0) {
@@ -246,8 +246,8 @@ static void UUMQTTC_urc()
                     cellular_ctrl_at_callback(messageIndicationCallback,
                                               (void *) (gUrcStatus.numUnreadMessages));
                 }
-                gUrcStatus.updateFlag = true;
             }
+            gUrcStatus.updateFlag = true;
         break;
         default:
             // Do nothing
@@ -267,11 +267,11 @@ static void UUMQTTx_urc(int32_t x)
     cellular_ctrl_at_set_delimiter('\r');
     switch (x) {
         case 0: // Local client name
-            if (!gUrcStatus.clientName.filledIn &&
-                (cellular_ctrl_at_read_string(gUrcStatus.clientName.pContents,
-                                              gUrcStatus.clientName.sizeBytes,
+            if (!gUrcStatus.clientId.filledIn &&
+                (cellular_ctrl_at_read_string(gUrcStatus.clientId.pContents,
+                                              gUrcStatus.clientId.sizeBytes,
                                               false) > 0)) {
-                gUrcStatus.clientName.filledIn = true;
+                gUrcStatus.clientId.filledIn = true;
             }
         break;
         case 1: // Local port number
@@ -284,7 +284,7 @@ static void UUMQTTx_urc(int32_t x)
         break;
         // There is no number 5
         case 6: // Will QoS value
-        case 7: // Will retention value
+        case 7: // Will clean value
         case 8: // Will topic value
         case 9: // The will message
             // TODO
@@ -298,9 +298,8 @@ static void UUMQTTx_urc(int32_t x)
                 gUrcStatus.securityProfileId = cellular_ctrl_at_read_int();
             }
         break;
-        case 12: // Session retention (actually the value here is
-                 // for "clean", hence the inversion)
-            gUrcStatus.sessionRetained = (cellular_ctrl_at_read_int() == 0);
+        case 12: // Session clean
+            gUrcStatus.sessionClean = (cellular_ctrl_at_read_int() == 1);
         break;
         default:
             // Do nothing
@@ -308,8 +307,6 @@ static void UUMQTTx_urc(int32_t x)
     }
     cellular_ctrl_at_set_default_delimiter();
 }
-
-bool _print = false;
 
 // "+UUMQTTCM:" URC handler, for SARA-R4 only.
 static void UUMQTTCM_urc()
@@ -341,7 +338,6 @@ static void UUMQTTCM_urc()
     // Switch off the stop tag and read
     // in the next 8 bytes and to see if they are "\r\nTopic:"
     cellular_ctrl_at_set_stop_tag(NULL);
-    _print = true;
     x = cellular_ctrl_at_read_bytes((uint8_t *) buffer, 8);
     if ((x == 8) &&
         (cellularPort_memcmp(buffer, "\r\nTopic:", 8) == 0)) {
@@ -406,7 +402,6 @@ static void UUMQTTCM_urc()
                                       (void *) (gUrcStatus.numUnreadMessages));
         }
     }
-    _print = false;
     cellular_ctrl_at_set_default_delimiter();
 }
 
@@ -532,7 +527,7 @@ static void resetUrcStatusField(int32_t number)
 {
     switch (number) {
         case 0: // Local client name
-            gUrcStatus.clientName.filledIn = false;
+            gUrcStatus.clientId.filledIn = false;
         break;
         case 1: // Local port number
             gUrcStatus.localPortNumber = -1;
@@ -544,7 +539,7 @@ static void resetUrcStatusField(int32_t number)
         break;
         // There is no number 5
         case 6: // Will QoS value
-        case 7: // Will retention value
+        case 7: // Will clean value
         case 8: // Will topic value
         case 9: // The will message
             // TODO
@@ -556,8 +551,8 @@ static void resetUrcStatusField(int32_t number)
             gUrcStatus.secured = -1;
             gUrcStatus.securityProfileId = -1;
         break;
-        case 12: // Session retention
-            gUrcStatus.sessionRetained = -1;
+        case 12: // Session clean
+            gUrcStatus.sessionClean = -1;
         break;
         default:
             // Do nothing
@@ -573,7 +568,7 @@ static bool checkUrcStatusField(int32_t number)
 
     switch (number) {
         case 0: // Local client name
-            filledIn = gUrcStatus.clientName.filledIn;
+            filledIn = gUrcStatus.clientId.filledIn;
         break;
         case 1: // Local port number
             filledIn = (gUrcStatus.localPortNumber >= 0);
@@ -585,7 +580,7 @@ static bool checkUrcStatusField(int32_t number)
         break;
         // There is no number 5
         case 6: // Will QoS value
-        case 7: // Will retention value
+        case 7: // Will clean value
         case 8: // Will topic value
         case 9: // The will message
             // TODO
@@ -596,8 +591,8 @@ static bool checkUrcStatusField(int32_t number)
         case 11: // TLS secured
             filledIn = (gUrcStatus.secured >= 0);
         break;
-        case 12: // Session retention
-            filledIn = (gUrcStatus.sessionRetained >= 0);
+        case 12: // Session clean
+            filledIn = (gUrcStatus.sessionClean >= 0);
         break;
         default:
             // Do nothing
@@ -697,8 +692,8 @@ static CellularMqttErrorCode_t setKeepAlive(bool onNotOff)
 }
 
 #ifndef CELLULAR_CFG_MODULE_SARA_R5
-// Set MQTT session retention on or off.
-static CellularMqttErrorCode_t setSessionRetention(bool onNotOff)
+// Set MQTT session clean on or off.
+static CellularMqttErrorCode_t setSessionClean(bool onNotOff)
 {
     CellularMqttErrorCode_t errorCode = CELLULAR_MQTT_DEFAULT_ERROR_CODE;
 
@@ -711,8 +706,7 @@ static CellularMqttErrorCode_t setSessionRetention(bool onNotOff)
         cellular_ctrl_at_cmd_start("AT+UMQTT=");
         // Set client clean session
         cellular_ctrl_at_write_int(12);
-        // The value of clean, the opposite of retained
-        cellular_ctrl_at_write_int(!onNotOff);
+        cellular_ctrl_at_write_int(onNotOff);
         errorCode = atMqttStopCmdGetRespAndUnlock();
     }
 
@@ -877,7 +871,7 @@ static bool isSecured(int32_t *pSecurityProfileId)
 int32_t cellularMqttInit(const char *pServerNameStr,
                          const char *pUserNameStr,
                          const char *pPasswordStr,
-                         const char *pClientNameStr,
+                         const char *pClientIdStr,
                          bool (*pKeepGoingCallback)(void))
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_MQTT_NOT_SUPPORTED;
@@ -971,14 +965,14 @@ int32_t cellularMqttInit(const char *pServerNameStr,
                     keepGoing = (atMqttStopCmdGetRespAndUnlock() == 0);
                 }
 
-                // Finally deal with the local client name
-                if (keepGoing && (pClientNameStr != NULL)) {
+                // Finally deal with the local client ID
+                if (keepGoing && (pClientIdStr != NULL)) {
                     cellular_ctrl_at_lock();
                     cellular_ctrl_at_cmd_start("AT+UMQTT=");
                     // Set client ID
                     cellular_ctrl_at_write_int(0);
                     // The ID
-                    cellular_ctrl_at_write_string(pClientNameStr, true);
+                    cellular_ctrl_at_write_string(pClientIdStr, true);
                     keepGoing = (atMqttStopCmdGetRespAndUnlock() == 0);
                 }
 
@@ -1034,8 +1028,8 @@ void cellularMqttDeinit()
 }
 
 // Get the current MQTT client name.
-int32_t cellularMqttGetClientName(char *pClientNameStr,
-                                  int32_t sizeBytes)
+int32_t cellularMqttGetClientId(char *pClientIdStr,
+                                int32_t sizeBytes)
 {
     CellularMqttErrorCode_t errorCode = CELLULAR_MQTT_DEFAULT_ERROR_CODE;
 #ifndef CELLULAR_CFG_MODULE_SARA_R4
@@ -1044,7 +1038,7 @@ int32_t cellularMqttGetClientName(char *pClientNameStr,
 
     if (gMutex != NULL) {
         errorCode = CELLULAR_MQTT_INVALID_PARAMETER;
-        if (pClientNameStr != NULL) {
+        if (pClientIdStr != NULL) {
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
             // Lock the mutex as we'll be
             // setting gUrcStatus items
@@ -1052,13 +1046,13 @@ int32_t cellularMqttGetClientName(char *pClientNameStr,
             // on anyone else
             CELLULAR_PORT_MUTEX_LOCK(gMutex);
 
-            gUrcStatus.clientName.pContents = pClientNameStr;
-            gUrcStatus.clientName.sizeBytes = sizeBytes;
+            gUrcStatus.clientId.pContents = pClientIdStr;
+            gUrcStatus.clientId.sizeBytes = sizeBytes;
             // This will fill in the string
             errorCode = doUmqttQuery(0);
             // For safety, not to leave pointers unattended
-            gUrcStatus.clientName.pContents = NULL;
-            gUrcStatus.clientName.sizeBytes = 0;
+            gUrcStatus.clientId.pContents = NULL;
+            gUrcStatus.clientId.sizeBytes = 0;
 
             CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
 #else
@@ -1073,7 +1067,7 @@ int32_t cellularMqttGetClientName(char *pClientNameStr,
             // Skip the first parameter, which is just
             // our UMQTT command number again
             cellular_ctrl_at_skip_param(1);
-            bytesRead = cellular_ctrl_at_read_string(pClientNameStr,
+            bytesRead = cellular_ctrl_at_read_string(pClientIdStr,
                                                      sizeBytes,
                                                      false);
             cellular_ctrl_at_resp_stop();
@@ -1266,30 +1260,30 @@ bool cellularMqttIsKeptAlive()
     return gKeptAlive;
 }
 
-// Switch session retention on.
-int32_t cellularMqttSetSessionRetentionOn()
+// Switch session cleaning on.
+int32_t cellularMqttSetSessionCleanOn()
 {
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
     return CELLULAR_MQTT_NOT_SUPPORTED;
 #else
-    return (int32_t) setSessionRetention(true);
+    return (int32_t) setSessionClean(true);
 #endif
 }
 
-// Switch MQTT session retention off.
-int32_t cellularMqttSetSessionRetentionOff()
+// Switch MQTT session cleaning off.
+int32_t cellularMqttSetSessionCleanOff()
 {
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
     return CELLULAR_MQTT_NOT_SUPPORTED;
 #else
-    return (int32_t) setSessionRetention(false);
+    return (int32_t) setSessionClean(false);
 #endif
 }
 
-// Determine whether MQTT session retention is on.
-bool cellularMqttIsSessionRetained()
+// Determine whether MQTT session cleaning is on.
+bool cellularMqttIsSessionClean()
 {
-    bool sessionRetained = false;
+    bool sessionClean = true;
 
     if (gMutex != NULL) {
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
@@ -1301,13 +1295,13 @@ bool cellularMqttIsSessionRetained()
 
         // Run the query, answers come back in gUrcStatus
         if ((doUmqttQuery(12) == 0) &&
-             gUrcStatus.sessionRetained >= 0) {
-            sessionRetained = gUrcStatus.sessionRetained;
+             gUrcStatus.sessionClean >= 0) {
+            sessionClean = gUrcStatus.sessionClean;
         }
 
         CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
 #else
-    // SARA-R5 doesn't support session retention
+        // SARA-R5 only supports session cleaning
 # ifndef CELLULAR_CFG_MODULE_SARA_R5
         // No need to lock the mutex, the
         // mutex protection of the AT interface
@@ -1320,16 +1314,14 @@ bool cellularMqttIsSessionRetained()
         // Skip the first parameter, which is just
         // our UMQTT command number again
         cellular_ctrl_at_skip_param(1);
-        // Note that what is reported is "cleaned",
-        // hence the inversion here
-        sessionRetained = (cellular_ctrl_at_read_int() == 0);
+        sessionClean = (cellular_ctrl_at_read_int() == 1);
         cellular_ctrl_at_resp_stop();
         cellular_ctrl_at_unlock();
 # endif
 #endif
     }
 
-    return sessionRetained;
+    return sessionClean;
 }
 
 // Switch MQTT TLS security on.
@@ -1358,7 +1350,7 @@ bool cellularMqttIsSecured(int32_t *pSecurityProfileId)
 
 // Set the MQTT "will" message.
 int32_t cellularMqttSetWill(CellularMqttQos_t qos,
-                            bool retention,
+                            bool clean,
                             const char *pTopicNameStr,
                             const char *pMessage,
                             int32_t messageSizeBytes)
@@ -1411,7 +1403,7 @@ bool cellularMqttIsConnected()
 
 // Publish an MQTT message.
 int32_t cellularMqttPublish(CellularMqttQos_t qos,
-                            bool retention,
+                            bool clean,
                             const char *pTopicNameStr,
                             const char *pMessage,
                             int32_t messageSizeBytes)
@@ -1455,8 +1447,8 @@ int32_t cellularMqttPublish(CellularMqttQos_t qos,
                 cellular_ctrl_at_write_int(2);
                 // QoS
                 cellular_ctrl_at_write_int(qos);
-                // Retention
-                cellular_ctrl_at_write_int(retention);
+                // Cleaning
+                cellular_ctrl_at_write_int(clean);
                 // Hex mode
                 cellular_ctrl_at_write_int(1);
                 // Topic
