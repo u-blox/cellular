@@ -1138,8 +1138,8 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
     // the_data is binary data. I make that 29 + 48 + len(the_data),
     // so the overhead is 77 bytes.
 
-    cellular_ctrl_at_lock();
     if (pContainer->socket.pendingBytes == 0) {
+        cellular_ctrl_at_lock();
         // If the URC has not filled in pendingBytes, 
         // ask the module directly if there is anything
         // to read
@@ -1159,8 +1159,8 @@ int32_t receiveFrom(CellularSockContainer_t *pContainer,
         if (x >= 0) {
             pContainer->socket.pendingBytes = x;
         }
+        cellular_ctrl_at_unlock();
     }
-    cellular_ctrl_at_unlock();
     // Run around the loop until a packet of data turns up or we time out
     while (success && (dataSizeBytes > 0) && (receivedSize < 0)) {
         if (pContainer->socket.pendingBytes > 0) {
@@ -1283,8 +1283,8 @@ int32_t receive(CellularSockContainer_t *pContainer,
     bool success = true;
     uint8_t quoteMark;
 
-    cellular_ctrl_at_lock();
     if (pContainer->socket.pendingBytes == 0) {
+        cellular_ctrl_at_lock();
         // If the URC has not filled in pendingBytes, 
         // ask the module directly if there is anything
         // to read
@@ -1304,8 +1304,8 @@ int32_t receive(CellularSockContainer_t *pContainer,
         if (x >= 0) {
             pContainer->socket.pendingBytes = x;
         }
+        cellular_ctrl_at_unlock();
     }
-    cellular_ctrl_at_unlock();
     // Run around the loop until we run out of room in the buffer
     // or we time out
     while (success && (dataSizeBytes > 0)) {
