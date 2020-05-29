@@ -412,7 +412,10 @@ static void UUMQTTCM_urc()
 // "+UUMQTTx:" (where x can be a two
 // digit number), "+UUMQTTC:" and
 // "+UUMQTTCM:".
-static void UUMQTT_urc(void *pUnused)
+// Note: not marked as static to avoid
+// an "unused" compiler warning if
+// CELLULAR_MQTT_IS_SUPPORTED is 0.
+void UUMQTT_urc(void *pUnused)
 {
     uint8_t bytes[3];
 
@@ -1022,9 +1025,11 @@ int32_t cellularMqttInit(const char *pServerNameStr,
 // Shut-down the MQTT client.
 void cellularMqttDeinit()
 {
-    cellular_ctrl_at_remove_urc_handler("+UUMQTT");
-    cellularPortMutexDelete(gMutex);
-    gMutex = NULL;
+    if (gMutex != NULL) {
+        cellular_ctrl_at_remove_urc_handler("+UUMQTT");
+        cellularPortMutexDelete(gMutex);
+        gMutex = NULL;
+    }
 }
 
 // Get the current MQTT client name.
