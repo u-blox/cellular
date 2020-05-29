@@ -34,10 +34,6 @@
 // The priority of the task running the tests: should be low.
 #define CELLULAR_PORT_TEST_RUNNER_TASK_PRIORITY 14
 
-// Stringify (for CELLULAR_CFG_TEST_FILTER)
-#define CELLULAR_PORT_STRINGIFY_LITERAL(x) #x
-#define CELLULAR_PORT_STRINGIFY_QUOTED(x) CELLULAR_PORT_STRINGIFY_LITERAL(x)
-
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
