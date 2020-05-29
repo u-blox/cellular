@@ -183,6 +183,11 @@ extern "C" {
  */
 #define CELLULAR_CTRL_ICCID_BUFFER_SIZE 21
 
+/** The amount of additional space required in a message
+ * buffer to accommodate the end to end encryption header.
+ */
+#define CELLULAR_CTRL_END_TO_END_ENCRYPT_HEADER_SIZE_BYTES 32
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -921,13 +926,16 @@ int32_t cellularCtrlGetSecuritySeal();
  * @param pDataIn        a pointer to dataSizeBytes of data to be
  *                       encrypted, may be NULL, in which case this
  *                       function does nothing.
- * @param pDataOut       a pointer to a location dataSizeBytes in size
- *                       to store the encrypted data, can only be
+ * @param pDataOut       a pointer to a location that MUST BE of size
+ *                       dataSizeBytes +
+ *                       CELLULAR_CTRL_END_TO_END_ENCRYPT_HEADER_SIZE_BYTES
+ *                       to store the encrypted data; can only be
  *                       NULL if pDataIn is NULL.
  * @param dataSizeBytes  the number of bytes of data to encrypt;
  *                       must be zero if pDataIn is NULL.
- * @return               on success the number of bytes encrypted
- *                       else negative error code.
+ * @return               on success the number of bytes in the 
+ *                       encrypted data block else negative error
+ *                       code.
  */
 int32_t cellularSecurityEndToEndEncrypt(const void *pDataIn,
                                         void *pDataOut,

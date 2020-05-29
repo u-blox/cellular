@@ -763,21 +763,23 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSecurityEndToEndEncryption(),
 
     cellularPortLog("CELLULAR_CTRL_TEST: security seal status is %d.\n", y);
 #if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
-    if (y == CELLULAR_CTRL_SUCCESS) {
+    if (y == 0) {
         // Allocate memory to receive into
-        pData = pCellularPort_malloc(sizeof(gAllChars));
+        pData = pCellularPort_malloc(sizeof(gAllChars) +
+                                     CELLULAR_CTRL_END_TO_END_ENCRYPT_HEADER_SIZE_BYTES);
         CELLULAR_PORT_TEST_ASSERT(pData != NULL);
         // Copy the output data into the input buffer, just to have
         // something in there we can check against
         pCellularPort_memcpy(pData, gAllChars, sizeof(gAllChars));
         cellularPortLog("CELLULAR_CTRL_TEST: requesting end to end encryption...\n");
-        CELLULAR_PORT_TEST_ASSERT(cellularSecurityEndToEndEncrypt(gAllChars, pData, sizeof(gAllChars)) == sizeof(gAllChars));
+        CELLULAR_PORT_TEST_ASSERT(cellularSecurityEndToEndEncrypt(gAllChars, pData, sizeof(gAllChars)) <= sizeof(gAllChars) + 
+                                                                                                          CELLULAR_CTRL_END_TO_END_ENCRYPT_HEADER_SIZE_BYTES);
         CELLULAR_PORT_TEST_ASSERT(cellularPort_memcmp(pData, gAllChars, sizeof(gAllChars)) != 0);
         cellularPort_free(pData);
     } else {
         cellularPortLog("CELLULAR_CTRL_TEST: NOT RUNNING test of end to end "
                         "encryption as the cellular module is not security "
-                        "sealed.\n", y);
+                        "sealed.\n");
     }
 #else
     CELLULAR_PORT_TEST_ASSERT(y == CELLULAR_CTRL_NOT_SUPPORTED);

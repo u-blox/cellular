@@ -2383,6 +2383,9 @@ int32_t cellularCtrlSetSecuritySeal(char *pDeviceInfoStr,
                                     bool (*pKeepGoingCallback) (void))
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_SUPPORTED;
+# ifdef CELLULAR_CFG_MODULE_SARA_R5
+    char *pApn;
+# endif
 
 #if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
     errorCode = CELLULAR_CTRL_NOT_INITIALISED;
@@ -2390,21 +2393,47 @@ int32_t cellularCtrlSetSecuritySeal(char *pDeviceInfoStr,
         errorCode = CELLULAR_CTRL_INVALID_PARAMETER;
         if ((pDeviceInfoStr != NULL) &&
             (pDeviceSerialNumberStr != NULL)) {
-            errorCode = CELLULAR_CTRL_AT_ERROR;
-            cellular_ctrl_at_lock();
-            cellular_ctrl_at_cmd_start("AT+USECDEVINFO=");
-            cellular_ctrl_at_write_string(pDeviceInfoStr, true);
-            cellular_ctrl_at_write_string(pDeviceSerialNumberStr, true);
-            cellular_ctrl_at_cmd_stop_read_resp();
-            if (cellular_ctrl_at_unlock_return_error() == 0) {
-                while ((errorCode != CELLULAR_CTRL_SUCCESS) &&
-                       ((pKeepGoingCallback == NULL) ||
-                         pKeepGoingCallback())) {
-                    errorCode = cellularCtrlGetSecuritySeal();
+# ifdef CELLULAR_CFG_MODULE_SARA_R5
+            errorCode = CELLULAR_CTRL_NO_MEMORY;
+            // On current SARA-R5 devices, need to tell
+            // the module which APN to use on the PDP
+            // context that it establishes for the
+            // security service functions
+            pApn = pCellularPort_malloc(CELLULAR_CTRL_APN_LENGTH);
+            if (pApn != NULL) {
+                errorCode = cellularCtrlGetApnStr(pApn, CELLULAR_CTRL_APN_LENGTH);
+                if (errorCode > 0) {
+                    errorCode = CELLULAR_CTRL_AT_ERROR;
+                    cellular_ctrl_at_lock();
+                    cellular_ctrl_at_cmd_start("AT+USECOPCMD=");
+                    cellular_ctrl_at_write_string("cfgpdn", true);
+                    cellular_ctrl_at_write_string(pApn, true);
+                    cellular_ctrl_at_cmd_stop_read_resp();
+                    if (cellular_ctrl_at_unlock_return_error() == 0) {
+# else
+                        errorCode = CELLULAR_CTRL_AT_ERROR;
+# endif // CELLULAR_CFG_MODULE_SARA_R5
+                        cellular_ctrl_at_lock();
+                        cellular_ctrl_at_cmd_start("AT+USECDEVINFO=");
+                        cellular_ctrl_at_write_string(pDeviceInfoStr, true);
+                        cellular_ctrl_at_write_string(pDeviceSerialNumberStr, true);
+                        cellular_ctrl_at_cmd_stop_read_resp();
+                        if (cellular_ctrl_at_unlock_return_error() == 0) {
+                            while ((errorCode != CELLULAR_CTRL_SUCCESS) &&
+                                   ((pKeepGoingCallback == NULL) ||
+                                     pKeepGoingCallback())) {
+                                errorCode = cellularCtrlGetSecuritySeal();
+                            }
+                        } else {
+                            cellularPortLog("CELLULAR_CTRL: request for security sealing refused.\n");
+                        }
+# ifdef CELLULAR_CFG_MODULE_SARA_R5
+                    }
                 }
-            } else {
-                cellularPortLog("CELLULAR_CTRL: request for security sealing refused.\n");
+                // Free memory
+                cellularPort_free(pApn);
             }
+# endif // CELLULAR_CFG_MODULE_SARA_R5
         }
     }
 #endif // CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
@@ -2421,63 +2450,33 @@ int32_t cellularCtrlGetSecuritySeal()
     int32_t moduleIsRegistered;
     int32_t deviceIsRegistered;
     int32_t deviceIsActivated;
-# ifdef CELLULAR_CFG_MODULE_SARA_R5
-    char *pApn;
-# endif
 
     errorCode = CELLULAR_CTRL_NOT_INITIALISED;
     if (gInitialised) {
-# ifdef CELLULAR_CFG_MODULE_SARA_R5
-        errorCode = CELLULAR_CTRL_NO_MEMORY;
-        // On current SARA-R5 devices, need to tell
-        // the module which APN to use on the PDP
-        // context that it established for the
-        // security service functions
-        pApn = pCellularPort_malloc(CELLULAR_CTRL_APN_LENGTH);
-        if (pApn != NULL) {
-            errorCode = cellularCtrlGetApnStr(pApn, CELLULAR_CTRL_APN_LENGTH);
-            if (errorCode > 0) {
-                errorCode = CELLULAR_CTRL_AT_ERROR;
-                cellular_ctrl_at_lock();
-                cellular_ctrl_at_cmd_start("AT+USECOPCMD=");
-                cellular_ctrl_at_write_string("cfgpdn", true);
-                cellular_ctrl_at_write_string(pApn, true);
-                cellular_ctrl_at_cmd_stop_read_resp();
-                if (cellular_ctrl_at_unlock_return_error() == 0) {
-# else
-        errorCode = CELLULAR_CTRL_AT_ERROR;
-# endif // CELLULAR_CFG_MODULE_SARA_R5
-                    cellular_ctrl_at_lock();
-                    cellular_ctrl_at_cmd_start("AT+USECDEVINFO?");
-                    cellular_ctrl_at_cmd_stop();
-                    cellular_ctrl_at_resp_start("+USECDEVINFO:", false);
-                    moduleIsRegistered = cellular_ctrl_at_read_int();
-                    deviceIsRegistered = cellular_ctrl_at_read_int();
-                    deviceIsActivated = cellular_ctrl_at_read_int();
-                    cellular_ctrl_at_resp_stop();
-                    if (cellular_ctrl_at_unlock_return_error() == 0) {
-                        cellularPortLog("CELLULAR_CTRL: seal request status:\n");
-                        if (moduleIsRegistered != 1) {
-                            errorCode = CELLULAR_CTRL_SEC_SEAL_MODULE_NOT_REGISTERED;
-                            cellularPortLog("               module not registered.\n");
-                        } else if (deviceIsRegistered != 1) {
-                            cellularPortLog("               module registered but not device.\n");
-                            errorCode = CELLULAR_CTRL_SEC_SEAL_DEVICE_NOT_REGISTERED;
-                        } else if (deviceIsActivated != 1) {
-                            cellularPortLog("               module and device registered but not activated.\n");
-                            errorCode = CELLULAR_CTRL_SEC_SEAL_DEVICE_NOT_ACTIVATED;
-                        } else {
-                            cellularPortLog("               module and device registered and activated.\n");
-                            errorCode = CELLULAR_CTRL_SUCCESS;
-                        }
-                    }
-# ifdef CELLULAR_CFG_MODULE_SARA_R5
-                }
+        cellular_ctrl_at_lock();
+        cellular_ctrl_at_cmd_start("AT+USECDEVINFO?");
+        cellular_ctrl_at_cmd_stop();
+        cellular_ctrl_at_resp_start("+USECDEVINFO:", false);
+        moduleIsRegistered = cellular_ctrl_at_read_int();
+        deviceIsRegistered = cellular_ctrl_at_read_int();
+        deviceIsActivated = cellular_ctrl_at_read_int();
+        cellular_ctrl_at_resp_stop();
+        if (cellular_ctrl_at_unlock_return_error() == 0) {
+            cellularPortLog("CELLULAR_CTRL: seal request status:\n");
+            if (moduleIsRegistered != 1) {
+                errorCode = CELLULAR_CTRL_SEC_SEAL_MODULE_NOT_REGISTERED;
+                cellularPortLog("               module not registered.\n");
+            } else if (deviceIsRegistered != 1) {
+                cellularPortLog("               module registered but not device.\n");
+                errorCode = CELLULAR_CTRL_SEC_SEAL_DEVICE_NOT_REGISTERED;
+            } else if (deviceIsActivated != 1) {
+                cellularPortLog("               module and device registered but not activated.\n");
+                errorCode = CELLULAR_CTRL_SEC_SEAL_DEVICE_NOT_ACTIVATED;
+            } else {
+                cellularPortLog("               module and device registered and activated.\n");
+                errorCode = CELLULAR_CTRL_SUCCESS;
             }
-            // Free memory
-            cellularPort_free(pApn);
         }
-# endif // CELLULAR_CFG_MODULE_SARA_R5
     }
 #endif // CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
 
@@ -2517,8 +2516,10 @@ int32_t cellularSecurityEndToEndEncrypt(const void *pDataIn,
                     cellular_ctrl_at_resp_start("+USECE2EDATAENC:", false);
                     // Read the amount of data that has been encryptd
                     sizeOutBytes = cellular_ctrl_at_read_int();
-                    if (sizeOutBytes > dataSizeBytes) {
-                        sizeOutBytes = dataSizeBytes;
+                    if (sizeOutBytes > dataSizeBytes +
+                                       CELLULAR_CTRL_END_TO_END_ENCRYPT_HEADER_SIZE_BYTES) {
+                        sizeOutBytes = dataSizeBytes +
+                                       CELLULAR_CTRL_END_TO_END_ENCRYPT_HEADER_SIZE_BYTES;
                     }
                     // Don't stop for anything!
                     cellular_ctrl_at_set_delimiter(0);
