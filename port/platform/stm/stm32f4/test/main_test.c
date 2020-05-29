@@ -64,15 +64,16 @@ static void testTask(void *pParam)
 
     cellularPortLog("CELLULAR_TEST: tests available:\n\n");
     cellularPortUnityPrintAll("CELLULAR_TEST: ");
-    if (CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER) != NULL) {
+    if (CELLULAR_CFG_TEST_FILTER != NULL) {
         cellularPortLog("CELLULAR_TEST: running tests that begin"
                         " with \"%s\".\n",
                         CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER));
+        cellularPortUnityRunFiltered(CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER),
+                                     "CELLULAR_TEST: ");
     } else {
         cellularPortLog("CELLULAR_TEST: running all tests.\n");
+        cellularPortUnityRunAll("CELLULAR_TEST: ");
     }
-    cellularPortUnityRunFiltered(CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER),
-                                 "CELLULAR_TEST: ");
 
     UNITY_END();
 

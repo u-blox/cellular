@@ -34,6 +34,10 @@
 // The priority of the task running the tests: should be low.
 #define CELLULAR_PORT_TEST_RUNNER_TASK_PRIORITY 14
 
+// Stringify (for CELLULAR_CFG_TEST_FILTER)
+#define CELLULAR_PORT_STRINGIFY_LITERAL(x) #x
+#define CELLULAR_PORT_STRINGIFY_QUOTED(x) CELLULAR_PORT_STRINGIFY_LITERAL(x)
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -61,12 +65,13 @@ static void testTask(void *pParam)
     if (CELLULAR_CFG_TEST_FILTER != NULL) {
         cellularPortLog("CELLULAR_TEST: running tests that begin"
                         " with \"%s\".\n",
-                        CELLULAR_CFG_TEST_FILTER);
+                        CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER));
+        cellularPortUnityRunFiltered(CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER),
+                                     "CELLULAR_TEST: ");
     } else {
         cellularPortLog("CELLULAR_TEST: running all tests.\n");
+        cellularPortUnityRunAll("CELLULAR_TEST: ");
     }
-    cellularPortUnityRunFiltered(CELLULAR_CFG_TEST_FILTER,
-                                 "CELLULAR_TEST: ");
 
     UNITY_END();
 
