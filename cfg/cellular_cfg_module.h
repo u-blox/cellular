@@ -61,6 +61,16 @@
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R5
 
+/** The time in milliseconds for which the PWR_ON pin must be pulled low
+ * to power-on the module.
+ */
+# define CELLULAR_CTRL_PWR_ON_PULL_TIME_MS 1500
+
+/** The time in milliseconds for which the PWR_ON pin must be pulled low
+ * to power off the module.
+ */
+# define CELLULAR_CTRL_PWR_OFF_PULL_TIME_MS 2000
+
 /** The time within which an AT command should complete.
  */
 # define CELLULAR_CTRL_COMMAND_TIMEOUT_MS 8000
@@ -78,7 +88,7 @@
 
 /** The time to wait before the cellular module is ready at boot.
  */
-# define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 3000
+# define CELLULAR_CTRL_BOOT_WAIT_TIME_MS 5000
 
 /** The time to wait for an organised power off.
  * This should be used if the VInt pin is not connected:
@@ -110,17 +120,27 @@
 # define CELLULAR_MQTT_IS_SUPPORTED 1
 
 /** The time to wait for an MQTT server related 
- * operation to be completed.
+ * operation to be completed.  Deliberately a large
+ * value since the user can use the keepGoingCallback
+ * to set a shorter one.
  */
 # define CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS 240
 
 /** The maximum length of an MQTT publish message.
+ * TODO: use '>' mode and this can be the same as
+ * the publish length.
  */
 # define CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES 512
 
 /** The maximum length of an MQTT read message.
+ * TODO: check this.
  */
-# define CELLULAR_MQTT_READ_MAX_LENGTH_BYTES 1024
+# define CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES 1024
+
+/** The maximum length of an MQTT read topic.
+ * TODO: check this.
+ */
+# define CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES 1024
 
 #endif // CELLULAR_CFG_MODULE_SARA_R5
 
@@ -131,6 +151,16 @@
 #if defined(CELLULAR_CFG_MODULE_SARA_R412M_02B) || defined(CELLULAR_CFG_MODULE_SARA_R412M_03B)
 
 # define CELLULAR_CFG_MODULE_SARA_R4
+
+/** The time in milliseconds for which the PWR_ON pin must be pulled low
+ * to power-on the module.
+ */
+# define CELLULAR_CTRL_PWR_ON_PULL_TIME_MS 300
+
+/** The time in milliseconds for which the PWR_ON pin must be pulled low
+ * to power off the module.
+ */
+# define CELLULAR_CTRL_PWR_OFF_PULL_TIME_MS 2000
 
 /** The time within which an AT command should complete.
  */
@@ -182,20 +212,30 @@
 #  define CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST 0
 # endif
 
+# ifndef CELLULAR_MQTT_IS_SUPPORTED
 /** Whether MQTT is supported by the module or not.
+ * Note: the SARA-R412M-02B modules shipped on C030-R412M
+ * boards may be challenged in this respect, hence this is
+ * constructed so that it can be overridden at build
+ * time.
  */
 # define CELLULAR_MQTT_IS_SUPPORTED 1
+#endif
 
 # ifdef CELLULAR_CFG_MODULE_SARA_R412M_02B
-/** The time to wait for an MQTT server related operation
- * to be completed.
+/** The time to wait for an MQTT server related 
+ * operation to be completed.  Deliberately a large
+ * value since the user can use the keepGoingCallback
+ * to set a shorter one.
  */
 #  define CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS 240
 
 # else
 
-/** The time to wait for an MQTT server related operation
- * to be completed.
+/** The time to wait for an MQTT server related 
+ * operation to be completed.  Deliberately a large
+ * value since the user can use the keepGoingCallback
+ * to set a shorter one.
  */
 #  define CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS 240
 
@@ -207,8 +247,14 @@
 # define CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES 64
 
 /** The maximum length of an MQTT read message.
+ * TODO: check this.
  */
-# define CELLULAR_MQTT_READ_MAX_LENGTH_BYTES 1024
+# define CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES 1024
+
+/** The maximum length of an MQTT read topic.
+ * TODO: check this.
+ */
+# define CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES 1024
 
 #endif // CELLULAR_CFG_MODULE_SARA_R4
 

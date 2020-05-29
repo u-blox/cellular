@@ -68,19 +68,23 @@ typedef struct {
 /** Struct to hold all the things an MQTT URC might tell us.
  */
 typedef struct {
+    bool updateFlag;
     bool connected;
     bool publishSuccess;
     bool subscribeSuccess;
     CellularMqttQos_t subscribeQoS;
     bool unsubscribeSuccess;
     size_t numUnreadMessages;
-    bool memoryFull;
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+    // These only required for SARA-R4
+    // which sends the status back in a URC
     MqttBuffer_t clientName;
     int32_t localPortNumber;
     int32_t inactivityTimeoutSeconds;
     int32_t secured;
     int32_t securityProfileId;
     int32_t sessionRetained;
+#endif
 } MqttUrcStatus_t;
 
 /** Struct to hold a message that has been read in a callback,
@@ -124,7 +128,7 @@ static bool gKeptAlive = false;
 
 /** Store the status values from the URC.
  */
-static MqttUrcStatus_t gUrcStatus;
+static volatile MqttUrcStatus_t gUrcStatus;
 
 #ifdef CELLULAR_CFG_MODULE_SARA_R4
 /** Storage for an MQTT message received in a
@@ -163,8 +167,98 @@ static void messageIndicationCallback(void *pParam)
     CELLULAR_PORT_MUTEX_UNLOCK(gMutex);
 }
 
-// "+UUMQTTx:" URC handler.
-// The swtich statement here needs to match those in
+// "+UUMQTTC:" URC handler.
+static void UUMQTTC_urc()
+{
+    int32_t urcType;
+    int32_t urcParam1;
+    int32_t urcParam2;
+
+    urcType = cellular_ctrl_at_read_int();
+    // All of the MQTTC URC types have at least one parameter
+    urcParam1 = cellular_ctrl_at_read_int();
+    switch (urcType) {
+        case 0: // Logout, 1 means success
+            if ((urcParam1 == 1) ||
+                (urcParam1 == 100) || // SARA-R5, inactivity
+                (urcParam1 == 101)) { // SARA-R5, connection lost
+                // Disconnected
+                gUrcStatus.connected = false;
+                gUrcStatus.updateFlag = true;
+            }
+        break;
+        case 1: // Login
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+            // On SARA-R4 , 0 means success, non-zero
+            // values are errors
+            if (urcParam1 == 0) {
+#else
+            if (urcParam1 == 1) {
+#endif
+                // Connected
+                gUrcStatus.connected = true;
+                gUrcStatus.updateFlag = true;
+            }
+        break;
+        case 2: // Publish, 1 means success
+            if (urcParam1 == 1) {
+                // Published
+                gUrcStatus.publishSuccess = true;
+                gUrcStatus.updateFlag = true;
+            }
+        break;
+        // 3 (publish file) is not used by this driver
+        case 4: // Subscribe
+            // Get the QoS
+            urcParam2 = cellular_ctrl_at_read_int();
+            // Skip the topic string
+            cellular_ctrl_at_skip_param(1);
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+            // On SARA-R4, 0 to 2 mean success
+            if ((urcParam1 >= 0) && (urcParam1 <= 2) &&
+                (urcParam2 >= 0)) {
+#else
+            // Elsewhere 1 means success
+            if ((urcParam1 == 1) && (urcParam2 >= 0)) {
+#endif
+                // Subscribed
+                gUrcStatus.subscribeSuccess = true;
+                gUrcStatus.subscribeQoS = urcParam2;
+                gUrcStatus.updateFlag = true;
+            }
+        break;
+        case 5: // Unsubscribe, 1 means success
+            if (urcParam1 == 1) {
+                // Unsubscribed
+                gUrcStatus.unsubscribeSuccess = true;
+                gUrcStatus.updateFlag = true;
+            }
+        break;
+        case 6: // Num unread messages
+            if (urcParam1 >= 0) {
+                gUrcStatus.numUnreadMessages = urcParam1;
+                if (gpMessageIndicationCallback != NULL) {
+                    // Can't lock the mutex in here as
+                    // it would block the receipt of AT
+                    // commands.  Instead, launch our
+                    // local callback via the AT
+                    // parser's callback facility
+                    cellular_ctrl_at_callback(messageIndicationCallback,
+                                              (void *) (gUrcStatus.numUnreadMessages));
+                }
+                gUrcStatus.updateFlag = true;
+            }
+        break;
+        default:
+            // Do nothing
+        break;
+    }
+}
+
+#ifdef CELLULAR_CFG_MODULE_SARA_R4
+
+// "+UUMQTTx:" URC handler, for SARA-R4 only.
+// The switch statement here needs to match those in
 // resetUrcStatusField() an checkUrcStatusField()
 static void UUMQTTx_urc(int32_t x)
 {
@@ -215,131 +309,105 @@ static void UUMQTTx_urc(int32_t x)
     cellular_ctrl_at_set_default_delimiter();
 }
 
-// "+UUMQTTC:" URC handler.
-static void UUMQTTC_urc()
-{
-    int32_t urcType;
-    int32_t urcParam1;
-    int32_t urcParam2;
-
-    urcType = cellular_ctrl_at_read_int();
-    // All of the MQTTC URC types have at least one parameter
-    urcParam1 = cellular_ctrl_at_read_int();
-    switch (urcType) {
-        case 0: // Logout, 1 means success
-            if ((urcParam1 == 1) ||
-                (urcParam1 == 100) || // SARA-R5, inactivity
-                (urcParam1 == 101)) { // SARA-R5, connection lost
-                // Disconnected
-                gUrcStatus.connected = false;
-            }
-        break;
-        case 1: // Login, 0 means success, non-zero
-                // values are errors
-            if (urcParam1 == 0) {
-                // Connected
-                gUrcStatus.connected = true;
-            }
-        break;
-        case 2: // Publish, 1 means success
-            if (urcParam1 == 1) {
-                // Published
-                gUrcStatus.publishSuccess = true;
-            }
-        break;
-        // 3 (publish file) is not used by this driver
-        case 4: // Subscribe, 1 means success
-            urcParam2 = cellular_ctrl_at_read_int();
-            // Skip the topic string
-            cellular_ctrl_at_skip_param(1);
-            if ((urcParam1 == 1) && (urcParam2 >= 0)) {
-                // Subscribed
-                gUrcStatus.subscribeQoS = urcParam2;
-                gUrcStatus.subscribeSuccess = true;
-            }
-        break;
-        case 5: // Unsubscribe, 1 means success
-            if (urcParam1 == 1) {
-                // Unsubscribed
-                gUrcStatus.unsubscribeSuccess = true;
-            }
-        break;
-        case 6: // Num unread messages
-            urcParam2 = cellular_ctrl_at_read_int();
-            if ((urcParam1 >= 0) && (urcParam2 >= 0)) {
-                gUrcStatus.numUnreadMessages = urcParam1;
-                gUrcStatus.memoryFull = (urcParam2 == 1);
-                if (gpMessageIndicationCallback != NULL) {
-                    // Can't lock the mutex in here as
-                    // it would block the receipt of AT
-                    // commands.  Instead, launch our
-                    // local callback via the AT
-                    // parser's callback facility
-                    cellular_ctrl_at_callback(messageIndicationCallback,
-                                              (void *) (gUrcStatus.numUnreadMessages));
-                }
-            }
-        break;
-        default:
-            // Do nothing
-        break;
-    }
-}
-
-#ifdef CELLULAR_CFG_MODULE_SARA_R4
+bool _print = false;
 
 // "+UUMQTTCM:" URC handler, for SARA-R4 only.
 static void UUMQTTCM_urc()
 {
-    int32_t param;
-    int32_t topicNameBytesRead;
+    int32_t x;
+    int32_t topicNameBytesRead = 0;
     int32_t messageBytesAvailable;
-    uint8_t quoteMark;
+    char buffer[20]; // Enough room for "Len:xxxx QoS:y\r\n"
 
     // Skip the op code
     cellular_ctrl_at_skip_param(1);
+    // Set the delimiter to '\'r to make this stop after the integer
+    cellular_ctrl_at_set_delimiter('\r');
     // Read the new number of unread messages
-    param = cellular_ctrl_at_read_int();
-    if (param >= 0) {
-        gUrcStatus.numUnreadMessages = param;
+    x = cellular_ctrl_at_read_int();
+    if (x >= 0) {
+        gUrcStatus.numUnreadMessages = x;
     }
-    // Read the topic name
-    topicNameBytesRead = cellular_ctrl_at_read_string(gUrcMessage.pTopicNameStr,
-                                                      gUrcMessage.topicNameSizeBytes,
-                                                      false);
-    // Read the message length
-    messageBytesAvailable = cellular_ctrl_at_read_int();
-    if (messageBytesAvailable > CELLULAR_MQTT_READ_MAX_LENGTH_BYTES) {
-        messageBytesAvailable = CELLULAR_MQTT_READ_MAX_LENGTH_BYTES;
-    }
-    // Read the QoS
-    gUrcMessage.qos= cellular_ctrl_at_read_int();
-    // Now read the message
-    if (messageBytesAvailable >= 0) {
-        // Now read the exact length of message
-        // bytes, being careful to not look for
-        // delimiters or the like as this can be
-        // a binary message
-        cellular_ctrl_at_set_delimiter(0);
-        cellular_ctrl_at_set_stop_tag(NULL);
-        // Get the leading quote mark out of the way
-        cellular_ctrl_at_read_bytes(&quoteMark, 1);
-        // Now read the actual data
-        gUrcMessage.messageSizeBytes = cellular_ctrl_at_read_bytes((uint8_t *) (gUrcMessage.pMessage),
-                                                                    messageBytesAvailable);
-        // Get the trailing quote mark out of the way
-        cellular_ctrl_at_read_bytes(&quoteMark, 1);
-        cellular_ctrl_at_set_default_delimiter();
-    }
+    // If this URC is a result of a message
+    // arriving what follows will be
+    // \r\n
+    // Topic:blah\r\r\n
+    // Len:64 QoS:2\r\r\n
+    // Msg:blah\r\n
+    // ...noting no quotations marks around anything
+    // Carry on with a delimiter of '\r' to wend our
+    // way through this maze.
 
-    // Now have all the bits, so if all look good say that
-    // the message has been read
-    if ((topicNameBytesRead >= 0) &&
-        (gUrcMessage.qos >= 0) &&
-        (gUrcMessage.qos < MAX_NUM_CELLULAR_MQTT_QOS) &&
-        (gUrcMessage.messageSizeBytes >= 0)) {
-        gUrcMessage.messageRead = true;
+    // Switch off the stop tag and read
+    // in the next 8 bytes and to see if they are "\r\nTopic:"
+    cellular_ctrl_at_set_stop_tag(NULL);
+    _print = true;
+    x = cellular_ctrl_at_read_bytes((uint8_t *) buffer, 8);
+    if ((x == 8) &&
+        (cellularPort_memcmp(buffer, "\r\nTopic:", 8) == 0)) {
+        if (gUrcMessage.pTopicNameStr != NULL) {
+            // Read the rest of this line, which will be the topic
+            topicNameBytesRead = cellular_ctrl_at_read_string(gUrcMessage.pTopicNameStr,
+                                                              gUrcMessage.topicNameSizeBytes,
+                                                              false);
+        }
+        if (topicNameBytesRead >= 0) {
+            // Skip the additional '\r\n'
+            cellular_ctrl_at_skip_len(2, 1);
+            // Read the next line and find the length of the message
+            // and the QoS from it
+            x = cellular_ctrl_at_read_string(buffer, sizeof(buffer) - 1, false);
+            if (x >= 0) {
+                buffer[x] = '\0';
+                if (cellularPort_sscanf(buffer, "Len:%d QoS:%d",
+                                        &messageBytesAvailable, &(gUrcMessage.qos)) == 2) {
+                    // Finally, read the next messageBytesAvailable bytes
+                    if (messageBytesAvailable >= 0) {
+                        // Skip the additional '\r\n'
+                        cellular_ctrl_at_skip_len(2, 1);
+                        // Throw away the "Msg:" bit
+                        cellular_ctrl_at_read_bytes(NULL, 4);
+                        // Now read the exact length of message
+                        // bytes, being careful to not look for
+                        // delimiters or the like as this can be
+                        // a binary message
+                        x = messageBytesAvailable;
+                        if (x > gUrcMessage.messageSizeBytes) {
+                            x = gUrcMessage.messageSizeBytes;
+                        }
+                        cellular_ctrl_at_set_delimiter(0);
+                        if (gUrcMessage.pMessage != NULL) {
+                            gUrcMessage.messageSizeBytes = 0;
+                            gUrcMessage.messageSizeBytes = cellular_ctrl_at_read_bytes((uint8_t *) (gUrcMessage.pMessage),
+                                                                                       x);
+                            if (gUrcMessage.messageSizeBytes == x) {
+                                // Done.  Phew.
+                                gUrcMessage.messageRead = true;
+                                // Throw away any remainder
+                                if (messageBytesAvailable > x) {
+                                    cellular_ctrl_at_read_bytes(NULL, messageBytesAvailable - x);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // If there was no topic name this must be just an indication
+        // of the number of messages read so call the callback
+        if (gpMessageIndicationCallback != NULL) {
+            // Can't lock the mutex in here as
+            // it would block the receipt of AT
+            // commands.  Instead, launch our
+            // local callback via the AT
+            // parser's callback facility
+            cellular_ctrl_at_callback(messageIndicationCallback,
+                                      (void *) (gUrcStatus.numUnreadMessages));
+        }
     }
+    _print = false;
+    cellular_ctrl_at_set_default_delimiter();
 }
 
 #endif // CELLULAR_CFG_MODULE_SARA_R4
@@ -366,9 +434,6 @@ static void UUMQTT_urc(void *pUnused)
             } else {
                 UUMQTTC_urc();
             }
-#else
-            UUMQTTC_urc();
-#endif
         } else {
             // Probably "+UUMQTTx:"
             // Derive x as an integer, noting
@@ -381,6 +446,9 @@ static void UUMQTT_urc(void *pUnused)
                 }
                 UUMQTTx_urc(cellularPort_atoi((char *) bytes));
             }
+#else
+            UUMQTTC_urc();
+#endif
         }
     }
 }
@@ -693,6 +761,7 @@ static CellularMqttErrorCode_t connect(bool onNotOff)
         CELLULAR_PORT_MUTEX_LOCK(gMutex);
 
         errorCode = CELLULAR_MQTT_AT_ERROR;
+        gUrcStatus.updateFlag = false;
         cellular_ctrl_at_lock();
         // Have seen this take a little while
         cellular_ctrl_at_set_at_timeout(15000, false);
@@ -717,9 +786,13 @@ static CellularMqttErrorCode_t connect(bool onNotOff)
             if (onNotOff) {
                 // On all platforms, when logging in,
                 // we have to wait for the URC for success
+                cellularPortLog("CELLULAR_MQTT: waiting for connection for up to %d"
+                                " second(s)...\n",
+                                CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS);
                 errorCode = CELLULAR_MQTT_TIMEOUT;
-                stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS * 1000);
-                while ((onNotOff != gUrcStatus.connected) &&
+                stopTimeMs = cellularPortGetTickTimeMs() +
+                             (CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS * 1000);
+                while (!gUrcStatus.updateFlag &&
                        (cellularPortGetTickTimeMs() < stopTimeMs) &&
                        ((gpKeepGoingCallback == NULL) ||
                         gpKeepGoingCallback())) {
@@ -933,7 +1006,7 @@ int32_t cellularMqttInit(const char *pServerNameStr,
                 if (keepGoing) {
                     // Finally, create the mutex that we use for re-entrancy protection
                     if (cellularPortMutexCreate(&gMutex) == 0) {
-                        pCellularPort_memset(&gUrcStatus, 0, sizeof(gUrcStatus));
+                        pCellularPort_memset((void *) &gUrcStatus, 0, sizeof(gUrcStatus));
                         cellular_ctrl_at_set_urc_handler("+UUMQTT", UUMQTT_urc, NULL);
                         gpKeepGoingCallback = pKeepGoingCallback;
                         gpMessageIndicationCallback = NULL;
@@ -1375,6 +1448,7 @@ int32_t cellularMqttPublish(CellularMqttQos_t qos,
 
                 errorCode = CELLULAR_MQTT_AT_ERROR;
                 cellular_ctrl_at_lock();
+                gUrcStatus.updateFlag = false;
                 gUrcStatus.publishSuccess = false;
                 cellular_ctrl_at_cmd_start("AT+UMQTTC=");
                 // Publish message
@@ -1410,7 +1484,7 @@ int32_t cellularMqttPublish(CellularMqttQos_t qos,
                     // has succeeded
                     errorCode = CELLULAR_MQTT_TIMEOUT;
                     stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS * 1000);
-                    while ((!gUrcStatus.publishSuccess) &&
+                    while (!gUrcStatus.updateFlag &&
                            (cellularPortGetTickTimeMs() < stopTimeMs) &&
                            ((gpKeepGoingCallback == NULL) ||
                             gpKeepGoingCallback())) {
@@ -1458,6 +1532,7 @@ int32_t cellularMqttSubscribe(CellularMqttQos_t maxQos,
 
             errorCodeOrQos = CELLULAR_MQTT_AT_ERROR;
             cellular_ctrl_at_lock();
+            gUrcStatus.updateFlag = false;
             gUrcStatus.subscribeSuccess = false;
             cellular_ctrl_at_cmd_start("AT+UMQTTC=");
             // Subscribe to a topic
@@ -1483,7 +1558,7 @@ int32_t cellularMqttSubscribe(CellularMqttQos_t maxQos,
                 // say that the subscribe has succeeded
                 errorCodeOrQos = CELLULAR_MQTT_TIMEOUT;
                 stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS * 1000);
-                while ((!gUrcStatus.subscribeSuccess) &&
+                while (!gUrcStatus.updateFlag &&
                        (cellularPortGetTickTimeMs() < stopTimeMs) &&
                        ((gpKeepGoingCallback == NULL) ||
                         gpKeepGoingCallback())) {
@@ -1525,6 +1600,7 @@ int32_t cellularMqttUnsubscribe(const char *pTopicFilterStr)
 
             errorCode = CELLULAR_MQTT_AT_ERROR;
             cellular_ctrl_at_lock();
+            gUrcStatus.updateFlag = false;
             gUrcStatus.unsubscribeSuccess = false;
             cellular_ctrl_at_cmd_start("AT+UMQTTC=");
             // Unsubscribe from a topic
@@ -1552,7 +1628,7 @@ int32_t cellularMqttUnsubscribe(const char *pTopicFilterStr)
                 // has succeeded
                 errorCode = CELLULAR_MQTT_TIMEOUT;
                 stopTimeMs = cellularPortGetTickTimeMs() + (CELLULAR_MQTT_SERVER_RESPONSE_WAIT_SECONDS * 1000);
-                while ((!gUrcStatus.unsubscribeSuccess) &&
+                while (!gUrcStatus.updateFlag &&
                        (cellularPortGetTickTimeMs() < stopTimeMs) &&
                        ((gpKeepGoingCallback == NULL) ||
                         gpKeepGoingCallback())) {
@@ -1633,13 +1709,13 @@ int32_t cellularMqttMessageRead(char *pTopicNameStr,
             // the caller has room for and we
             // have to read it all in somehow
             errorCode = CELLULAR_MQTT_NO_MEMORY;
-            pMessageBuffer = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_MAX_LENGTH_BYTES);
+            pMessageBuffer = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES);
             if (pMessageBuffer != NULL) {
                 // Lock the mutex as we need to
                 // be sure that the URC
                 // we get back was triggered
-                // by us and we're going to use
-                // gUrcMessage
+                // by us and we might in some cases
+                // be going to use gUrcMessage
                 CELLULAR_PORT_MUTEX_LOCK(gMutex);
 
                 errorCode = CELLULAR_MQTT_AT_ERROR;
@@ -1656,7 +1732,7 @@ int32_t cellularMqttMessageRead(char *pTopicNameStr,
                 gUrcMessage.pTopicNameStr = pTopicNameStr;
                 gUrcMessage.topicNameSizeBytes = topicNameSizeBytes;
                 gUrcMessage.pMessage = pMessageBuffer;
-                gUrcMessage.messageSizeBytes = CELLULAR_MQTT_READ_MAX_LENGTH_BYTES;
+                gUrcMessage.messageSizeBytes = CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES;
                 cellular_ctrl_at_cmd_stop();
                 cellular_ctrl_at_resp_start("+UMQTTC:", false);
                 // Skip the first parameter, which is just
@@ -1676,6 +1752,9 @@ int32_t cellularMqttMessageRead(char *pTopicNameStr,
                         cellularPortTaskBlock(1000);
                     }
                     if (gUrcMessage.messageRead) {
+                        if (gUrcStatus.numUnreadMessages > 0) {
+                            gUrcStatus.numUnreadMessages--;
+                        }
                         // pTopicNameStr was filled in directly,
                         // now fill in the passed-in parameters
                         // that we haven't already done
@@ -1717,8 +1796,8 @@ int32_t cellularMqttMessageRead(char *pTopicNameStr,
                                                                   false);
                 // Read the number of message bytes to follow
                 messageBytesAvailable = cellular_ctrl_at_read_int();
-                if (messageBytesAvailable > CELLULAR_MQTT_READ_MAX_LENGTH_BYTES) {
-                    messageBytesAvailable = CELLULAR_MQTT_READ_MAX_LENGTH_BYTES;
+                if (messageBytesAvailable > CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES) {
+                    messageBytesAvailable = CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES;
                 }
                 // Now read the exact length of message
                 // bytes, being careful to not look for
@@ -1752,6 +1831,9 @@ int32_t cellularMqttMessageRead(char *pTopicNameStr,
                         *pMessageSizeBytes = messageBytesRead;
                         if (pQos != NULL) {
                             *pQos = qos;
+                        }
+                        if (gUrcStatus.numUnreadMessages > 0) {
+                            gUrcStatus.numUnreadMessages--;
                         }
                         errorCode = CELLULAR_MQTT_SUCCESS;
                     }

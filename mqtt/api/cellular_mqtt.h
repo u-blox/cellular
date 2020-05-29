@@ -73,8 +73,14 @@ extern "C" {
 
 /** The maximum length of an MQTT read message in bytes.
  */
-#ifndef CELLULAR_MQTT_READ_MAX_LENGTH_BYTES
-# error CELLULAR_MQTT_READ_MAX_LENGTH_BYTES must be defined in cellular_cfg_module.h.
+#ifndef CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES
+# error CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES must be defined in cellular_cfg_module.h.
+#endif
+
+/** The maximum length of an MQTT read topic in bytes.
+ */
+#ifndef CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES
+# error CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES must be defined in cellular_cfg_module.h.
 #endif
 
 /* ----------------------------------------------------------------
@@ -117,12 +123,20 @@ typedef enum {
 /** Initialise the MQTT client.  If the client is already
  * initialised then this function returns immediately. The cellular
  * module must be powered up for this function to work.
+ * IMPORTANT; if you re-boot the cellular module after calling this
+ * function you will lose all settings and must call
+ * cellularMqttDeinit() followed by cellularMqttInit() to put
+ * them back again.
  *
  * @param pServerNameStr     the NULL terminated string that gives
  *                           the name of the server for this MQTT
  *                           session.  This may be a domain name,
  *                           or an IP address and may include a port
- *                           number.
+ *                           number.  NOTE: if a domain name is used
+ *                           the module may immediately try to perform
+ *                           a DNS look-up to establish the IP address
+ *                           of the server and hence you should ensure
+ *                           that the module is connected beforehand.
  * @param pUserNameStr       the NULL terminated string that is the
  *                           user name required by the MQTT server.
  * @param pPasswordStr       the NULL terminated string that is the
@@ -180,6 +194,7 @@ int32_t cellularMqttGetClientName(char *pClientNameStr,
 /** Set the local port to use for the MQTT client.  If this is not
  * called the IANA assigned ports of 1883 for non-secure MQTT or 8883 
  * for TLS secured MQTT will be used.
+ * IMPORTANT: a re-boot of the cellular module will lose your setting.
  *
  * @param port  the port number.
  * @return      zero on success or negative error code.
@@ -194,6 +209,8 @@ int32_t cellularMqttGetLocalPort();
 
 /** Set the inactivity timeout used by the MQTT client.  If this
  * is not called then no inactivity timeout is used.
+ * IMPORTANT: a re-boot of the cellular module will lose your
+ * setting.
  *
  * @param seconds  the inactivity timeout in seconds.
  * @return         zero on success or negative error code.
@@ -211,6 +228,8 @@ int32_t cellularMqttGetInactivityTimeout();
  * MQTT ping message to the server near the end of the 
  * inactivity timeout to keep the connection alive.
  * If this is not called no such ping is sent.
+ * IMPORTANT: a re-boot of the cellular module will lose your
+ * setting.
  *
  * @return zero on success or negative error code.
  */
@@ -218,6 +237,8 @@ int32_t cellularMqttSetKeepAliveOn();
 
 /** Switch MQTT ping or "keep alive" off. See
  * cellularMqttSetKeepAliveOn() for more details.
+ * IMPORTANT: a re-boot of the cellular module will lose your
+ * setting.
  *
  * @return zero on success or negative error code.
  */
@@ -236,6 +257,8 @@ bool cellularMqttIsKeptAlive();
  * will be remembered by both the client and the
  * server across MQTT disconnects/connects.
  * If this is not called no such data is retained.
+ * IMPORTANT: a re-boot of the cellular module will lose your
+ * setting.
  *
  * @return zero on success or negative error code.
  */
@@ -243,6 +266,8 @@ int32_t cellularMqttSetSessionRetentionOn();
 
 /** Switch MQTT session retention off. See
  * cellularMqttSetSessionRetentionOn() for more details.
+ * IMPORTANT: a re-boot of the cellular module will lose your
+ * setting.
  *
  * @return zero on success or negative error code.
  */
@@ -257,6 +282,8 @@ bool cellularMqttIsSessionRetained();
 
 /** Switch MQTT TLS security on.  By default MQTT TLS
  * security is off.
+ * IMPORTANT: a re-boot of the cellular module will lose your
+ * setting.
  *
  * @param securityProfileId the security profile ID
  *                          containing the TLS security
@@ -269,6 +296,8 @@ bool cellularMqttIsSessionRetained();
 int32_t cellularMqttSetSecurityOn(int32_t securityProfileId);
 
 /** Switch MQTT TLS security off.
+ * IMPORTANT: a re-boot of the cellular module will lose your
+ * setting.
  *
  * @return zero on success or negative error code.
  */
@@ -288,6 +317,8 @@ bool cellularMqttIsSecured(int32_t *pSecurityProfileId);
 /** Set the MQTT "will" message that will be sent
  * by the server on uncommanded disconnect of the MQTT
  * client.
+ * IMPORTANT: a re-boot of the cellular module will lose your
+ * setting.
  *
  * @param qos              the MQTT QoS to use for the
  *                         "will" message.

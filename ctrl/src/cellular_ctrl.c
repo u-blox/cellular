@@ -50,6 +50,10 @@
  */
 #define CELLULAR_CTRL_APN_LENGTH (64 + 1)
 
+/** The maximum number of PDP contexts that can be activated.
+ */
+#define CELLULAR_CTRL_MAX_NUM_CONTEXTS 7
+
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -514,15 +518,23 @@ static bool prepareConnect()
                 cellular_ctrl_at_resp_start("+COPS:", false);
                 status = cellular_ctrl_at_read_int();
                 cellular_ctrl_at_resp_stop();
-                if (status != 0) {
-                    // If we aren't, set it
-                    cellular_ctrl_at_cmd_start("AT+COPS=0");
-                    cellular_ctrl_at_cmd_stop_read_resp();
-                }
                 if (cellular_ctrl_at_unlock_return_error() == 0) {
-                    success = true;
+                    if (status != 0) {
+                        // If we aren't, set it
+                        cellular_ctrl_at_lock();
+                        cellular_ctrl_at_cmd_start("AT+COPS=0");
+                        cellular_ctrl_at_cmd_stop_read_resp();
+                        if (cellular_ctrl_at_unlock_return_error() == 0) {
+                            success = true;
+                        } else {
+                            cellularPortLog("CELLULAR_CTRL: unable to set automatic network selection mode.\n");
+                        }
+                    } else {
+                        // Good to go
+                        success = true;
+                    }
                 } else {
-                    cellularPortLog("CELLULAR_CTRL: unable to set automatic network selection mode.\n");
+                    cellularPortLog("CELLULAR_CTRL: unable to check automatic network selection mode.\n");
                 }
             } else {
                 cellularPortLog("CELLULAR_CTRL: unable to set +CEREG URCs.\n");
@@ -684,10 +696,16 @@ static CellularCtrlErrorCode_t tryConnect(bool (*pKeepGoingCallback) (void),
                     cellular_ctrl_at_set_at_timeout(CELLULAR_CTRL_COMMAND_MINIMUM_RESPONSE_TIME_MS, false);
                     cellular_ctrl_at_cmd_start("AT+CGACT?");
                     cellular_ctrl_at_cmd_stop();
-                    cellular_ctrl_at_resp_start("+CGACT:", false);
-                    // Skip the context ID
-                    cellular_ctrl_at_read_int();
-                    activated = (cellular_ctrl_at_read_int() == 1);
+                    status = -1;
+                    for (size_t y = 0; (status < 0) &&
+                                       (y < CELLULAR_CTRL_MAX_NUM_CONTEXTS); x++) {
+                        cellular_ctrl_at_resp_start("+CGACT:", false);
+                        // Check if this is our context ID
+                        if (cellular_ctrl_at_read_int() == CELLULAR_CTRL_CONTEXT_ID) {
+                            status = cellular_ctrl_at_read_int();
+                            activated = (status == 1);
+                        }
+                    }
                     cellular_ctrl_at_resp_stop();
                     if (activated) {
                         cellular_ctrl_at_restore_at_timeout();
@@ -1023,16 +1041,9 @@ int32_t cellularCtrlPowerOn(const char *pPin)
                     cellularPortTaskBlock(100);
                     platformError = cellularPortGpioSet(gPinPwrOn, 0);
                     if (platformError == 0) {
-#ifdef CELLULAR_CFG_MODULE_SARA_R4
-                        // SARA-R412M is powered on by holding the PWR_ON pin low
-                        // for more than 0.15 seconds
-                        cellularPortTaskBlock(300);
-#endif
-#ifdef CELLULAR_CFG_MODULE_SARA_R5
-                        // SARA-R5 is powered on by holding the PWR_ON pin low
-                        // for more than 1 second
-                        cellularPortTaskBlock(1200);
-#endif
+                        // Power the module on by holding the PWR_ON pin low
+                        // for the correct number of milliseconds
+                        cellularPortTaskBlock(CELLULAR_CTRL_PWR_ON_PULL_TIME_MS);
                         // Not bothering with checking return code here
                         // as it would have barfed on the last one if
                         // it were going to
@@ -1110,9 +1121,9 @@ void cellularCtrlHardPowerOff(bool trulyHard, bool (*pKeepGoingCallback) (void))
         } else {
             cellularPortLog("CELLULAR_CTRL: powering off using the PWR_ON pin.\n");
             cellularPortGpioSet(gPinPwrOn, 0);
-            // Both SARA-R412M and SARA-R5 are powered off by
-            // holding the PWR_ON pin low for more than 1.5 seconds
-            cellularPortTaskBlock(2000);
+            // Power off the module by pulling the PWR_ON pin
+            // low for the correct number of milliseconds
+            cellularPortTaskBlock(CELLULAR_CTRL_PWR_OFF_PULL_TIME_MS);
             cellularPortGpioSet(gPinPwrOn, 1);
             // Clear out the old RF readings
             clearRadioParameters();
@@ -1663,18 +1674,6 @@ int32_t cellularCtrlDisconnect()
         cellular_ctrl_at_resp_stop();
         cellular_ctrl_at_unlock();
         if (status != 2) {
-#ifndef CELLULAR_CFG_MODULE_SARA_R4
-            // TODO: is this required?
-            // Deactivate profile ID CELLULAR_CTRL_PROFILE_ID
-            cellular_ctrl_at_lock();
-            cellular_ctrl_at_cmd_start("AT+UPSDA=");
-            cellular_ctrl_at_write_int(CELLULAR_CTRL_PROFILE_ID);
-            cellular_ctrl_at_write_int(4);
-            cellular_ctrl_at_cmd_stop_read_resp();
-            cellular_ctrl_at_unlock();
-            // No need to deactivate the context, it will
-            // go when we deregister.
-#endif
             // The normal thing to do here would be
             // AT+COPS=2.  However, due to oddities
             // in the SARA-R412M firmware it is
@@ -2208,8 +2207,8 @@ int32_t cellularCtrlGetImei(char *pImei)
             cellular_ctrl_at_cmd_start("AT+CGSN");
             cellular_ctrl_at_cmd_stop();
             cellular_ctrl_at_resp_start(NULL, false);
-            bytesRead = cellular_ctrl_at_read_bytes((uint8_t *)pImei,
-                                                           CELLULAR_CTRL_IMEI_SIZE);
+            bytesRead = cellular_ctrl_at_read_bytes((uint8_t *) pImei,
+                                                    CELLULAR_CTRL_IMEI_SIZE);
             cellular_ctrl_at_resp_stop();
             atError = cellular_ctrl_at_unlock_return_error();
             if ((bytesRead == CELLULAR_CTRL_IMEI_SIZE) && (atError == 0)) {

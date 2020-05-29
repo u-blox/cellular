@@ -102,6 +102,20 @@ extern "C" {
  */
 #define CELLULAR_CTRL_BAND_MASK_2_EUROPE_NB1_DEFAULT 0LL
 
+/** The time in milliseconds for which the PWR_ON pin must be pulled low
+ * to power-on the module.
+ */
+#ifndef CELLULAR_CTRL_PWR_ON_PULL_TIME_MS
+# error CELLULAR_CTRL_PWR_ON_PULL_TIME_MS must be defined in cellular_cfg_module.h.
+#endif
+
+/** The time in milliseconds for which the PWR_ON pin must be pulled low
+ * to power OFF the module.
+ */
+#ifndef CELLULAR_CTRL_PWR_OFF_PULL_TIME_MS
+# error CELLULAR_CTRL_PWR_OFF_PULL_TIME_MS must be defined in cellular_cfg_module.h.
+#endif
+
 /** The delay between AT commands, allowing internal cellular module
  * comms to complete before another is sent.
  */
