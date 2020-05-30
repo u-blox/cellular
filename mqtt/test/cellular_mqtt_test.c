@@ -225,9 +225,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestInitialisation(),
     // Use the IP address here so that we don't have to be
     // connected
     CELLULAR_PORT_TEST_ASSERT(cellularMqttInit(CELLULAR_CFG_TEST_MQTT_SERVER_IP_ADDRESS,
-                                               CELLULAR_CFG_TEST_MQTT_SERVER_USERNAME,
-                                               CELLULAR_CFG_TEST_MQTT_SERVER_PASSWORD,
                                                NULL,
+                                               CELLULAR_CFG_TEST_MQTT_USERNAME,
+                                               CELLULAR_CFG_TEST_MQTT_PASSWORD,
                                                keepGoingCallback) == 0);
 
     // For information only
@@ -280,9 +280,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestConnectDisconnect(),
     cellularPortLog("CELLULAR_MQTT_TEST: initialising MQTT with server \"%s\"...\n",
                     CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME);
     CELLULAR_PORT_TEST_ASSERT(cellularMqttInit(CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME,
-                                               CELLULAR_CFG_TEST_MQTT_SERVER_USERNAME,
-                                               CELLULAR_CFG_TEST_MQTT_SERVER_PASSWORD,
                                                "bong",
+                                               CELLULAR_CFG_TEST_MQTT_USERNAME,
+                                               CELLULAR_CFG_TEST_MQTT_PASSWORD,
                                                keepGoingCallback) == 0);
 
     cellularPortLog("CELLULAR_MQTT_TEST: getting local MQTT client ID...\n");
@@ -408,9 +408,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestSubscribePublish(),
     cellularPortLog("CELLULAR_MQTT_TEST: initialising MQTT with server \"%s\"...\n",
                     CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME);
     CELLULAR_PORT_TEST_ASSERT(cellularMqttInit(CELLULAR_CFG_TEST_MQTT_SERVER_DOMAIN_NAME,
-                                               CELLULAR_CFG_TEST_MQTT_SERVER_USERNAME,
-                                               CELLULAR_CFG_TEST_MQTT_SERVER_PASSWORD,
                                                gImei,
+                                               CELLULAR_CFG_TEST_MQTT_USERNAME,
+                                               CELLULAR_CFG_TEST_MQTT_PASSWORD,
                                                keepGoingCallback) == 0);
 
     cellularPortLog("CELLULAR_MQTT_TEST: getting local MQTT client ID...\n");
@@ -630,11 +630,11 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestSubscribePublish(),
 
 # ifdef CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID
 
-# ifndef CELLULAR_CFG_TEST_THINGSTREAM_SERVER_USERNAME
+# ifndef CELLULAR_CFG_TEST_THINGSTREAM_USERNAME
 #  error Must specify a username for your Thingstream account.
 # endif
 
-# ifndef CELLULAR_CFG_TEST_THINGSTREAM_SERVER_PASSWORD
+# ifndef CELLULAR_CFG_TEST_THINGSTREAM_PASSWORD
 #  error Must specify a password for your Thingstream account.
 # endif
 
@@ -697,9 +697,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestThingstreamBasic(),
     cellularPortLog("CELLULAR_MQTT_TEST: initialising MQTT with server \"%s\"...\n",
                     CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE);
     CELLULAR_PORT_TEST_ASSERT(cellularMqttInit(CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE,
-                                               CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_SERVER_USERNAME),
-                                               CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_SERVER_PASSWORD),
                                                CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID),
+                                               CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_USERNAME),
+                                               CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_PASSWORD),
                                                keepGoingCallback) == 0);
 
     startTimeMs = cellularPortGetTickTimeMs();
@@ -932,9 +932,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestThingstreamEncrypted(),
         cellularPortLog("CELLULAR_MQTT_TEST: initialising MQTT with server \"%s\"...\n",
                         CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE);
         CELLULAR_PORT_TEST_ASSERT(cellularMqttInit(CELLULAR_MQTT_THINGSTREAM_SERVER_UNSECURE,
-                                                   CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_SERVER_USERNAME),
-                                                   CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_SERVER_PASSWORD),
                                                    CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID),
+                                                   CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_USERNAME),
+                                                   CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_THINGSTREAM_PASSWORD),
                                                    keepGoingCallback) == 0);
 
         startTimeMs = cellularPortGetTickTimeMs();
@@ -1085,7 +1085,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestThingstreamEncrypted(),
 }
 #  endif // CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
 
-# endif // CELLULAR_CFG_TEST_THINGSTREAM_SERVER_USERNAME
+# endif // CELLULAR_CFG_TEST_THINGSTREAM_USERNAME
 
 /** Clean-up to be run at the end of this round of tests, just
  * in case there were test failures which would have resulted

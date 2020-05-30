@@ -74,13 +74,6 @@
 // seal.
 #define CELLULAR_CFG_TEST_SECURITY_SEAL_TIMEOUT_SECONDS 180
 
-// Add quotes to a macro.
-#define CELLULAR_CTRL_TEST_MACRO_TO_STRING(str) #str
-#define CELLULAR_CTRL_TEST_MACRO_TO_STRING_EXPANDED(str) \
-        CELLULAR_CTRL_TEST_MACRO_TO_STRING(str)
-#define CELLULAR_CTRL_TEST_ADD_QUOTES_TO_MACRO(str) \
-        CELLULAR_CTRL_TEST_MACRO_TO_STRING_EXPANDED(str)
-
 /* ----------------------------------------------------------------
  * TYPES
  * -------------------------------------------------------------- */
@@ -677,7 +670,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularCtrlTestSecuritySeal(),
     cellularPortLog("CELLULAR_CTRL_TEST: waiting %d second(s) to achieve security seal...\n",
                     CELLULAR_CFG_TEST_SECURITY_SEAL_TIMEOUT_SECONDS);
     gStopTimeMS = cellularPortGetTickTimeMs()  + (CELLULAR_CFG_TEST_SECURITY_SEAL_TIMEOUT_SECONDS * 1000);
-    y = cellularCtrlSetSecuritySeal(CELLULAR_CTRL_TEST_ADD_QUOTES_TO_MACRO(CELLULAR_CTRL_SECURITY_DEVICE_INFORMATION),
+    y = cellularCtrlSetSecuritySeal(CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CTRL_SECURITY_DEVICE_INFORMATION),
                                     imei, keepGoingCallback);
     cellularPortLog("CELLULAR_CTRL_TEST: result of security seal request is %d.\n", y);
     CELLULAR_PORT_TEST_ASSERT(y == 0);

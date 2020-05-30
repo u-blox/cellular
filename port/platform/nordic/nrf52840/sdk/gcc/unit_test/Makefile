@@ -78,6 +78,7 @@ SRC_FILES += \
   ../../../test/main_test.c \
   ../../../../../common/unity/cellular_port_unity_addons.c \
   $(UNITY_PATH)/src/unity.c \
+  ../../../../../../../example/thingstream_secured/main.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \

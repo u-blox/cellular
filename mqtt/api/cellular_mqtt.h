@@ -137,15 +137,15 @@ typedef enum {
  *                           a DNS look-up to establish the IP address
  *                           of the server and hence you should ensure
  *                           that the module is connected beforehand.
- * @param pUserNameStr       the NULL terminated string that is the
- *                           user name required by the MQTT server.
- * @param pPasswordStr       the NULL terminated string that is the
- *                           password required by the MQTT server.
  * @param pClientIdStr       the NULL terminated string that
  *                           will be the client ID for this
  *                           MQTT session.  May be NULL, in
  *                           which case the driver will provide
  *                           a name.
+ * @param pUserNameStr       the NULL terminated string that is the
+ *                           user name required by the MQTT server.
+ * @param pPasswordStr       the NULL terminated string that is the
+ *                           password required by the MQTT server.
  * @param pKeepGoingCallback certain of the MQTT API functions
  *                           need to wait for the server to respond
  *                           and this may take some time.  Specify
@@ -169,9 +169,9 @@ typedef enum {
  *                           failure.
  */
 int32_t cellularMqttInit(const char *pServerNameStr,
+                         const char *pClientIdStr,
                          const char *pUserNameStr,
                          const char *pPasswordStr,
-                         const char *pClientIdStr,
                          bool (*pKeepGoingCallback)(void));
 
 /** Shut-down the MQTT client.

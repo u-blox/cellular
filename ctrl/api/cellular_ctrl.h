@@ -90,7 +90,7 @@ extern "C" {
  */
 #define CELLULAR_CTRL_BAND_MASK_1_NORTH_AMERICA_CATM1_DEFAULT 0x000000400B0F189FLL
 
-/** The North American bands for cat-M1, badn mask bits 65 to 128.
+/** The North American bands for cat-M1, band mask bits 65 to 128.
  */
 #define CELLULAR_CTRL_BAND_MASK_2_NORTH_AMERICA_CATM1_DEFAULT 0LL
 

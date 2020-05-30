@@ -191,8 +191,8 @@ rem Build end
 rem Build unit tests under v4 Espressif SDK from u-blox clone of repo on NINA-W1 with a SARA-R412M-03B module on a WHRE board
 :build_platform_1
     set espidf_repo_root=u-blox
-    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R412M_03B -DCELLULAR_PORT_TEST_PIN_A=-1 -DCELLULAR_PORT_TEST_PIN_B=-1 -DCELLULAR_PORT_TEST_PIN_C=-1 -DCELLULAR_PORT_TEST_PIN_UART_TXD=-1 -DCELLULAR_PORT_TEST_PIN_UART_RXD=-1
-    echo %~n0: flags set for WHRE board to indicate SARA-R412M-03B and none of porting unit tests that involve GPIOs or the UART.
+    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R412M_03B -DCELLULAR_PORT_TEST_PIN_A=-1 -DCELLULAR_PORT_TEST_PIN_B=-1 -DCELLULAR_PORT_TEST_PIN_C=-1 -DCELLULAR_PORT_TEST_PIN_UART_TXD=-1 -DCELLULAR_PORT_TEST_PIN_UART_RXD=-1 -DCELLULAR_MQTT_IS_SUPPORTED=0
+    echo %~n0: flags set for WHRE board to indicate SARA-R412M-03B^, no MQTT support and none of the porting unit tests that involve GPIOs or the UART.
     echo %~n0: will pull v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf ^(using u-blox branch for fix for flash chip version used in NINA-W1^)^, specify /b to avoid build collisions...
     goto build_platform_1_2_3
 
@@ -208,8 +208,8 @@ rem Build unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a
 :build_platform_3
     set espidf_repo_root=espressif
     echo %~n0: will pull latest v4 ESP-IDF from https://github.com/%espidf_repo_root%/esp-idf...
-    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1
-    echo %~n0: flags set for W-ROVER board to indicate SARA-R5^, RXD on D19^, TXD on D21^, no VINT or Enable Power pins connected.
+    set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_RXD=19 -DCELLULAR_CFG_PIN_TXD=21 -DCELLULAR_CFG_PIN_VINT=-1 -DCELLULAR_CFG_PIN_ENABLE_POWER=-1 -DCELLULAR_CFG_UBLOX_TEST
+    echo %~n0: flags set for W-ROVER board to indicate SARA-R5^, RXD on D19^, TXD on D21^, no VINT or Enable Power pins connected
     goto build_platform_1_2_3
 
 rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipset with SARA-R4 or SARA-R5
@@ -372,8 +372,9 @@ rem Build unit tests on NRF52840 DK board with a SARA-R5 module
     )
     @echo on
     echo %~n0: building in "%CD%\build"
-    make NRF5_PATH=%NRF5_PATH% OUTPUT_DIRECTORY=build GNU_INSTALL_ROOT="%GNU_INSTALL_ROOT%" GNU_VERSION=%GNU_VERSION% GNU_PREFIX=%GNU_PREFIX% CFLAGS=-DCELLULAR_CFG_MODULE_SARA_R5 flash
+    make NRF5_PATH=%NRF5_PATH% OUTPUT_DIRECTORY=build GNU_INSTALL_ROOT="%GNU_INSTALL_ROOT%" GNU_VERSION=%GNU_VERSION% GNU_PREFIX=%GNU_PREFIX% CFLAGS="-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_UBLOX_TEST" flash
     @echo off
+    echo %~n0: flags set to indicate SARA-R5.
     rem Back to where this batch file was called from to run the tests with the Python script there
     popd
     if not !ERRORLEVEL! EQU 0 (

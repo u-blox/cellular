@@ -127,6 +127,11 @@
 			<locationURI>$%7BUBX_PATH%7D/sock/test/cellular_sock_test.c</locationURI>
 		</link>
 		<link>
+			<name>Cellular/U-Blox/example/thingstream_secured/main.c</name>
+			<type>1</type>
+			<locationURI>$%7BUBX_PATH%7D/example/thingstream_secured/main.c</locationURI>
+		</link>
+		<link>
 			<name>Cellular/U-Blox/heap_useNewlib.c</name>
 			<type>1</type>
 			<locationURI>$%7BPLATFORM_PATH%7D/src/heap_useNewlib.c</locationURI>

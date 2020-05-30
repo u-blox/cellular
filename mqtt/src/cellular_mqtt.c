@@ -872,9 +872,9 @@ static bool isSecured(int32_t *pSecurityProfileId)
 
 // Initialise the MQTT client.
 int32_t cellularMqttInit(const char *pServerNameStr,
+                         const char *pClientIdStr,
                          const char *pUserNameStr,
                          const char *pPasswordStr,
-                         const char *pClientIdStr,
                          bool (*pKeepGoingCallback)(void))
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_MQTT_NOT_SUPPORTED;

@@ -24,7 +24,7 @@
  */
 
 /* ----------------------------------------------------------------
- * COMPILE-TIME MACROS FOR STM32F4: AT CLIENT RELATED
+ * COMPILE-TIME MACROS FOR NRF52840: AT CLIENT RELATED
  * -------------------------------------------------------------- */
 
 #ifndef CELLULAR_CTRL_AT_TASK_URC_STACK_SIZE_BYTES
