@@ -94,17 +94,32 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
  */
 void cellular_ctrl_at_deinit();
 
-/** Get whether debug prints are on or off.
+/** Get whether general debug prints are on or off.
  *
  * @return  true if debug prints are on, else false.
  */
 bool cellular_ctrl_at_debug_get();
 
-/** Switch debug prints on or off.
+/** Switch general debug prints on or off.
  *
  * @param onNotOff  set to true to cause debug prints, else false.
  */
 void cellular_ctrl_at_debug_set(bool onNotOff);
+
+/** Get whether printing of AT commands and responses
+ * is on or off.
+ *
+ * @return  true if printing AT commadns and responses
+ *          is on, else false.
+ */
+bool cellular_ctrl_at_print_at_get();
+
+/** Switch printing of AT commands and responses on or off.
+ *
+ * @param onNotOff  set to true to cause AT commands
+ *                  and responses to be printed, else false.
+ */
+void cellular_ctrl_at_print_at_set(bool onNotOff);
 
 /** Set the handler for a URC. If the URC is found when parsing AT
  * responses, then the handler is called.  If a handler is

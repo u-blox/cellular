@@ -288,7 +288,11 @@ static bool _use_delimiter;
 // time when a command or an URC processing was started
 static int64_t _start_time_ms;
 
+// Whether general debug is on or off
 static bool _debug_on = false;
+
+// Whether printing of AT commands and responses is on or off
+static bool _print_at_on = true;
 
 /* ----------------------------------------------------------------
  * STATIC FUNCTIONS
@@ -354,10 +358,10 @@ static const char *mem_str(const char *dest,
     return NULL;
 }
 
-// Local debug.
-static void debug_print(const char *p, int len)
+// Print out AT commands and responses.
+static void print_at(const char *p, int len)
 {
-    if (_debug_on) {
+    if (_print_at_on) {
         for (int32_t i = 0; i < len; i++) {
             char c = *p++;
             if (!cellularPort_isprint((int32_t) c)) {
@@ -379,7 +383,9 @@ static void debug_print(const char *p, int len)
 static void set_error(cellular_ctrl_at_error_code_t error)
 {
     if (error != CELLULAR_CTRL_AT_SUCCESS) {
-        cellularPortLog("CELLULAR_AT: AT error %d\n", error);
+        if (_debug_on) {
+            cellularPortLog("CELLULAR_AT: AT error %d\n", error);
+        }
     }
     if (_last_error == CELLULAR_CTRL_AT_SUCCESS) {
         _last_error = error;
@@ -445,8 +451,10 @@ static bool fill_buffer(bool wait_for_timeout)
     }
     // Reset buffer when full
     if (sizeof(_buf.recv_buff) == _buf.recv_len) {
-        cellularPortLog("CELLULAR_CTRL: !!! overflow.\n");
-        debug_print((char *) (_buf.recv_buff), _buf.recv_len);
+        if (_debug_on) {
+            cellularPortLog("CELLULAR_CTRL: !!! overflow.\n");
+        }
+        print_at((char *) (_buf.recv_buff), _buf.recv_len);
         reset_buffer();
     }
 
@@ -455,7 +463,7 @@ static bool fill_buffer(bool wait_for_timeout)
                                            _buf.recv_buff + _buf.recv_len,
                                            sizeof(_buf.recv_buff) - _buf.recv_len);
         if (len > 0) {
-            debug_print((char *) (_buf.recv_buff) + _buf.recv_len, len);
+            print_at((char *) (_buf.recv_buff) + _buf.recv_len, len);
             _buf.recv_len += len;
             return true;
         }
@@ -477,7 +485,9 @@ static int32_t get_char()
     if (_buf.recv_pos == _buf.recv_len) {
         reset_buffer(); // try to read as much as possible
         if (!fill_buffer(true)) {
-            cellularPortLog("CELLULAR_AT: timeout.\n");
+            if (_debug_on) {
+                cellularPortLog("CELLULAR_AT: timeout.\n");
+            }
             _at_num_consecutive_timeouts++;
             if (_at_timeout_callback != NULL) {
                 cb.function = _at_timeout_callback;
@@ -671,8 +681,10 @@ static void set_3gpp_error(int32_t error,
                                sizeof(_map_3gpp_errors[0]); i++) {
             if (_map_3gpp_errors[i][0] == error) {
                 _last_3gpp_error = _map_3gpp_errors[i][1];
-                cellularPortLog("CELLULAR_AT: 3GPP error code %d.\n",
-                                cellular_ctrl_at_get_3gpp_error());
+                if (_debug_on) {
+                    cellularPortLog("CELLULAR_AT: 3GPP error code %d.\n",
+                                    cellular_ctrl_at_get_3gpp_error());
+                }
                 break;
             }
         }
@@ -694,9 +706,13 @@ static void at_error(bool error_code_expected,
             set_3gpp_error(error, error_type);
             _last_at_error.errCode = error;
             _last_at_error.errType = error_type;
-            cellularPortLog("CELLULAR_AT: AT error code %d.\n", error);
+            if (_debug_on) {
+                cellularPortLog("CELLULAR_AT: AT error code %d.\n", error);
+            }
         } else {
-            cellularPortLog("CELLULAR_AT: ERROR reading failed\n");
+            if (_debug_on) {
+                cellularPortLog("CELLULAR_AT: ERROR reading failed\n");
+            }
         }
     }
 
@@ -789,7 +805,7 @@ static void resp(const char *prefix, bool crLfFirst, bool check_urc)
 static size_t write(const void *data, size_t len)
 {
     size_t write_len = 0;
-    bool debug_on = _debug_on;
+    bool print_at_on = _print_at_on;
 
     for (; write_len < len;) {
         int32_t ret = cellularPortUartWrite(_uart,
@@ -797,25 +813,25 @@ static size_t write(const void *data, size_t len)
                                             len - write_len);
         if (ret < 0) {
             set_error(CELLULAR_CTRL_AT_DEVICE_ERROR);
-            _debug_on = debug_on;
+            _print_at_on = print_at_on;
             return 0;
         }
 #ifdef DEBUG_PRINT_FULL_AT_STRING
-        debug_print((const char *) data + write_len, ret);
+        print_at((const char *) data + write_len, ret);
 #else
-        if (_debug_on && (write_len < CELLULAR_CTRL_AT_DEBUG_MAXLEN)) {
+        if (_print_at_on && (write_len < CELLULAR_CTRL_AT_DEBUG_MAXLEN)) {
             if (write_len + ret < CELLULAR_CTRL_AT_DEBUG_MAXLEN) {
-                debug_print((const char *) data + write_len, ret);
+                print_at((const char *) data + write_len, ret);
             } else {
-                debug_print("...", sizeof("..."));
-                _debug_on = false;
+                print_at("...", sizeof("..."));
+                _print_at_on = false;
             }
         }
 #endif
         write_len += (size_t) ret;
     }
 
-    _debug_on = debug_on;
+    _print_at_on = print_at_on;
 
     return write_len;
 }
@@ -964,7 +980,9 @@ static void task_urc(void *parameters)
     // timeout.
     cellularPortTaskBlock(100);
 
-    cellularPortLog("CELLULAR_AT: task_urc() started.\n");
+    if (_debug_on) {
+        cellularPortLog("CELLULAR_AT: task_urc() started.\n");
+    }
 
     while (control != CELLULAR_CTRL_AT_CONTROL_TERMINATE) {
         data_size_or_error = cellularPortUartEventTryReceive(_queue_uart,
@@ -1034,7 +1052,9 @@ static void task_urc(void *parameters)
 
     CELLULAR_PORT_MUTEX_UNLOCK(_mtx_urc_task_running);
 
-    cellularPortLog("CELLULAR_AT: task_urc() ended.\n");
+    if (_debug_on) {
+        cellularPortLog("CELLULAR_AT: task_urc() ended.\n");
+    }
 
     // Delete ourself
     cellularPortTaskDelete(NULL);
@@ -1059,7 +1079,9 @@ static void task_callbacks(void *parameters)
 
     (void) parameters;
 
-    cellularPortLog("CELLULAR_AT: task_callbacks() started.\n");
+    if (_debug_on) {
+        cellularPortLog("CELLULAR_AT: task_callbacks() started.\n");
+    }
 
     cb.function = dummy;
     cb.param = NULL;
@@ -1074,7 +1096,9 @@ static void task_callbacks(void *parameters)
 
     CELLULAR_PORT_MUTEX_UNLOCK(_mtx_callbacks_task_running);
 
-    cellularPortLog("CELLULAR_AT: task_callbacks() ended.\n");
+    if (_debug_on) {
+        cellularPortLog("CELLULAR_AT: task_callbacks() ended.\n");
+    }
 
     // Delete ourself
     cellularPortTaskDelete(NULL);
@@ -1116,6 +1140,7 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
     _error_found = false;
     _max_resp_length = CELLULAR_CTRL_AT_MAX_RESP_LENGTH;
     _debug_on = false;
+    _print_at_on = true;
     _cmd_start = false;
     _use_delimiter = true;
     _start_time_ms = 0;
@@ -1277,6 +1302,16 @@ void cellular_ctrl_at_debug_set(bool onNotOff)
     _debug_on = onNotOff;
 }
 
+bool cellular_ctrl_at_print_at_get()
+{
+    return _print_at_on;
+}
+
+void cellular_ctrl_at_print_at_set(bool onNotOff)
+{
+    _print_at_on = onNotOff;
+}
+
 cellular_ctrl_at_error_code_t cellular_ctrl_at_set_urc_handler(const char *prefix,
                                                                void (callback) (void *),
                                                                void *callback_param)
@@ -1285,7 +1320,9 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_set_urc_handler(const char *prefi
         return  CELLULAR_CTRL_AT_NOT_INITIALISED;
     } else {
         if (find_urc_handler(prefix)) {
-            cellularPortLog("CELLULAR_AT: URC already added with prefix \"%s\".\n", prefix);
+            if (_debug_on) {
+                cellularPortLog("CELLULAR_AT: URC already added with prefix \"%s\".\n", prefix);
+            }
             return CELLULAR_CTRL_AT_SUCCESS;
         }
 
@@ -1478,12 +1515,12 @@ int32_t cellular_ctrl_at_read_bytes(uint8_t *buf, size_t len)
         return -1;
     }
 
-    bool debug_on = _debug_on;
+    bool print_at_on = _print_at_on;
     for (; read_len < (len + match_pos); read_len++) {
         int32_t c = get_char();
         if (c == -1) {
             set_error(CELLULAR_CTRL_AT_DEVICE_ERROR);
-            _debug_on = debug_on;
+            _print_at_on = print_at_on;
             return -1;
         } else if (_stop_tag &&
                    _stop_tag->len &&
@@ -1502,14 +1539,14 @@ int32_t cellular_ctrl_at_read_bytes(uint8_t *buf, size_t len)
             buf[read_len] = c;
         }
 #ifndef DEBUG_PRINT_FULL_AT_STRING
-        if (_debug_on && (read_len >= CELLULAR_CTRL_AT_DEBUG_MAXLEN)) {
-            debug_print("...", sizeof("..."));
-            _debug_on = false;
+        if (_print_at_on && (read_len >= CELLULAR_CTRL_AT_DEBUG_MAXLEN)) {
+            print_at("...", sizeof("..."));
+            _print_at_on = false;
         }
 #endif
     }
 
-    _debug_on = debug_on;
+    _print_at_on = print_at_on;
     return read_len;
 }
 
@@ -1857,7 +1894,9 @@ bool cellular_ctrl_at_consume_to_stop_tag()
         return true;
     }
 
-    cellularPortLog("CELLULAR_AT: stop tag not found.\n");
+    if (_debug_on) {
+        cellularPortLog("CELLULAR_AT: stop tag not found.\n");
+    }
 
     set_error(CELLULAR_CTRL_AT_DEVICE_ERROR);
 
@@ -2001,7 +2040,9 @@ size_t cellular_ctrl_at_write_bytes(const uint8_t *data, size_t len)
 void cellular_ctrl_at_flush()
 {
     if (_uart >= 0) {
-        cellularPortLog("CELLULAR_AT: flush.\n");
+        if (_debug_on) {
+            cellularPortLog("CELLULAR_AT: flush.\n");
+        }
         reset_buffer();
         while (fill_buffer(false)) {
             reset_buffer();
@@ -2012,7 +2053,9 @@ void cellular_ctrl_at_flush()
 bool cellular_ctrl_at_sync(int32_t timeout_ms)
 {
     if (_uart >= 0) {
-        cellularPortLog("CELLULAR_AT: sync.\n");
+        if (_debug_on) {
+            cellularPortLog("CELLULAR_AT: sync.\n");
+        }
         // poll for 10 seconds
         for (int i = 0; i < 10; i++) {
             cellular_ctrl_at_lock();
@@ -2033,7 +2076,9 @@ bool cellular_ctrl_at_sync(int32_t timeout_ms)
                 return true;
             }
         }
-        cellularPortLog("CELLULAR_AT: sync failed.\n");
+        if (_debug_on) {
+            cellularPortLog("CELLULAR_AT: sync failed.\n");
+        }
     }
 
     return false;

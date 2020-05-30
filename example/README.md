@@ -5,4 +5,4 @@ Note that examples are built and run in exactly the same way as the unit tests, 
 
 # Examples
 
-- `thingstream_secured` contains the example `exampleThingstreamSecured` which demonstrates how to use end to end encryption in a supported u-blox cellular module (e.g. SARA-R5) and exchange these end-to-end encrypted messages using the Thingstream service.
+- `thingstream_secured` contains the example `exampleThingstreamSecured` which demonstrates how to use end to end encryption in a supported u-blox cellular module (e.g. SARA-R5) and exchange these end-to-end encrypted messages using the Thingstream service.  The cellular module must have been security sealed for this example to complete.

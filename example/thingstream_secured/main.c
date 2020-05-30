@@ -222,7 +222,8 @@ static int32_t connect()
  * PUBLIC FUNCTIONS: THE EXAMPLE
  * -------------------------------------------------------------- */
 
-// The entry point, equivalent to main().
+// The entry point: before this is called the system clocks have
+// been started and the RTOS is running; we are in task space.
 CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
                             "exampleThingstreamSecured",
                             "mqtt")

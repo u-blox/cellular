@@ -60,7 +60,7 @@ static void testTask(void *pParam)
 
     cellularPortLog("CELLULAR_TEST: tests available:\n\n");
     cellularPortUnityPrintAll("CELLULAR_TEST: ");
-    if (CELLULAR_CFG_TEST_FILTER != NULL) {
+    if (cellularPort_strlen(CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER)) > 0) {
         cellularPortLog("CELLULAR_TEST: running tests that begin"
                         " with \"%s\".\n",
                         CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER));
