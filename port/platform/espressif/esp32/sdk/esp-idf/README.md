@@ -8,8 +8,8 @@ https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html#get
 
 Only building/running the unit tests (which test absolutely everything) are supported at this moment.
 
-# Testing
-To build the unit tests, you first need to define which module you are using (e.g. one of `CELLULAR_CFG_MODULE_SARA_R412M_03B` or `CELLULAR_CFG_MODULE_SARA_R5`).  To do this, create an environment variable called `CELLULAR_FLAGS` and set it to be that module name in the form:
+# Running Examples And Tests
+To build the examples and the unit tests, you first need to define which module you are using (e.g. one of `CELLULAR_CFG_MODULE_SARA_R412M_03B` or `CELLULAR_CFG_MODULE_SARA_R5`).  To do this, create an environment variable called `CELLULAR_FLAGS` and set it to be that module name in the form:
 
 ```
 set CELLULAR_FLAGS=-DCELLULAR_CFG_MODULE_SARA_R5
@@ -27,7 +27,7 @@ With this done, `cd` to the `unit_test` directory and execute the following:
 idf.py  -p COMx -D TEST_COMPONENTS="cellular_tests" flash monitor
 ```
 
-...where `COMx` is replaced by the COM port to which your ESP32 board is attached. The command adds this directory to ESP-IDF as an ESP-IDF component and requests that the tests for this component are built, downloaded to the board and run.
+...where `COMx` is replaced by the COM port to which your ESP32 board is attached. The command adds this directory to ESP-IDF as an ESP-IDF component and requests that the examples and tests for this component are built, downloaded to the board and run.
 
 During the build, check that you see a line something like the following somewhere near the start of the build:
 
@@ -60,7 +60,7 @@ When the code has built and downloaded, the Espressif monitor terminal will be l
 Press ENTER to see the list of tests.
 ```
 
-Press ENTER and the tests will be listed, something like:
+Press ENTER and all of the examples and the tests will be listed, something like:
 
 ```
 Here's the test menu, pick your combo:
@@ -70,7 +70,7 @@ Here's the test menu, pick your combo:
 Enter test for running.
 ```
 
-Press 1 followed by ENTER to test number 1, \* to run all tests, etc.
+Press 1 followed by ENTER to run example or test number 1, \* to run all, etc.
 
 # Tracing Guru Meditation Errors (Processor Exceptions)
 Good advice on tracing the cause of processor exceptions can be found [here](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/fatal-errors.html).  Note that viewing the debug stream from the target in the ESP-IDF monitor program (i.e. with `monitor` as one of the parameters to `idf.py`) will give you  file/line numbers for the back-trace immediately.  If you don't happen to be running the ESP-IDF monitor program when the error occurs, you can decode addresses to file/line numbers with:

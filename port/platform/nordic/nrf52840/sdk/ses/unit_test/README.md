@@ -1,5 +1,5 @@
 # Introduction
-This directory contains the unit test build for Nordic NRF52840 under GCC with Segger Embedded Studio (SES).
+This directory contains the example and unit test builds for Nordic NRF52840 under GCC with Segger Embedded Studio (SES).
 
 # Usage
 Make sure you have followed the instructions in the directory above this to install the SES and the Nordic command-line tools.
@@ -23,4 +23,4 @@ Note: you may put this repo in a different location but if you do so you will ne
 "C:\Program Files\Segger\SEGGER Embedded Studio for ARM 4.50\bin\emstudio" -D UNITY_PATH=c:/Unity
 ```
 
-Otherwise follow the instructions in the directory above this to start SES and build/run the unit tests on NRF52840.
+Otherwise follow the instructions in the directory above this to start SES and build/run the examples or unit tests on NRF52840.

@@ -43,7 +43,22 @@ You must also set the type of cellular module you are using by setting the SES p
 "C:\Program Files\Segger\SEGGER Embedded Studio for ARM 4.50\bin\emstudio" -D MODULE_TYPE=CELLULAR_CFG_MODULE_SARA_R5
 ```
 
-So, `cd` to your chosen build under this sub-directory and load the project file with a line something like:
+If you only want to run a particular example, or a particular unit test, you would use, for instance:
+
+```
+"C:\Program Files\Segger\SEGGER Embedded Studio for ARM 4.50\bin\emstudio" -D MODULE_TYPE=CELLULAR_CFG_MODULE_SARA_R5 -D EXTRA0="CELLULAR_CFG_TEST_FILTER=exampleThingstreamSecured"
+```
+
+...to build and run just the `exampleThingstreamSecured` example, the name being taken from the second parameter of the `CELLULAR_PORT_TEST_FUNCTION` macro for the test or example you want to run.  Do NOT put quotes round the name of the example/test.  You may use a partial string, for instance:
+
+```
+"C:\Program Files\Segger\SEGGER Embedded Studio for ARM 4.50\bin\emstudio" -D MODULE_TYPE=CELLULAR_CFG_MODULE_SARA_R5 -D EXTRA0="CELLULAR_CFG_TEST_FILTER=example"
+```
+
+...would build and run all of the examples.
+
+
+You can run all of the examples as well as all of the unit tests using the same `unit_test` build so, to run all of the examples and unit tests, `cd` to the `unit_test` sub-directory and load the project file with a line something like:
 
 ```
 "C:\Program Files\Segger\SEGGER Embedded Studio for ARM 4.50\bin\emstudio" -D NRF5_PATH=c:/nrf5 -D MODULE_TYPE=CELLULAR_CFG_MODULE_SARA_R5 cellular_pca10056.emProject

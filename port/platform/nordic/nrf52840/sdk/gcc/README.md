@@ -46,3 +46,5 @@ You will also need to have installed the Nordic command-line tools from here if 
 https://www.nordicsemi.com/Software-and-Tools/Development-Tools/nRF-Command-Line-Tools
 
 With this done, go to the relevant sub-directory of this directory to actually build something.
+
+Note: the examples can be built and run in the same way as the unit tests, so look in the `unit_test` directory for everything.

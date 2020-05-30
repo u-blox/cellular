@@ -257,7 +257,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
             x = cellularSecurityEndToEndEncrypt(MY_MESSAGE, gMessageOut,
                                                 cellularPort_strlen(MY_MESSAGE));
             cellularPortLog("EXAMPLE: got back %d byte(s) of encrypted"
-                            " message: ", x);
+                            " message: 0x", x);
             printHex(gMessageOut, x);
             cellularPortLog("\n");
 
@@ -266,9 +266,8 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
             if (connect() == 0) {
 
                 // Initialise MQTT
-                cellularPortLog("EXAMPLE: initialising MQTT to connect"
-                                " to %s with client ID \"%s\"...\n",
-                                THINGSTREAM_SERVER, MY_THINGSTREAM_CLIENT_ID);
+                cellularPortLog("EXAMPLE: initialising with client ID"
+                                " \"%s\"...\n", MY_THINGSTREAM_CLIENT_ID);
                 cellularMqttInit(THINGSTREAM_SERVER,
                                  MY_THINGSTREAM_CLIENT_ID,
                                  MY_THINGSTREAM_USERNAME,
@@ -296,24 +295,28 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
 
                             // Wait for an indication that a message has arrived
                             // back because of our subscription to the topic
-                            cellularPortLog("EXAMPLE: waiting 20 second(s) for"
-                                            " unread message indication...\n");
-                            for (size_t y = 0; (cellularMqttGetUnread() == 0) &&
-                                               (y < 20); y++) {
+                            cellularPortLog("EXAMPLE: waiting up to 20 second(s)"
+                                            " for unread message indication...\n");
+                            for (x = 0; (cellularMqttGetUnread() == 0) &&
+                                        (x < 20); x++) {
                                 cellularPortTaskBlock(1000);
                             }
 
                             // Read the message
                             if (cellularMqttGetUnread() > 0) {
+                                cellularPortLog("EXAMPLE: message arrived in less"
+                                                " than %d second(s).\n", x);
                                 cellularPortLog("EXAMPLE: reading message...\n");
                                 x = CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES;
                                 if (cellularMqttMessageRead(gTopic, sizeof(gTopic),
                                                             gMessageIn, &x,
                                                             NULL) == 0) {
-                                    cellularPortLog("EXAMPLE: message %d byte(s) ", x);
+                                    cellularPortLog("EXAMPLE: message %d byte(s):"
+                                                    " 0x:", x);
                                     printHex(gMessageIn, x);
                                     cellularPortLog("\nEXAMPLE: ...from topic"
-                                                    " \"%s\"", gTopic);
+                                                    " \"%s\".\n", gTopic);
+                                    cellularPortLog("EXAMPLE: done.\n");
                                     success = true;
                                 } else {
                                     cellularPortLog("EXAMPLE ERROR: unable to"

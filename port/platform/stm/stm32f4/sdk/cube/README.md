@@ -38,6 +38,8 @@ Clumsy, I know, but was the only way I could find to get Eclipse to override mor
 
 With that done `cd` to your chosen build under this sub-directory, load the project into the STM32Cube IDE and then follow ST's instructions to build/download/run the project.
 
+Note: the examples can be built and run in the same way as the unit tests, so look in the `unit_test` directory for everything.
+
 # Trace
 To view the SWO trace output in the STM32 Cube IDE, setup up the debugger as normal by pulling down the arrow beside the little button on the toolbar with the "bug" image on it, selecting "STM-Cortex-M C/C++ Application", create a new configuration and then, on the "Debugger" tab, tick the box that enables SWD, set the core clock to 168 MHz and click "Apply".
 

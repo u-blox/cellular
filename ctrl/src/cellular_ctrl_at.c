@@ -1115,7 +1115,7 @@ cellular_ctrl_at_error_code_t cellular_ctrl_at_init(int32_t uart,
     _urc_matched = false;
     _error_found = false;
     _max_resp_length = CELLULAR_CTRL_AT_MAX_RESP_LENGTH;
-    _debug_on = true;
+    _debug_on = false;
     _cmd_start = false;
     _use_delimiter = true;
     _start_time_ms = 0;
