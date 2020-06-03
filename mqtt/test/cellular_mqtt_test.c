@@ -351,6 +351,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestSubscribePublish(),
                             "mqtt")
 {
     char buffer[32];
+    int32_t x;
     int32_t y;
     int32_t z;
     int32_t numPublished = 0;
@@ -517,7 +518,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestSubscribePublish(),
     // There may be unread messages sitting on the server from a previous test run,
     // read them off here.
     y = cellularMqttGetUnread();
-    for (size_t x = 0; x < y; x++) {
+    for (x = 0; x < y; x++) {
         while (cellularMqttGetUnread() > 0) {
             cellularPortLog("CELLULAR_MQTT_TEST: reading existing unread message %d of %d.\n",
                             x + 1, y);
@@ -539,14 +540,16 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestSubscribePublish(),
     gStopTimeMs = cellularPortGetTickTimeMs() +
                   (CELLULAR_CFG_TEST_MQTT_SERVER_TIMEOUT_SECONDS * 1000);
     // Fill in the outgoing message buffer with all possible things
+    x = 0;
     y = CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES;
     while (y > 0) {
         z = sizeof(gAllChars);
         if (z > y) {
             z = y;
         }
-        pCellularPort_memcpy(pMessageOut, gAllChars, z);
+        pCellularPort_memcpy(pMessageOut + x, gAllChars, z);
         y -= z;
+        x += z;
     }
     y = cellularMqttPublish(CELLULAR_MQTT_EXACTLY_ONCE, false, pTopicOut,
                             pMessageOut, CELLULAR_MQTT_PUBLISH_MAX_LENGTH_BYTES);
