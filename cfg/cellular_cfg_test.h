@@ -24,19 +24,6 @@
  */
 
 /* ----------------------------------------------------------------
- * COMPILE-TIME MACROS: MISC
- * -------------------------------------------------------------- */
-
-#ifndef CELLULAR_CFG_TEST_FILTER
-/** A filter on the basis of which the tests to run
- * will be selected.  If you set a value for this do NOT
- * put quotes around it.  Use, for instance:
- * #define CELLULAR_CFG_TEST_FILTER sock
- */
-# define CELLULAR_CFG_TEST_FILTER NULL
-#endif
-
-/* ----------------------------------------------------------------
  * COMPILE-TIME MACROS: CELLULAR NETWORK RELATED
  * -------------------------------------------------------------- */
 

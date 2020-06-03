@@ -20,7 +20,7 @@ https://www.segger.com/downloads/jlink/JLink_Windows.exe
 If you don't have an NRF52840 board with Segger J-Link built in or you have a bare module etc. and are without a Segger J-Link box, it may be possible to fiddle with the `sdk_config.h` file down in the `cfg` directory to make it spit strings out of the spare UART instead but I don't recommended, it's hell down there.  You would need to enable a UART port, switch off `NRF_LOG_BACKEND_RTT_ENABLED` and fiddle with the likes of `NRF_LOG_BACKEND_UART_ENABLED`, `NRF_LOG_BACKEND_UART_TX_PIN` and `NRF_LOG_BACKEND_UART_BAUDRATE`.  Good luck!
 
 #Chip Resource Requirements
-This code requires the use of one `TIMER` peripheral, with a `CC` register and one `UARTE` peripheral on the NRF52840 chip.  The default choices are specified in `cellular_cfg_hw_platform_specific.h` and can be overriden at compile time.
+This code requires the use of two `TIMER` peripherals (one for time and unfortunately another to count UART received characters) and one `UARTE` peripheral on the NRF52840 chip.  The default choices are specified in `cellular_cfg_hw_platform_specific.h` and can be overriden at compile time.  Note that the way the `TIMER`, actually used as a counter, has to be used with the `UARTE` requires the PPI (Programmable Peripheral Interconnect) to be enabled.
 
 #Segger RTT Trace Output
 To obtain trace output, start JLink Commander from a command-line with:

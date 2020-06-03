@@ -18,6 +18,7 @@
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
 #include "cellular_cfg_sw.h"
+#include "cellular_cfg_os_platform_specific.h"
 #include "cellular_cfg_test.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
@@ -32,7 +33,7 @@
 #define CELLULAR_PORT_TEST_RUNNER_TASK_STACK_SIZE_BYTES (1024 * 4)
 
 // The priority of the task running the tests: should be low.
-#define CELLULAR_PORT_TEST_RUNNER_TASK_PRIORITY 14
+#define CELLULAR_PORT_TEST_RUNNER_TASK_PRIORITY (CELLULAR_PORT_OS_PRIORITY_MIN + 1)
 
 /* ----------------------------------------------------------------
  * TYPES
@@ -58,16 +59,17 @@ static void testTask(void *pParam)
 
     cellularPortLog("CELLULAR_TEST: tests available:\n\n");
     cellularPortUnityPrintAll("CELLULAR_TEST: ");
-    if (cellularPort_strlen(CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER)) > 0) {
-        cellularPortLog("CELLULAR_TEST: running tests that begin"
-                        " with \"%s\".\n",
-                        CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER));
-        cellularPortUnityRunFiltered(CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER),
-                                     "CELLULAR_TEST: ");
-    } else {
-        cellularPortLog("CELLULAR_TEST: running all tests.\n");
-        cellularPortUnityRunAll("CELLULAR_TEST: ");
-    }
+    cellularPortLog("CELLULAR_TEST: tests available:\n\n");
+    cellularPortUnityPrintAll("CELLULAR_TEST: ");
+#ifdef CELLULAR_CFG_TEST_FILTER
+    cellularPortLog("CELLULAR_TEST: running tests that begin with \"%s\".\n",
+                    CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER));
+    cellularPortUnityRunFiltered(CELLULAR_PORT_STRINGIFY_QUOTED(CELLULAR_CFG_TEST_FILTER),
+                                 "CELLULAR_TEST: ");
+#else
+    cellularPortLog("CELLULAR_TEST: running all tests.\n");
+    cellularPortUnityRunAll("CELLULAR_TEST: ");
+#endif
 
     UNITY_END();
 

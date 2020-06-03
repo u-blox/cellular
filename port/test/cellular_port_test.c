@@ -20,9 +20,13 @@
  * cellular_port* to maintain portability.
  */
 
-#include "cellular_cfg_hw_platform_specific.h"
+#ifdef CELLULAR_CFG_OVERRIDE
+# include "cellular_cfg_override.h" // For a customer's configuration override
+#endif
 #include "cellular_cfg_sw.h"
 #include "cellular_cfg_module.h"
+#include "cellular_cfg_hw_platform_specific.h"
+#include "cellular_cfg_os_platform_specific.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_debug.h"
@@ -252,6 +256,7 @@ static void runUartTest(int32_t size, int32_t speed, bool flowControlOn)
     UartTestTaskData_t uartTestTaskData;
     CellularPortTaskHandle_t uartTaskHandle;
     int32_t control;
+    int32_t bytesToSend;
     int32_t bytesSent = 0;
     int32_t pinCts = -1;
     int32_t pinRts = -1;
@@ -317,11 +322,15 @@ static void runUartTest(int32_t size, int32_t speed, bool flowControlOn)
 
     // Send data over the UART N times, Rx task will check it
     while (bytesSent < size) {
+        bytesToSend = sizeof(gUartTestData) - 1;
+        if (bytesToSend > size - bytesSent) {
+            bytesToSend = size - bytesSent;
+        }
         // -1 below to omit gUartTestData string terminator
         CELLULAR_PORT_TEST_ASSERT(cellularPortUartWrite(CELLULAR_PORT_TEST_UART,
                                                         gUartTestData,
-                                                        sizeof(gUartTestData) - 1) == sizeof(gUartTestData) - 1);
-        bytesSent += sizeof(gUartTestData) - 1;
+                                                        bytesToSend) == bytesToSend);
+        bytesSent += bytesToSend;
         cellularPortLog("CELLULAR_PORT_TEST: %d byte(s) sent.\n", bytesSent);
     }
 

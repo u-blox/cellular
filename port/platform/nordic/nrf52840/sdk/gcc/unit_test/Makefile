@@ -32,6 +32,7 @@ SRC_FILES += \
   $(NRF5_PATH)/components/libraries/strerror/nrf_strerror.c \
   $(NRF5_PATH)/components/libraries/uart/retarget.c \
   $(NRF5_PATH)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
+  $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_ppi.c \
   $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_timer.c \
   $(NRF5_PATH)/modules/nrfx/drivers/src/nrfx_clock.c \
   $(NRF5_PATH)/external/fprintf/nrf_fprintf.c \

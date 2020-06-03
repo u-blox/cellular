@@ -43,10 +43,13 @@
 
 // Only include this example if root of trust and
 // MQTT are both supported by the cellular module.
-#if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST && \
-    CELLULAR_MQTT_IS_SUPPORTED && \
-    (!defined(CELLULAR_CFG_UBLOX_TEST) || \
+#if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST && CELLULAR_MQTT_IS_SUPPORTED && \
+    (defined(MY_THINGSTREAM_CLIENT_ID) ||                                 \
      defined(CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID))
+
+#ifndef CELLULAR_PORT_TEST_FUNCTION
+# error if you are not using the unit test framework to run this code you must ensure that the platform clocks/RTOS are set up and either define CELLULAR_PORT_TEST_FUNCTION yourself or replace it as necessary.
+#endif
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
@@ -366,9 +369,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
                 cellularPortLog("EXAMPLE ERROR: unable to connect to the cellular network.\n");
             }
         } else {
-            cellularPortLog("EXAMPLE ERROR: unable to run this example of end"
-                            " to end security as this cellular module is not"
+            cellularPortLog("EXAMPLE: unable to run this example of end to"
+                            " end security as this cellular module is not"
                             " security sealed.\n");
+            success = true;
         }
         cellularCtrlPowerOff(NULL);
     } else {
@@ -386,6 +390,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
 }
 
 #endif // CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST && CELLULAR_MQTT_IS_SUPPORTED &&
-       // (!defined(CELLULAR_CFG_UBLOX_TEST) || defined(CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID))
+       // (defined(MY_THINGSTREAM_CLIENT_ID) || defined(CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID))
 
 // End of file

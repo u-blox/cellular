@@ -51,7 +51,7 @@
 /** The task priority to use for the task created during.
  * testing.
  */
-#define CELLULAR_PORT_TEST_OS_TASK_PRIORITY 0 // osPriorityNormal
+#define CELLULAR_PORT_TEST_OS_TASK_PRIORITY (CELLULAR_PORT_OS_PRIORITY_MIN + 5)
 
 /** The stack size to use for the test task created during sockets testing.
  */
@@ -60,7 +60,7 @@
 /** The priority to use for the test task created during sockets testing;
  * lower priority than the URC handler.
  */
-#define CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY (CELLULAR_CTRL_AT_TASK_URC_PRIORITY + 1)
+#define CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY (CELLULAR_CTRL_AT_TASK_URC_PRIORITY - 1)
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS: HW RELATED

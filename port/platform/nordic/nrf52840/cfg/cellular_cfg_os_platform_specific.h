@@ -24,6 +24,26 @@
  */
 
 /* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS FOR NRF52840: OS GENERIC
+ * -------------------------------------------------------------- */
+
+#ifndef CELLULAR_PORT_OS_PRIORITY_MIN
+/** The minimum task priority.
+ * In FreeRTOS, as used on this platform, low numbers indicate
+ * lower priority.
+ */
+# define CELLULAR_PORT_OS_PRIORITY_MIN 0
+#endif
+
+#ifndef CELLULAR_PORT_OS_PRIORITY_MAX
+/** The maximum task priority, should be less than or
+ * equal to configMAX_PRIORITIES defined in FreeRTOSConfig.h,
+ * which is set to 15.
+ */
+# define CELLULAR_PORT_OS_PRIORITY_MAX 15
+#endif
+
+/* ----------------------------------------------------------------
  * COMPILE-TIME MACROS FOR NRF52840: AT CLIENT RELATED
  * -------------------------------------------------------------- */
 
@@ -38,7 +58,7 @@
 #ifndef CELLULAR_CTRL_AT_TASK_URC_PRIORITY
 /** The task priority for the URC handler.
  */
-# define CELLULAR_CTRL_AT_TASK_URC_PRIORITY 12
+# define CELLULAR_CTRL_AT_TASK_URC_PRIORITY (CELLULAR_PORT_OS_PRIORITY_MAX - 5)
 #endif
 
 #ifndef CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES
@@ -52,10 +72,10 @@
 /** The task priority for any callback made via
  * cellular_ctrl_at_callback().
  */
-# define CELLULAR_CTRL_TASK_CALLBACK_PRIORITY 15
+# define CELLULAR_CTRL_TASK_CALLBACK_PRIORITY (CELLULAR_PORT_OS_PRIORITY_MIN + 2)
 #endif
 
-#if (CELLULAR_CTRL_TASK_CALLBACK_PRIORITY <= CELLULAR_CTRL_AT_TASK_URC_PRIORITY)
+#if (CELLULAR_CTRL_TASK_CALLBACK_PRIORITY >= CELLULAR_CTRL_AT_TASK_URC_PRIORITY)
 # error CELLULAR_CTRL_TASK_CALLBACK_PRIORITY must be less than CELLULAR_CTRL_AT_TASK_URC_PRIORITY
 #endif
 

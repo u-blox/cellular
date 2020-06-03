@@ -1079,6 +1079,12 @@ int32_t cellularPortUartGetReceiveSize(int32_t uart)
                               (pRxBufferWrite - pUartData->pRxBufferStart);
         }
 
+        // If there's nothing waiting, need to information
+        // the user when something arrives
+        if (sizeOrErrorCode) {
+            pUartData->userNeedsNotify = true;
+        }
+
         CELLULAR_PORT_MUTEX_UNLOCK(pUartData->mutex);
 
     }

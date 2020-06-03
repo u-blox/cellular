@@ -24,6 +24,27 @@
  */
 
 /* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS FOR STM32F4: OS GENERIC
+ * -------------------------------------------------------------- */
+
+#ifndef CELLULAR_PORT_OS_PRIORITY_MIN
+/** The minimum task priority.
+ * cmsis-os defines osPriorityIdle as 1.
+ */
+# define CELLULAR_PORT_OS_PRIORITY_MIN 1
+#endif
+
+#ifndef CELLULAR_PORT_OS_PRIORITY_MAX
+/** The maximum task priority, should be less than or
+ * equal to configMAX_PRIORITIES defined in FreeRTOSConfig.h,
+ * which is set to 15. cmsis-os defines osPriorityISR
+ * as 56 but when this is mapped to FreeRTOS, as it is on
+ * this platform, the range gets squished.
+ */
+# define CELLULAR_PORT_OS_PRIORITY_MAX 15
+#endif
+
+/* ----------------------------------------------------------------
  * COMPILE-TIME MACROS FOR STM32F4: AT CLIENT RELATED
  * -------------------------------------------------------------- */
 
@@ -38,7 +59,7 @@
 #ifndef CELLULAR_CTRL_AT_TASK_URC_PRIORITY
 /** The task priority for the URC handler.
  */
-# define CELLULAR_CTRL_AT_TASK_URC_PRIORITY 2 // osPriorityHigh
+# define CELLULAR_CTRL_AT_TASK_URC_PRIORITY (CELLULAR_PORT_OS_PRIORITY_MAX - 5)
 #endif
 
 #ifndef CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES
@@ -52,7 +73,7 @@
 /** The task priority for any callback made via
  * cellular_ctrl_at_callback().
  */
-# define CELLULAR_CTRL_TASK_CALLBACK_PRIORITY 0 // osPriorityNormal
+# define CELLULAR_CTRL_TASK_CALLBACK_PRIORITY (CELLULAR_PORT_OS_PRIORITY_MIN + 2)
 #endif
 
 #if (CELLULAR_CTRL_TASK_CALLBACK_PRIORITY >= CELLULAR_CTRL_AT_TASK_URC_PRIORITY)

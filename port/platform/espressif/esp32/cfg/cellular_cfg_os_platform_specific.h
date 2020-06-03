@@ -24,6 +24,26 @@
  */
 
 /* ----------------------------------------------------------------
+ * COMPILE-TIME MACROS FOR ESP32: OS GENERIC
+ * -------------------------------------------------------------- */
+
+#ifndef CELLULAR_PORT_OS_PRIORITY_MIN
+/** The minimum task priority.
+ * In FreeRTOS, as used on this platform, low numbers indicate
+ * lower priority.
+ */
+# define CELLULAR_PORT_OS_PRIORITY_MIN 0
+#endif
+
+#ifndef CELLULAR_PORT_OS_PRIORITY_MAX
+/** The maximum task priority, should be less than or
+ * equal to configMAX_PRIORITIES defined in FreeRTOSConfig.h,
+ * which is usually set to 25.
+ */
+# define CELLULAR_PORT_OS_PRIORITY_MAX 25
+#endif
+
+/* ----------------------------------------------------------------
  * COMPILE-TIME MACROS FOR ESP32: AT CLIENT RELATED
  * -------------------------------------------------------------- */
 
@@ -36,9 +56,10 @@
 #endif
 
 #ifndef CELLULAR_CTRL_AT_TASK_URC_PRIORITY
-/** The task priority for the URC handler.
+/** The task priority for the URC handler.  In FreeRTOS,
+ * as used on this platform, low numbers indicate lower priority.
  */
-# define CELLULAR_CTRL_AT_TASK_URC_PRIORITY 12
+# define CELLULAR_CTRL_AT_TASK_URC_PRIORITY (CELLULAR_PORT_OS_PRIORITY_MAX - 5)
 #endif
 
 #ifndef CELLULAR_CTRL_TASK_CALLBACK_STACK_SIZE_BYTES
@@ -50,12 +71,15 @@
 
 #ifndef CELLULAR_CTRL_TASK_CALLBACK_PRIORITY
 /** The task priority for any callback made via
- * cellular_ctrl_at_callback().
+ * cellular_ctrl_at_callback().  In FreeRTOS,
+ * as used on this platform, low numbers indicate
+ * lower priority.  The task within which main() is
+ * run is usually set to minimum + 1, see esp_task.h.
  */
-# define CELLULAR_CTRL_TASK_CALLBACK_PRIORITY 15
+# define CELLULAR_CTRL_TASK_CALLBACK_PRIORITY (CELLULAR_PORT_OS_PRIORITY_MIN + 2)
 #endif
 
-#if (CELLULAR_CTRL_TASK_CALLBACK_PRIORITY <= CELLULAR_CTRL_AT_TASK_URC_PRIORITY)
+#if (CELLULAR_CTRL_TASK_CALLBACK_PRIORITY >= CELLULAR_CTRL_AT_TASK_URC_PRIORITY)
 # error CELLULAR_CTRL_TASK_CALLBACK_PRIORITY must be less than CELLULAR_CTRL_AT_TASK_URC_PRIORITY
 #endif
 

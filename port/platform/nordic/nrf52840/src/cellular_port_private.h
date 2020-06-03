@@ -49,22 +49,22 @@ extern "C" {
 #define CELLULAR_PORT_TICK_TIMER_LIMIT_NORMAL_MODE_BITS 24
 
 // The limit of the timer in UART mode.  With a frequency
-// of 31250 Hz this results in an overflow every 130 milliseconds.  The
+// of 31250 Hz this results in an overflow every 66 milliseconds.  The
 // overflow count is a 64 bit variable so that's still rather a large
 // number of years.
 // IMPORTANT: if you change this value then you also
 // need to change the calculation in cellularPortGetTickTimeMs()
 // and you need to consider the effect it has on the Rx timeout
 // of the UART since it is also used there.  Best not to change it.
-#define CELLULAR_PORT_TICK_TIMER_LIMIT_UART_MODE 0xFFF
+#define CELLULAR_PORT_TICK_TIMER_LIMIT_UART_MODE 0x7FF
 
 // The number of bits represented by
 // CELLULAR_PORT_TICK_TIMER_LIMIT_UART_MODE.
-#define CELLULAR_PORT_TICK_TIMER_LIMIT_UART_MODE_BITS 12
+#define CELLULAR_PORT_TICK_TIMER_LIMIT_UART_MODE_BITS 11
 
 // The difference between the two limits above as a bit shift.
-#define CELLULAR_PORT_TICK_TIMER_LIMIT_DIFF CELLULAR_PORT_TICK_TIMER_LIMIT_NORMAL_MODE_BITS - \
-                                            CELLULAR_PORT_TICK_TIMER_LIMIT_UART_MODE_BITS
+#define CELLULAR_PORT_TICK_TIMER_LIMIT_DIFF (CELLULAR_PORT_TICK_TIMER_LIMIT_NORMAL_MODE_BITS - \
+                                             CELLULAR_PORT_TICK_TIMER_LIMIT_UART_MODE_BITS)
 
 /* ----------------------------------------------------------------
  * TYPES

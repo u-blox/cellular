@@ -51,18 +51,20 @@
 
 /** The task priority to use for the task created during OS
  * testing: make sure that the priority of the task RUNNING
- * the tests is lower than this.
+ * the tests is lower than this.  In FreeRTOS, as used on this
+ * platform, low numbers indicate lower priority.
  */
-#define CELLULAR_PORT_TEST_OS_TASK_PRIORITY 12
+#define CELLULAR_PORT_TEST_OS_TASK_PRIORITY (CELLULAR_PORT_OS_PRIORITY_MIN + 5)
 
 /** The stack size to use for the test task created during sockets testing.
  */
 #define CELLULAR_PORT_TEST_SOCK_TASK_STACK_SIZE_BYTES (1024 * 5)
 
 /** The priority to use for the test task created during sockets testing;
- * lower priority than the URC handler.
+ * lower priority than the URC handler.  In FreeRTOS, as used on this
+ * platform, low numbers indicate lower priority.
  */
-#define CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY (CELLULAR_CTRL_AT_TASK_URC_PRIORITY + 1)
+#define CELLULAR_PORT_TEST_SOCK_TASK_PRIORITY (CELLULAR_CTRL_AT_TASK_URC_PRIORITY - 1)
 
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS: HW RELATED
@@ -72,56 +74,56 @@
  * resistor.
  */
 #ifndef CELLULAR_PORT_TEST_PIN_A
-# define CELLULAR_PORT_TEST_PIN_A         -1
+# define CELLULAR_PORT_TEST_PIN_A         33
 #endif
 
 /** Pin B for GPIO testing: should be connected to pin A via a 1k
  * resistor and also to pin C.
  */
 #ifndef CELLULAR_PORT_TEST_PIN_B
-# define CELLULAR_PORT_TEST_PIN_B         -1
+# define CELLULAR_PORT_TEST_PIN_B         32
 #endif
 
 /** Pin C for GPIO testing: should be connected to pin B.
  */
 #ifndef CELLULAR_PORT_TEST_PIN_C
-# define CELLULAR_PORT_TEST_PIN_C         -1
+# define CELLULAR_PORT_TEST_PIN_C         35
 #endif
 
 /** UART HW block for UART driver testing.
  */
 #ifndef CELLULAR_PORT_TEST_UART
-# define CELLULAR_PORT_TEST_UART          -1
+# define CELLULAR_PORT_TEST_UART          2
 #endif
 
 /** Handshake threshold for UART testing.
  */
 #ifndef CELLULAR_PORT_TEST_UART_RTS_THRESHOLD
-# define CELLULAR_PORT_TEST_UART_RTS_THRESHOLD 0 // Not used on this platform
+# define CELLULAR_PORT_TEST_UART_RTS_THRESHOLD 100
 #endif
 
 /** Tx pin for UART testing: should be connected to the Rx UART pin.
  */
 #ifndef CELLULAR_PORT_TEST_PIN_UART_TXD
-# define CELLULAR_PORT_TEST_PIN_UART_TXD   -1
+# define CELLULAR_PORT_TEST_PIN_UART_TXD   13
 #endif
 
 /** Rx pin for UART testing: should be connected to the Tx UART pin.
  */
 #ifndef CELLULAR_PORT_TEST_PIN_UART_RXD
-# define CELLULAR_PORT_TEST_PIN_UART_RXD   -1
+# define CELLULAR_PORT_TEST_PIN_UART_RXD   14
 #endif
 
 /** CTS pin for UART testing: should be connected to the RTS UART pin.
  */
 #ifndef CELLULAR_PORT_TEST_PIN_UART_CTS
-# define CELLULAR_PORT_TEST_PIN_UART_CTS  -1
+# define CELLULAR_PORT_TEST_PIN_UART_CTS   26
 #endif
 
 /** RTS pin for UART testing: should be connected to the CTS UART pin.
  */
 #ifndef CELLULAR_PORT_TEST_PIN_UART_RTS
-# define CELLULAR_PORT_TEST_PIN_UART_RTS  -1
+# define CELLULAR_PORT_TEST_PIN_UART_RTS   27
 #endif
 
 /* ----------------------------------------------------------------

@@ -57,7 +57,9 @@
 #define configUSE_IDLE_HOOK               0
 #define configUSE_TICK_HOOK               0
 #define configUSE_TICKLESS_IDLE           0
-#define configMAX_PRIORITIES              (8)
+// If you change this you must change CELLULAR_PORT_OS_PRIORITY_MAX
+// in cellular_cfg_os_platform_specific.h to match.
+#define configMAX_PRIORITIES              (15)
 #define configSUPPORT_STATIC_ALLOCATION   0
 #define configCPU_CLOCK_HZ                (SystemCoreClock)
 #define configTICK_RATE_HZ                ((TickType_t) 1000)

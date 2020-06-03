@@ -23,10 +23,10 @@
 #ifdef CELLULAR_CFG_OVERRIDE
 # include "cellular_cfg_override.h" // For a customer's configuration override
 #endif
-#include "cellular_cfg_hw_platform_specific.h"
-#include "cellular_cfg_os_platform_specific.h"
 #include "cellular_cfg_sw.h"
 #include "cellular_cfg_module.h"
+#include "cellular_cfg_hw_platform_specific.h"
+#include "cellular_cfg_os_platform_specific.h"
 #include "cellular_port_clib.h"
 #include "cellular_port.h"
 #include "cellular_port_debug.h"
