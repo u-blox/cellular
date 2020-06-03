@@ -218,10 +218,6 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestInitialisation(),
 
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
 
-    // Get the IMEI for use later
-    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetImei(gImei) == 0);
-    gImei[sizeof(gImei) - 1] = 0;
-
     // Use the IP address here so that we don't have to be
     // connected
     CELLULAR_PORT_TEST_ASSERT(cellularMqttInit(CELLULAR_CFG_TEST_MQTT_SERVER_IP_ADDRESS,
@@ -392,14 +388,18 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestSubscribePublish(),
     pMessageIn = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES);
     CELLULAR_PORT_TEST_ASSERT(pMessageIn != NULL);
 
-    // Make a unique topic name to stop different boards colliding
-    cellularPort_snprintf(pTopicOut, CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,
-                          "ubx_test/%s", gImei);
-
     // Call this first in case a previous failed test left things initialised
     cellularMqttDeinit();
 
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
+
+    // Get the IMEI
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetImei(gImei) == 0);
+    gImei[sizeof(gImei) - 1] = 0;
+
+    // Make a unique topic name to stop different boards colliding
+    cellularPort_snprintf(pTopicOut, CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,
+                          "ubx_test/%s", gImei);
 
     networkConnect(CELLULAR_CFG_TEST_APN,
                    CELLULAR_CFG_TEST_USERNAME,
@@ -682,14 +682,18 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestThingstreamBasic(),
     pMessageIn = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES);
     CELLULAR_PORT_TEST_ASSERT(pMessageIn != NULL);
 
-    // Make a unique topic name to stop different boards colliding
-    cellularPort_snprintf(pTopicOut, CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,
-                          "ubx_test/%s", gImei);
-
     // Call this first in case a previous failed test left things initialised
     cellularMqttDeinit();
 
     CELLULAR_PORT_TEST_ASSERT(cellularCtrlPowerOn(NULL) == 0);
+
+    // Get the IMEI
+    CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetImei(gImei) == 0);
+    gImei[sizeof(gImei) - 1] = 0;
+
+    // Make a unique topic name to stop different boards colliding
+    cellularPort_snprintf(pTopicOut, CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,
+                          "ubx_test/%s", gImei);
 
     networkConnect(CELLULAR_CFG_TEST_APN,
                    CELLULAR_CFG_TEST_USERNAME,
@@ -913,6 +917,10 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularMqttTestThingstreamEncrypted(),
         CELLULAR_PORT_TEST_ASSERT(pMessageOut != NULL);
         pMessageIn = (char *) pCellularPort_malloc(CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES);
         CELLULAR_PORT_TEST_ASSERT(pMessageIn != NULL);
+
+        // Get the IMEI
+        CELLULAR_PORT_TEST_ASSERT(cellularCtrlGetImei(gImei) == 0);
+        gImei[sizeof(gImei) - 1] = 0;
 
         // Make a unique topic name to stop different boards colliding
         cellularPort_snprintf(pTopicOut, CELLULAR_MQTT_READ_TOPIC_MAX_LENGTH_BYTES,

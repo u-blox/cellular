@@ -336,6 +336,7 @@ static const char *gLogText[] = {"NULL",
  * -------------------------------------------------------------- */
 
 // Get the number of received bytes waiting in the buffer.
+// Note: this may be called from interrupt context.
 static size_t uartGetRxBytes(CellularPortUartData_t *pUartData)
 {
     size_t x;
