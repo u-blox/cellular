@@ -70,21 +70,23 @@
  * COMPILE-TIME MACROS: HW RELATED
  * -------------------------------------------------------------- */
 
-/** Pin A for GPIO testing: should be connected to pin B via a 1k
- * resistor.
+/** Pin A for GPIO testing: will be used as an output and
+ * must be connected to pin B via a 1k resistor.
  */
 #ifndef CELLULAR_PORT_TEST_PIN_A
 # define CELLULAR_PORT_TEST_PIN_A         33
 #endif
 
-/** Pin B for GPIO testing: should be connected to pin A via a 1k
- * resistor and also to pin C.
+/** Pin B for GPIO testing: will be used as both an input and
+ * and open drain output and must be connected both to pin A via
+ * a 1k resistor and directly to pin C.
  */
 #ifndef CELLULAR_PORT_TEST_PIN_B
 # define CELLULAR_PORT_TEST_PIN_B         32
 #endif
 
-/** Pin C for GPIO testing: should be connected to pin B.
+/** Pin C for GPIO testing: must be connected to pin B,
+ * will be used as an input only.
  */
 #ifndef CELLULAR_PORT_TEST_PIN_C
 # define CELLULAR_PORT_TEST_PIN_C         35

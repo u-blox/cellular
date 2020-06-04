@@ -122,41 +122,20 @@ int32_t cellularPortGpioConfig(CellularPortGpioConfig_t *pConfig)
     return (int32_t) errorCode;
 }
 
-// Set the state of a GPIO, taking into account
-// holding the pin during sleep.  Note that for this
-// to work during DEEP sleep the application must called
-// gpio_deep_sleep_hold_en() prior to entering deep sleep.
+// Set the state of a GPIO.
+// Note there used to be code here which tried to
+// handle the case of a GPIO being made to hold
+// its state during sleep.  However, a side-effect
+// of doing that was that setting a GPIO when it had
+// not yet been made an output, so that when it was made
+// an output it immediately had the right level,
+// did not work, so that code was removed.
 int32_t cellularPortGpioSet(int32_t pin, int32_t level)
 {
     CellularPortErrorCode_t errorCode = CELLULAR_PORT_PLATFORM_ERROR;
-    esp_err_t espError;
 
-    // In case we've just come out of deep sleep set
-    // the level here as otherwise disabling hold 
-    // will return the pin to its default level
-    espError = gpio_set_level(pin, level);
-    if (espError == ESP_OK) {
-        // Now disable hold
-        if (rtc_gpio_is_valid_gpio(pin)) {
-            espError = rtc_gpio_hold_dis(pin);
-        } else {
-            espError = gpio_hold_dis(pin);
-        }
-        if (espError == ESP_OK) {
-            // Set the new level
-            espError = gpio_set_level(pin, level);
-            if (espError == ESP_OK) {
-                // Re-enable hold
-                if (rtc_gpio_is_valid_gpio(pin)) {
-                    espError = rtc_gpio_hold_en(pin);
-                } else {
-                    espError = gpio_hold_en(pin);
-                }
-                if (espError == ESP_OK) {
-                    errorCode = CELLULAR_PORT_SUCCESS;
-                }
-            }
-        }
+    if (gpio_set_level(pin, level) == ESP_OK) {
+        errorCode = CELLULAR_PORT_SUCCESS;
     }
 
     return (int32_t) errorCode;

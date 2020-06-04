@@ -549,10 +549,16 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularPortTestGpio(),
     CELLULAR_PORT_TEST_ASSERT(cellularPortInit() == 0);
 
     cellularPortLog("CELLULAR_PORT_TEST: testing GPIOs.\n");
-    cellularPortLog("CELLULAR_PORT_TEST: pin A (%d, 0x%02x) must be connected to pin B (%d, 0x%02x) via a 1k resistor.\n",
+    cellularPortLog("CELLULAR_PORT_TEST: pin A (%d, 0x%02x) will be used as an"
+                    " output and must be connected to pin B (%d, 0x%02x) via a"
+                    " 1k resistor.\n",
                     CELLULAR_PORT_TEST_PIN_A, CELLULAR_PORT_TEST_PIN_A,
                     CELLULAR_PORT_TEST_PIN_B, CELLULAR_PORT_TEST_PIN_B);
-    cellularPortLog("CELLULAR_PORT_TEST: pin C (%d, 0x%02x) must be connected to pin B (%d, 0x%02x).\n",
+    cellularPortLog("CELLULAR_PORT_TEST: pin B (%d, 0x%02x) will be used as an"
+                    " input and an open drain output.\n",
+                    CELLULAR_PORT_TEST_PIN_B, CELLULAR_PORT_TEST_PIN_B);
+    cellularPortLog("CELLULAR_PORT_TEST: pin C (%d, 0x%02x) will be used as"
+                     " an input and must be connected to pin B (%d, 0x%02x).\n",
                     CELLULAR_PORT_TEST_PIN_C, CELLULAR_PORT_TEST_PIN_C,
                     CELLULAR_PORT_TEST_PIN_B, CELLULAR_PORT_TEST_PIN_B);
 
