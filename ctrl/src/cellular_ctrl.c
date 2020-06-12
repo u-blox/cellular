@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -408,9 +408,12 @@ static CellularCtrlErrorCode_t moduleConfigure(int32_t uart)
         moduleConfigureOne(uart, "AT+UCGED=5") &&
 #endif
         // TODO switch off power saving until it is integrated into this API
-        moduleConfigureOne(uart, "AT+CPSMS=0") && 
+        moduleConfigureOne(uart, "AT+CPSMS=0") &&
         // TODO switch off UART power saving until it is integrated into this API
+        /* XXX: not supported by R410M */
+#if 0
         moduleConfigureOne(uart, "AT+UPSV=0") &&
+#endif
         // Stay in airplane mode until commanded to connect
         moduleConfigureOne(uart, "AT+CFUN=4")) {
         // TODO: check if AT&K3 requires both directions
@@ -1611,7 +1614,7 @@ int32_t cellularCtrlConnect(bool (*pKeepGoingCallback) (void),
                     cellularPortLog("CELLULAR_CTRL: connection attempt stopped after %d second(s).\n",
                                     (int32_t) ((cellularPortGetTickTimeMs() - startTime) / 1000));
                 }
-                // This to avoid warnings about unused variables when 
+                // This to avoid warnings about unused variables when
                 // cellularPortLog() is compiled out
                 (void) startTime;
             }

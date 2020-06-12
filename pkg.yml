@@ -1,0 +1,31 @@
+pkg.name: ublox-cellular
+pkg.description: Ublox cellular driver for SARA modules.
+pkg.keywords:
+    - ublox
+    - sara
+    - cellular
+    - mynewt
+
+pkg.type: sdk
+
+pkg.lflags:
+    - -lm
+
+pkg.deps:
+    - "@apache-mynewt-core/kernel/os"
+
+pkg.include_dirs:
+    - cfg
+    - ctrl/api
+    - ctrl/src
+    - sock/api
+    - sock/src
+    - port/api
+    - port/platform/stm/stm32f4_mynewt/src
+    - port/platform/stm/stm32f4_mynewt/cfg
+
+pkg.src_dirs:
+    - ctrl/src
+    - sock/src
+    - port/clib
+    - port/platform/stm/stm32f4_mynewt/src

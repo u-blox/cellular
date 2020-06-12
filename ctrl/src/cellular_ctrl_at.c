@@ -38,6 +38,9 @@
 #include "cellular_port_uart.h"
 #include "cellular_ctrl_at.h"
 
+/* XXX: for os time delay */
+#include "os/os.h"
+
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
@@ -459,6 +462,9 @@ static bool fill_buffer(bool wait_for_timeout)
             _buf.recv_len += len;
             return true;
         }
+        /* XXX: This timeout is too long for our idle task. Not sure
+           what to do about this so added this. */
+        os_time_delay(2);
     }
 
     cellularPort_assert(CELLULAR_CTRL_AT_GUARD_CHECK(_buf));
