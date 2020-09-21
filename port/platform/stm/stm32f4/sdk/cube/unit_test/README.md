@@ -24,4 +24,8 @@ Note: you may put this repo in a different location but, if you do so, when you 
 
 With that done load the project into the STM32Cube IDE to build, download and run it.
 
-TODO: describe running/testing process.
+By default all of the examples and tests supported by this platform will be executed.  To execute just a subset set the conditional compilation flag `CELLULAR_CFG_TEST_FILTER` to the example and/or test you wish to run.  For instance, to run all of the examples you would set `CELLULAR_CFG_TEST_FILTER=example`, or to run all of the porting tests `CELLULAR_CFG_TEST_FILTER=port`, or to run a particular example `CELLULAR_CFG_TEST_FILTER=examplexxx`, where `xxx` is the start of the rest of the example name.  In other words, the filter is a simple partial string compare with the start of the example/test name.  Note that quotation marks must NOT be used around the value part.
+
+You may set this compilation flag directly in the IDE, or you may set the compilation flag `CELLULAR_CFG_OVERRIDE` and provide it in the header file `cellular_cfg_override.h` (which you must create) or you may use the mechanism described in the directory above to pass the compilation flag into the build as an environment variable without modifying the build files at all.
+
+With that done load the project into the STM32Cube IDE and follow ST's instructions to build, download and run it.
