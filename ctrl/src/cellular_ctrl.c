@@ -429,6 +429,7 @@ static CellularCtrlErrorCode_t moduleConfigure(int32_t uart)
         moduleConfigureOne(uart, "AT+CPSMS=0") && 
         // TODO switch off UART power saving until it is integrated into this API
         moduleConfigureOne(uart, "AT+UPSV=0") &&
+        moduleConfigureOne(uart, "ATI9") &&
         // Stay in airplane mode until commanded to connect
         moduleConfigureOne(uart, "AT+CFUN=4")) {
         // TODO: check if AT&K3 requires both directions
@@ -2383,9 +2384,6 @@ int32_t cellularCtrlSetSecuritySeal(char *pDeviceInfoStr,
                                     bool (*pKeepGoingCallback) (void))
 {
     CellularCtrlErrorCode_t errorCode = CELLULAR_CTRL_NOT_SUPPORTED;
-# ifdef CELLULAR_CFG_MODULE_SARA_R5
-    char *pApn;
-# endif
 
 #if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST
     errorCode = CELLULAR_CTRL_NOT_INITIALISED;
@@ -2393,47 +2391,21 @@ int32_t cellularCtrlSetSecuritySeal(char *pDeviceInfoStr,
         errorCode = CELLULAR_CTRL_INVALID_PARAMETER;
         if ((pDeviceInfoStr != NULL) &&
             (pDeviceSerialNumberStr != NULL)) {
-# ifdef CELLULAR_CFG_MODULE_SARA_R5
-            errorCode = CELLULAR_CTRL_NO_MEMORY;
-            // On current SARA-R5 devices, need to tell
-            // the module which APN to use on the PDP
-            // context that it establishes for the
-            // security service functions
-            pApn = pCellularPort_malloc(CELLULAR_CTRL_APN_LENGTH);
-            if (pApn != NULL) {
-                errorCode = cellularCtrlGetApnStr(pApn, CELLULAR_CTRL_APN_LENGTH);
-                if (errorCode > 0) {
-                    errorCode = CELLULAR_CTRL_AT_ERROR;
-                    cellular_ctrl_at_lock();
-                    cellular_ctrl_at_cmd_start("AT+USECOPCMD=");
-                    cellular_ctrl_at_write_string("cfgpdn", true);
-                    cellular_ctrl_at_write_string(pApn, true);
-                    cellular_ctrl_at_cmd_stop_read_resp();
-                    if (cellular_ctrl_at_unlock_return_error() == 0) {
-# else
-                        errorCode = CELLULAR_CTRL_AT_ERROR;
-# endif // CELLULAR_CFG_MODULE_SARA_R5
-                        cellular_ctrl_at_lock();
-                        cellular_ctrl_at_cmd_start("AT+USECDEVINFO=");
-                        cellular_ctrl_at_write_string(pDeviceInfoStr, true);
-                        cellular_ctrl_at_write_string(pDeviceSerialNumberStr, true);
-                        cellular_ctrl_at_cmd_stop_read_resp();
-                        if (cellular_ctrl_at_unlock_return_error() == 0) {
-                            while ((errorCode != CELLULAR_CTRL_SUCCESS) &&
-                                   ((pKeepGoingCallback == NULL) ||
-                                     pKeepGoingCallback())) {
-                                errorCode = cellularCtrlGetSecuritySeal();
-                            }
-                        } else {
-                            cellularPortLog("CELLULAR_CTRL: request for security sealing refused.\n");
-                        }
-# ifdef CELLULAR_CFG_MODULE_SARA_R5
-                    }
+            errorCode = CELLULAR_CTRL_AT_ERROR;
+            cellular_ctrl_at_lock();
+            cellular_ctrl_at_cmd_start("AT+USECDEVINFO=");
+            cellular_ctrl_at_write_string(pDeviceInfoStr, true);
+            cellular_ctrl_at_write_string(pDeviceSerialNumberStr, true);
+            cellular_ctrl_at_cmd_stop_read_resp();
+            if (cellular_ctrl_at_unlock_return_error() == 0) {
+                while ((errorCode != CELLULAR_CTRL_SUCCESS) &&
+                       ((pKeepGoingCallback == NULL) ||
+                         pKeepGoingCallback())) {
+                    errorCode = cellularCtrlGetSecuritySeal();
                 }
-                // Free memory
-                cellularPort_free(pApn);
+            } else {
+                cellularPortLog("CELLULAR_CTRL: request for security sealing refused.\n");
             }
-# endif // CELLULAR_CFG_MODULE_SARA_R5
         }
     }
 #endif // CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST

@@ -17,6 +17,7 @@ set branch=
 set com_port=
 set espidf_repo_root=
 set CELLULAR_FLAGS=
+set DEBUGGER=
 set return_code=1
 rem the following three environment variables are exactly as dictated by the Nordic toolchain to locate the GCC ARM compiler
 rem Latest version of GCC for ARM installed from https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads
@@ -37,9 +38,10 @@ set platform_1=unit tests under v4 Espressif SDK from u-blox clone of repo on NI
 set platform_2=unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R412M-03B module
 set platform_3=unit tests under latest v4 Espressif SDK on ESP32 W-ROVER board with a SARA-R5 module
 set platform_4=unit tests on NRF52840 DK board with a SARA-R5 module
-set platform_5=Amazon-FreeRTOS SDK^, latest version^, on the ESP32 chipset ^(e.g. NINA-W1^)^, with a SARA-R4 module on a WHRE board
-set platform_6=v4 Espressif SDK on NINA-W1^, with a SARA-R4 module on a WHRE board talking to AWS
-set num_platforms=6
+set platform_5=unit tests on C208 board with a SARA-R5 module
+set platform_6=Amazon-FreeRTOS SDK^, latest version^, on the ESP32 chipset ^(e.g. NINA-W1^)^, with a SARA-R4 module on a WHRE board
+set platform_7=v4 Espressif SDK on NINA-W1^, with a SARA-R4 module on a WHRE board talking to AWS
+set num_platforms=7
 
 rem Process command line parameters
 set pos=0
@@ -287,6 +289,22 @@ rem Build platforms 1, 2 or 3: unit tests under v4 Espressif SDK on ESP32 chipse
 
 rem Build unit tests on NRF52840 DK board with a SARA-R5 module
 :build_platform_4
+    set CELLULAR_FLAGS="-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_UBLOX_TEST"
+    echo %~n0: flags set for NRF52840 DK board with SARA-R5 module.
+    set DEBUGGER=683253856
+    echo %~n0: debugger will be %DEBUGGER%.
+    goto build_platform_4_5
+
+rem Build unit tests on C208 board with a SARA-R5 module
+:build_platform_5
+    set CELLULAR_FLAGS="-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_PIN_PWR_ON=6 -DCELLULAR_CFG_PIN_VINT=7 -DCELLULAR_CFG_PIN_RXD=14 -DCELLULAR_CFG_PIN_TXD=15 -DCELLULAR_CFG_PIN_RTS=24 -DCELLULAR_CFG_PIN_CTS=16 -DCELLULAR_CFG_UBLOX_TEST -DCELLULAR_PORT_TEST_PIN_A=-1 -DCELLULAR_PORT_TEST_PIN_B=-1 -DCELLULAR_PORT_TEST_PIN_C=-1 -DCELLULAR_PORT_TEST_PIN_UART_TXD=-1 -DCELLULAR_PORT_TEST_PIN_UART_RXD=-1"
+    echo %~n0: flags set for C208 with SARA-R5 module.
+    set DEBUGGER=50102100
+    echo %~n0: debugger will be %DEBUGGER%.
+    goto build_platform_4_5
+
+rem Build unit tests on NRF52840 DK board with a SARA-R5 module
+:build_platform_4_5
     rem Check if make is on the path
     where /q make.exe
     if not !ERRORLEVEL! EQU 0 (
@@ -303,7 +321,7 @@ rem Build unit tests on NRF52840 DK board with a SARA-R5 module
     )
     rem Check for the nRF5 SDK
     if not exist %NRF5_PATH% (
-        echo %~n0: ERROR couldn^'t find the nRF5 SDK at %NRF5_PATH%^, please install the latest version from https://www.nordicsemi.com/Software-and-tools/Software/nRF5-SDK/Download#infotabs ^(no need to install anything^, no need for Soft Device^, just unzip the nRF5_blah zip file^) or change the variable NRF5_PATH in this batch file to reflect where it is.
+        echo %~n0: ERROR couldn^'t find the nRF5 SDK at %NRF5_PATH%^, please install the latest version from https://www.nordicsemi.com/Software-and-tools/Software/nRF5-SDK/Download#infotabs; no need to run an installer^, no need for Soft Device^, just unzip the nRF5_blah zip file to %NRF5_PATH% or change the variable NRF5_PATH in this batch file to reflect where it is.
         goto build_end
     )
     rem Check that the nRF5 command-line tools are on the path
@@ -365,14 +383,14 @@ rem Build unit tests on NRF52840 DK board with a SARA-R5 module
         type nul>nul
     )
     echo %~n0: starting JLink to talk to the target...
-    start "Jlink.exe" "JLink.exe" -Device NRF52840_XXAA -If SWD -Speed 4000 -Autoconnect 1
+    start "Jlink.exe" "JLink.exe" -Device NRF52840_XXAA -If SWD -Speed 4000 -Autoconnect 1 -SelectEmuBySN %DEBUGGER%
     if not !ERRORLEVEL! EQU 0 (
         echo %~n0: ERROR unable to start JLink.
         goto build_end
     )
     @echo on
     echo %~n0: building in "%CD%\build"
-    make NRF5_PATH=%NRF5_PATH% OUTPUT_DIRECTORY=build GNU_INSTALL_ROOT="%GNU_INSTALL_ROOT%" GNU_VERSION=%GNU_VERSION% GNU_PREFIX=%GNU_PREFIX% CFLAGS="-DCELLULAR_CFG_MODULE_SARA_R5 -DCELLULAR_CFG_UBLOX_TEST" flash
+    make NRF5_PATH=%NRF5_PATH% OUTPUT_DIRECTORY=build GNU_INSTALL_ROOT="%GNU_INSTALL_ROOT%" GNU_VERSION=%GNU_VERSION% GNU_PREFIX=%GNU_PREFIX% CFLAGS=%CELLULAR_FLAGS% JLINK_SERIAL_NUMBER=%DEBUGGER% flash
     @echo off
     echo %~n0: flags set to indicate SARA-R5.
     rem Back to where this batch file was called from to run the tests with the Python script there
@@ -396,7 +414,7 @@ rem Build unit tests on NRF52840 DK board with a SARA-R5 module
     goto build_end
 
 rem Build Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
-:build_platform_5
+:build_platform_6
     if not "%fetch%"=="" (
         if exist amazon-freertos (
             pushd amazon-freertos
@@ -431,7 +449,7 @@ rem Build Amazon-FreeRTOS SDK on ESP32 with a SARA-R4 module on a WHRE board
     goto build_end
 
 rem Build Espressif SDK v4 on ESP32 with a SARA-R4 module on a WHRE board talking to AWS
-:build_platform_6
+:build_platform_7
     echo %~n0: ERROR: not yet implemented.
     popd
     goto build_end

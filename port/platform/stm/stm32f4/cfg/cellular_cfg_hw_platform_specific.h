@@ -311,7 +311,7 @@
 /** The STM32F4 GPIO output pin that sends UART data to the cellular
  * module.
  * For the u-blox C030-R412M board this must be 0x09, AKA PA_9.
- * For the u-blox C030-U201 board this must be 0x39, AKA PD_5.
+ * For the u-blox C030-U201 board this must be 0x35, AKA PD_5.
  */
 # define CELLULAR_CFG_PIN_TXD               0x09 // AKA PA_9
 #endif
@@ -320,7 +320,7 @@
 /** The STM32F4 GPIO input pin that receives UART data from the cellular
  * module.
  * For the u-blox C030-R412M board this must be 0x0a, AKA PA_10.
- * For the u-blox C030-U201 board this must be 0x3a, AKA PD_6.
+ * For the u-blox C030-U201 board this must be 0x36, AKA PD_6.
  */
 # define CELLULAR_CFG_PIN_RXD               0x0a // AKA PA_10
 #endif

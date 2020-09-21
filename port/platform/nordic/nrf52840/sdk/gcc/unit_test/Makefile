@@ -3,13 +3,21 @@ TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := _build
 UNITY_PATH := ../../../../../../../../Unity
 NRF5_PATH := ../../../../../../../../nrf5
+JLINK_SERIAL_NUMBER := 
 
 $(info    OUTPUT_DIRECTORY will be "$(OUTPUT_DIRECTORY)")
 $(info    UNITY_PATH will be "$(UNITY_PATH)")
 $(info    NRF5_PATH will be "$(NRF5_PATH)")
+$(info    JLINK_SERIAL_NUMBER will be "$(JLINK_SERIAL_NUMBER)")
 ifneq ($(strip $(CFLAGS)),)
-$(info    CFLAGS will start with "$(CFLAGS)")
+$(info    CFLAGS will start with $(CFLAGS))
 endif
+ifneq ($(strip $(JLINK_SERIAL_NUMBER)),)
+JLINK_SERIAL_NUMBER_SWITCH := -s $(JLINK_SERIAL_NUMBER)
+endif
+$(info    GNU_INSTALL_ROOT will be "$(GNU_INSTALL_ROOT)")
+$(info    GNU_VERSION will be $(GNU_VERSION))
+$(info    GNU_PREFIX will be $(GNU_PREFIX))
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
   LINKER_SCRIPT  := uart_gcc_nrf52.ld
@@ -158,6 +166,7 @@ override CFLAGS += -DDEBUG_NRF
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
+
 # Assembler flags common to all targets
 ASMFLAGS += -g3
 ASMFLAGS += -mcpu=cortex-m4
@@ -181,15 +190,14 @@ LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
 LDFLAGS += --specs=nano.specs
 
-nrf52840_xxaa: CFLAGS += -D__HEAP_SIZE=8192
+nrf52840_xxaa: CFLAGS += -D__HEAP_SIZE=20480
 nrf52840_xxaa: CFLAGS += -D__STACK_SIZE=8192
-nrf52840_xxaa: ASMFLAGS += -D__HEAP_SIZE=8192
+nrf52840_xxaa: ASMFLAGS += -D__HEAP_SIZE=20480
 nrf52840_xxaa: ASMFLAGS += -D__STACK_SIZE=8192
 
 # Add standard libraries at the very end of the linker input, after all objects
 # that may need symbols provided by these libraries.
 LIB_FILES += -lc -lnosys -lm
-
 
 .PHONY: default help
 
@@ -213,8 +221,7 @@ $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
 # Flash the program
 flash: default
-	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex
-	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex --chiperase --verify -r
+	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52840_xxaa.hex --chiperase --verify -r $(JLINK_SERIAL_NUMBER_SWITCH)
 
 erase:
 	nrfjprog -f nrf52 --chiperase

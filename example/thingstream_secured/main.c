@@ -41,23 +41,13 @@
 # include "cellular_cfg_test.h"
 #endif
 
-// Only include this example if root of trust and
-// MQTT are both supported by the cellular module.
-#if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST && CELLULAR_MQTT_IS_SUPPORTED && \
-    (defined(MY_THINGSTREAM_CLIENT_ID) ||                                 \
-     defined(CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID))
-
-#ifndef CELLULAR_PORT_TEST_FUNCTION
-# error if you are not using the unit test framework to run this code you must ensure that the platform clocks/RTOS are set up and either define CELLULAR_PORT_TEST_FUNCTION yourself or replace it as necessary.
-#endif
-
 /* ----------------------------------------------------------------
  * COMPILE-TIME MACROS
  * -------------------------------------------------------------- */
 
 // Please replace the lines below with your Thingstream
 // Client ID, e.g. something like:
-// #define MY_THINGSTREAM_CLIENT_ID "device:521b5a33-2374-4547-8edc-50743cf45709"
+//#define MY_THINGSTREAM_CLIENT_ID "device:521b5a33-2374-4547-8edc-50743c144509"
 // The CELLULAR_CFG setting below is simply used during
 // internal u-blox testing of this example.
 #if !defined(MY_THINGSTREAM_CLIENT_ID) && defined(CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID)
@@ -66,7 +56,7 @@
 
 // Please replace the lines below with your Thingstream
 // user name, e.g. something like:
-// #define MY_THINGSTREAM_USERNAME "WF782XXWUQ10212JUU6P"
+//#define MY_THINGSTREAM_USERNAME "WF592TTWUQ18512KLU6L"
 // The CELLULAR_CFG setting below is simply used during
 // internal u-blox testing of this example.
 #if !defined(MY_THINGSTREAM_USERNAME) && defined(CELLULAR_CFG_TEST_THINGSTREAM_USERNAME)
@@ -75,7 +65,7 @@
 
 // Please replace the lines below with your Thingstream
 // password, e.g. something like:
-// #define MY_THINGSTREAM_PASSWORD "cef059L/PRVXntInvcBpQVXyz7peZ/xpt3X9tw01"
+//#define MY_THINGSTREAM_PASSWORD "nsd8hsK/NSDFdgdblfmbQVXbx7jeZ/8vnsiltgty"
 // The CELLULAR_CFG setting below is simply used during
 // internal u-blox testing of this example.
 #if !defined(MY_THINGSTREAM_PASSWORD) && defined(CELLULAR_CFG_TEST_THINGSTREAM_PASSWORD)
@@ -120,9 +110,25 @@
 
 // If your cellular subscription needs an APN, possibly
 // with an associated username or password, then set it here.
-#define MY_APN      NULL
-#define MY_USERNAME NULL
-#define MY_PASSWORD NULL
+#ifndef MY_APN
+# define MY_APN      NULL
+#endif
+#ifndef MY_USERNAME
+# define MY_USERNAME NULL
+#endif
+#ifndef MY_PASSWORD
+# define MY_PASSWORD NULL
+#endif
+
+// Only include this example if root of trust and
+// MQTT are both supported by the cellular module.
+#if CELLULAR_CTRL_SECURITY_ROOT_OF_TRUST && CELLULAR_MQTT_IS_SUPPORTED && \
+    (defined(MY_THINGSTREAM_CLIENT_ID) ||                                 \
+     defined(CELLULAR_CFG_TEST_THINGSTREAM_CLIENT_ID))
+
+#ifndef CELLULAR_PORT_TEST_FUNCTION
+# error if you are not using the unit test framework to run this code you must ensure that the platform clocks/RTOS are set up and either define CELLULAR_PORT_TEST_FUNCTION yourself or replace it as necessary.
+#endif
 
 // For u-blox internal testing only
 #ifdef CELLULAR_PORT_TEST_ASSERT
@@ -229,7 +235,7 @@ static int32_t connect()
 // been started and the RTOS is running; we are in task space.
 CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
                             "exampleThingstreamSecured",
-                            "mqtt")
+                            "example")
 {
     CellularPortQueueHandle_t uartQueueHandle;
     int32_t x;
