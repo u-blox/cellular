@@ -1,4 +1,4 @@
-#Introduction
+# Introduction
 These directories provide the implementation of the porting layer on the STM32F4 platform plus the associated build and board configuration information:
 
 - `cfg`: contains the file `cellular_cfg_hw_platform_specific.h` which provides default configuration for a u-blox C030-R412M board that includes a SARA-R412M cellular module.  Note that in order to retain the flexibility to use the same STM32F4 code with other u-blox cellular modules the module type is NOT specified in this configuration file, you must do that when you perform your build.  Also in here you will find the FreeRTOS configuration header file.
@@ -6,20 +6,20 @@ These directories provide the implementation of the porting layer on the STM32F4
 - `src`: contains the implementation of the porting layers for STM32F4.
 - `test`: contains the code that runs the unit tests for the cellular code on the STM32F4 platform.
 
-#Hardware Requirements
+# Hardware Requirements
 This code was developed to run on the u-blox C030-R412M board, which includes an STM32F437VG chip, a SARA-R412M cellular module and a separate ST debug chip.  However there is no reason why it would not work on any STM32F4 chip talking to another supported u-blox cellular module, see `cfg/cellular_cfg_module.h`.
 
 Note that the u-blox C030 board runs from an external 12 MHz crystal, hence the contents of `cellularPortPlatformStart()` reflect this and the value for `HSE_VALUE` of 12000000 in `stm32f4xx_hal_conf.h` reflects this; if your board is different you should amend these entries appropriately.
 
-#Chip Resource Requirements
+# Chip Resource Requirements
 SysTick is assumed to provide a 1 ms RTOS tick which is used as a source of time for `cellularPortGetTickTimeMs()`.  Note that this means that if you want to use FreeRTOS in tickless mode you will need to either find another source of tick for `cellularPortGetTickTimeMs()` or put in a call that updates `gTickTimerRtosCount` when FreeRTOS resumes after a tickless period.
 
 One UART is also required and, to go with it, a single channel of a single stream from of one of two DMA channels.  See `cellular_cfg_hw_platform_specific.h` in the `cfg` directory for which UARTs are available to this driver and which DMA resources are assigned to each UART.
 
-#Downloading To The Board
+# Downloading To The Board
 When the C030-R412M board is plugged into a USB port a mapped drive should appear, e.g. `D:`.  Builds are downloaded by copying your compiled `.bin` file to this drive.  Builds can also be downloaded using ST's (ST-Link utility)[https://www.st.com/en/development-tools/stsw-link004.html] and through the STM32Cube IDE.
 
-#Trace Output
+# Trace Output
 The trace output from this build is sent over SWD.  Instructions for how to view the trace output in the STM32Cube IDE can be found in the `cube` sub-directory below.
 
 Alternatively, if you just want to run the target without the debugger and simply view the SWO output, the (ST-Link utility)[https://www.st.com/en/development-tools/stsw-link004.html] utility includes a "Printf via SWO Viewer" option under its "ST-LINK" menu.  Set the core clock to 168 MHz, press "Start" and your debug printf()s will appear in that window.
