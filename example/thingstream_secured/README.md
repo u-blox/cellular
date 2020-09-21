@@ -14,7 +14,7 @@ This build requires a cellular module that supports u-blox security services, e.
 
 The default values for the MCU pins connecting your cellular module to your choice of MCU are defined in the file `port/platform/<vendor>/<chipset>/cfg/cellular_cfg_hw_platform_specific.h`.  You should check if these are correct for your chosen hardware and, if not, override the values of the #defines (where -1 means "not connected").
 
-To include the unit tests and examples in the build, add the #define `CELLULAR_CFG_UBLOX_TEST`.  To run ONLY this example (otherwise all of the unit test and all of the examples will be run) set the #define `CELLULAR_CFG_TEST_FILTER` to the value `exampleThingstreamSecured` (noting that NO quotation marks should be added around the value part).
+To include the unit tests and examples in the build, define `CELLULAR_CFG_UBLOX_TEST`.  To run ONLY this example (otherwise all of the unit test and all of the examples will be run) set the #define `CELLULAR_CFG_TEST_FILTER` to the value `exampleThingstreamSecured` (noting that NO quotation marks should be added around the value part).
 
 ## Specific To This Example
 The following values must be set correctly by opening and editing the values in `main.c`.
@@ -23,6 +23,6 @@ If your cellular operator requires a specific APN to be set, you should set the 
 
 You must have a "thing" in your Thingstream account with which this example can communicate.  Create one in your account and, under "Thing Details", look in the "credentials" tab and set the values of the following #defines in `main.c` (you will see example values in there commented out):
 
-`MY_THINGSTREAM_CLIENT_ID` - this will begin with "device:"; the value is the whole thing, i.e. including "device:" at the start.
-`MY_THINGSTREAM_USERNAME`  - this will be at least 20 characters long.
-`MY_THINGSTREAM_PASSWORD`  - this will be at least 40 characters long and may have `/` characters within it.
+- `MY_THINGSTREAM_CLIENT_ID` - this will begin with "device:"; the value is the whole thing, i.e. including "device:" at the start.
+- `MY_THINGSTREAM_USERNAME`  - this will be at least 20 characters long.
+- `MY_THINGSTREAM_PASSWORD`  - this will be at least 40 characters long and may have `/` characters within it.
