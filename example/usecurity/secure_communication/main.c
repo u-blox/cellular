@@ -233,8 +233,8 @@ static int32_t connect()
 
 // The entry point: before this is called the system clocks have
 // been started and the RTOS is running; we are in task space.
-CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
-                            "exampleThingstreamSecured",
+CELLULAR_PORT_TEST_FUNCTION(void cellularExampleUsecuritySecureCommunication(),
+                            "exampleUsecuritySecureCommunication",
                             "example")
 {
     CellularPortQueueHandle_t uartQueueHandle;
@@ -252,31 +252,31 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
                      CELLULAR_CFG_PIN_PWR_ON, CELLULAR_CFG_PIN_VINT,
                      false, CELLULAR_CFG_UART, uartQueueHandle);
 
-    cellularPortLog("EXAMPLE: powering on cellular module...\n");
+    cellularPortLog("EXAMPLE_USECURITY: powering on cellular module...\n");
     if (cellularCtrlPowerOn(NULL) == 0) {
 
         // Continue only if we have a security seal
-        cellularPortLog("EXAMPLE: checking security seal of "
+        cellularPortLog("EXAMPLE_USECURITY: checking security seal of "
                         " cellular module...\n");
         if (cellularCtrlGetSecuritySeal() == 0) {
 
             // Have our message encrypted by the cellular module
             // and returned to us in gMessageOut.
-            cellularPortLog("EXAMPLE: encrypting %d byte message \"%s\"...\n",
+            cellularPortLog("EXAMPLE_USECURITY: encrypting %d byte message \"%s\"...\n",
                            cellularPort_strlen(MY_MESSAGE), MY_MESSAGE);
             x = cellularSecurityEndToEndEncrypt(MY_MESSAGE, gMessageOut,
                                                 cellularPort_strlen(MY_MESSAGE));
-            cellularPortLog("EXAMPLE: got back %d byte(s) of encrypted"
+            cellularPortLog("EXAMPLE_USECURITY: got back %d byte(s) of encrypted"
                             " message: 0x", x);
             printHex(gMessageOut, x);
             cellularPortLog("\n");
 
             // Connect to the network
-            cellularPortLog("EXAMPLE: connecting to the cellular network...\n");
+            cellularPortLog("EXAMPLE_USECURITY: connecting to the cellular network...\n");
             if (connect() == 0) {
 
                 // Initialise MQTT
-                cellularPortLog("EXAMPLE: initialising with client ID"
+                cellularPortLog("EXAMPLE_USECURITY: initialising with client ID"
                                 " \"%s\"...\n", MY_THINGSTREAM_CLIENT_ID);
                 cellularMqttInit(THINGSTREAM_SERVER,
                                  MY_THINGSTREAM_CLIENT_ID,
@@ -285,19 +285,19 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
                                  NULL);
 
                 // Connect to the MQTT server
-                cellularPortLog("EXAMPLE: connecting to %s...\n",
+                cellularPortLog("EXAMPLE_USECURITY: connecting to %s...\n",
                                 THINGSTREAM_SERVER);
                 if (cellularMqttConnect() == 0) {
 
                     // Subscribe to our topic, just so that we can check that
                     // the message we are about to publish has indeed been published
-                    cellularPortLog("EXAMPLE: subscribing to topic \"%s\"...\n",
+                    cellularPortLog("EXAMPLE_USECURITY: subscribing to topic \"%s\"...\n",
                                     MY_TOPIC);
                     if (cellularMqttSubscribe(CELLULAR_MQTT_AT_MOST_ONCE,
                                               MY_TOPIC) == 0) {
 
                         // Publish our encrypted message to the topic
-                        cellularPortLog("EXAMPLE: publishing %d byte(s) to"
+                        cellularPortLog("EXAMPLE_USECURITY: publishing %d byte(s) to"
                                         " topic \"%s\"...\n", x, MY_TOPIC);
                         if (cellularMqttPublish(CELLULAR_MQTT_AT_MOST_ONCE,
                                                 false, MY_TOPIC,
@@ -305,7 +305,7 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
 
                             // Wait for an indication that a message has arrived
                             // back because of our subscription to the topic
-                            cellularPortLog("EXAMPLE: waiting up to 20 second(s)"
+                            cellularPortLog("EXAMPLE_USECURITY: waiting up to 20 second(s)"
                                             " for unread message indication...\n");
                             for (x = 0; (cellularMqttGetUnread() == 0) &&
                                         (x < 20); x++) {
@@ -314,38 +314,38 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
 
                             // Read the message
                             if (cellularMqttGetUnread() > 0) {
-                                cellularPortLog("EXAMPLE: message arrived in less"
+                                cellularPortLog("EXAMPLE_USECURITY: message arrived in less"
                                                 " than %d second(s).\n", x);
-                                cellularPortLog("EXAMPLE: reading message...\n");
+                                cellularPortLog("EXAMPLE_USECURITY: reading message...\n");
                                 x = CELLULAR_MQTT_READ_MESSAGE_MAX_LENGTH_BYTES;
                                 if (cellularMqttMessageRead(gTopic, sizeof(gTopic),
                                                             gMessageIn, &x,
                                                             NULL) == 0) {
-                                    cellularPortLog("EXAMPLE: message %d byte(s):"
+                                    cellularPortLog("EEXAMPLE_USECURITY: message %d byte(s):"
                                                     " 0x:", x);
                                     printHex(gMessageIn, x);
-                                    cellularPortLog("\nEXAMPLE: ...from topic"
+                                    cellularPortLog("\nEXAMPLE_USECURITY: ...from topic"
                                                     " \"%s\".\n", gTopic);
-                                    cellularPortLog("EXAMPLE: done.\n");
+                                    cellularPortLog("EXAMPLE_USECURITY: done.\n");
                                     success = true;
                                 } else {
-                                    cellularPortLog("EXAMPLE ERROR: unable to"
+                                    cellularPortLog("EXAMPLE_USECURITY ERROR: unable to"
                                                     " read message.\n");
                                 }
                             } else {
-                                cellularPortLog("EXAMPLE ERROR: no unread"
+                                cellularPortLog("EXAMPLE_USECURITY ERROR: no unread"
                                                 " message indication was"
                                                 " received, the message"
                                                 " may not have been"
                                                 " published.\n");
                             }
                         } else {
-                            cellularPortLog("EXAMPLE ERROR: unable to publish"
+                            cellularPortLog("EXAMPLE_USECURITY ERROR: unable to publish"
                                             " %d bytes(s) to topic \"%s\".\n",
                                             x, MY_TOPIC);
                         }
                     } else {
-                        cellularPortLog("EXAMPLE ERROR: unable to subscribe to"
+                        cellularPortLog("EXAMPLE_USECURITY ERROR: unable to subscribe to"
                                         " topic \"%s\".\n", MY_TOPIC);
                     }
 
@@ -354,9 +354,9 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
                     cellularMqttDisconnect();
 
                 } else {
-                    cellularPortLog("EXAMPLE ERROR: unable to connect to %s with"
-                                    " client ID \"%s\", please check that your"
-                                    " client ID, username and password are"
+                    cellularPortLog("EXAMPLE_USECURITY ERROR: unable to connect to"
+                                    " %s with client ID \"%s\", please check that"
+                                    " your client ID, username and password are"
                                     " correct.  The cellular module reported"
                                     " error %d which may help diagnose the"
                                     " problem, please look it up in the MQTT"
@@ -372,20 +372,20 @@ CELLULAR_PORT_TEST_FUNCTION(void cellularExampleThingstreamSecured(),
                 // Disconnect from the cellular network
                 cellularCtrlDisconnect();
             } else {
-                cellularPortLog("EXAMPLE ERROR: unable to connect to the cellular network.\n");
+                cellularPortLog("EXAMPLE_USECURITY ERROR: unable to connect to the cellular network.\n");
             }
         } else {
-            cellularPortLog("EXAMPLE: unable to run this example of end to"
+            cellularPortLog("EXAMPLE_USECURITY: unable to run this example of end to"
                             " end security as this cellular module is not"
                             " security sealed.\n");
             success = true;
         }
         cellularCtrlPowerOff(NULL);
     } else {
-        cellularPortLog("EXAMPLE ERROR: unable to power-up the cellular module.\n");
+        cellularPortLog("EXAMPLE_USECURITY ERROR: unable to power-up the cellular module.\n");
     }
 
-    cellularPortLog("EXAMPLE: finished.\n");
+    cellularPortLog("EXAMPLE_USECURITY: finished.\n");
 
     cellularCtrlDeinit();
     cellularPortUartDeinit(CELLULAR_CFG_UART);
