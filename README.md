@@ -1,4 +1,4 @@
-UPDATE: we have achieved agreement internally that this form of repo will be used across all u-blox products (GNSS, Wifi and BT as well as cellular), hence activity here will reduce and, by about the end of November, a new `ubxlib` repo will appear, of similar form but renamed in several ways to permit pan-u-blox use.  This repo will remain, please make use of it if you can.  This note will be updated when the `ubxlib` repo is made public.
+This repo is now superseded by https://github.com/u-blox/ubxlib.
 
 IMPORTANT: the APIs implemented here are still in the process of definition, anything may change, beware!  We aim to have them settled by the middle of 2020, COVID 19 permitting.
 
